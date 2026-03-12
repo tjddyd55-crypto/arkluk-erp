@@ -1,4 +1,4 @@
-# ARKLUK ERP MVP
+# ARKLUX ERP MVP
 
 국가 확장형 건축자재 B2B 유통 주문/견적 관리 1차 MVP 프로젝트입니다.
 

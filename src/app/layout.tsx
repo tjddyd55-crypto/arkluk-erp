@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ARKLUK ERP",
+  title: "ARKLUX ERP",
   description: "국가 확장형 건축자재 B2B 주문/견적 관리",
 };
 

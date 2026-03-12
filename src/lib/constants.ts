@@ -1,4 +1,4 @@
-export const AUTH_COOKIE_NAME = "arkluk_token";
+export const AUTH_COOKIE_NAME = "arklux_token";
 
 export const DECIMAL_SCALE_QTY = 3;
 export const DECIMAL_SCALE_PRICE = 2;

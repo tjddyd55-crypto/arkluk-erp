@@ -203,7 +203,7 @@ export async function sendQuote(quoteId: number, actorId: number) {
           related_id: quoteId,
           supplier_id: quote.supplier_id,
           to_email: quote.buyer.email,
-          subject: `[ARKLUK] 견적 발송 - ${quote.quote_no}`,
+          subject: `[ARKLUX] 견적 발송 - ${quote.quote_no}`,
           body_preview: "새 견적이 발송되었습니다.",
           status: "SUCCESS",
           sent_at: new Date(),

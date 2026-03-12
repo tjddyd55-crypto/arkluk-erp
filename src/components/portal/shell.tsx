@@ -58,7 +58,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-slate-100">
       <aside className="w-60 border-r border-slate-200 bg-white p-4">
-        <h1 className="text-lg font-bold">ARKLUK ERP</h1>
+        <h1 className="text-lg font-bold">ARKLUX ERP</h1>
         <nav className="mt-4 space-y-1">
           {menu.map((item) => (
             <Link

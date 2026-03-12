@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-100 p-10">
       <main className="mx-auto max-w-5xl rounded-lg bg-white p-10 shadow-sm">
-        <h1 className="text-3xl font-bold text-slate-900">ARKLUK ERP</h1>
+        <h1 className="text-3xl font-bold text-slate-900">ARKLUX ERP</h1>
         <p className="mt-2 text-slate-600">
           국가 확장형 건축자재 B2B 주문/견적 운영 시스템 MVP
         </p>

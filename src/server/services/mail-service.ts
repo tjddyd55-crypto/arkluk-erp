@@ -59,7 +59,7 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
   const { mocked, transporter } = createTransporter();
   try {
     await transporter.sendMail({
-      from: env.SMTP_FROM_EMAIL ?? "no-reply@arkluk.local",
+      from: env.SMTP_FROM_EMAIL ?? "no-reply@arklux.local",
       to: input.to,
       cc: input.cc ?? undefined,
       subject: input.subject,
