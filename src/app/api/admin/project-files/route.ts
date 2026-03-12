@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
+import { ProjectFileType } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
-import { prisma } from "@/lib/prisma";
+import { createProjectFileRecord, listProjectFilesForAdmin } from "@/server/services/project-service";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "ADMIN"] as const;
 
@@ -14,10 +15,7 @@ export async function GET(request: NextRequest) {
       throw new HttpError(400, "projectId가 필요합니다.");
     }
 
-    const files = await prisma.projectFile.findMany({
-      where: { project_id: projectId },
-      orderBy: [{ created_at: "desc" }],
-    });
+    const files = await listProjectFilesForAdmin(projectId);
     return ok(files);
   } catch (error) {
     return handleRouteError(error);
@@ -30,22 +28,41 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as {
       projectId?: number;
       fileName?: string;
+      originalName?: string;
+      fileSize?: number;
       fileType?: string;
       fileUrl?: string;
     };
 
-    if (!body.projectId || !body.fileName || !body.fileType || !body.fileUrl) {
-      throw new HttpError(400, "projectId/fileName/fileType/fileUrl이 필요합니다.");
+    if (
+      !body.projectId ||
+      !body.fileName ||
+      !body.fileType ||
+      !body.fileUrl ||
+      !body.originalName ||
+      !body.fileSize
+    ) {
+      throw new HttpError(
+        400,
+        "projectId/fileName/originalName/fileSize/fileType/fileUrl이 필요합니다.",
+      );
     }
 
-    const file = await prisma.projectFile.create({
-      data: {
-        project_id: body.projectId,
-        file_name: body.fileName,
-        file_type: body.fileType,
-        file_url: body.fileUrl,
-        uploaded_by: user.id,
-      },
+    const type = body.fileType.toUpperCase();
+    if (
+      !["PDF", "DWG", "ZIP", "PNG", "JPG", "JPEG"].includes(type)
+    ) {
+      throw new HttpError(400, "지원하지 않는 파일 타입입니다.");
+    }
+
+    const file = await createProjectFileRecord({
+      projectId: body.projectId,
+      fileName: body.fileName,
+      originalName: body.originalName,
+      fileSize: body.fileSize,
+      fileType: type as ProjectFileType,
+      fileUrl: body.fileUrl,
+      uploadedBy: user.id,
     });
     return ok(file, { status: 201 });
   } catch (error) {

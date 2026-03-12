@@ -22,6 +22,13 @@ IMAP_USER="tax@ourcompany.com"
 IMAP_PASSWORD="your-imap-password"
 IMAP_SECURE="true"
 TAX_INVOICE_INBOX_EMAIL="tax@ourcompany.com"
+SMTP_HOST="smtp.your-mail.com"
+SMTP_PORT="587"
+SMTP_USER="noreply@ourcompany.com"
+SMTP_PASSWORD="your-smtp-password"
+SMTP_SECURE="false"
+SMTP_FROM_EMAIL="noreply@ourcompany.com"
+OUR_COMPANY_NAME="우리 회사명"
 ```
 
 2) 의존성 설치
@@ -70,6 +77,7 @@ npm run invoice:cron
 - 바이어: `/api/buyer/*`
 - 공급사: `/api/supplier/*`
 - 세금계산서: `/api/admin/tax-invoices*`
+- 발주서: `/api/admin/purchase-orders*`
 
 ## 세금계산서 수집 정책
 
@@ -86,3 +94,11 @@ npm run invoice:cron
 
 - `projects`
 - `project_files`
+
+## 발주서(Purchase Order) 정책
+
+- 발주서는 공급사별로 생성되며 파일명은 `PO_{supplierId}_{orderNo}.pdf`
+- PDF 데이터는 `order_items` snapshot(`product_name/spec/unit/qty/memo`) 기준으로 작성
+- 발주 시점에 `storage/purchase-orders/`에 저장 후 이메일 첨부 발송
+- 발송 결과는 `email_logs`에 남고, 발주 파일 메타는 `purchase_orders`에 저장
+- SMTP 미설정 환경에서는 모의 발송(`jsonTransport`)으로 처리되어 개발 검증 가능

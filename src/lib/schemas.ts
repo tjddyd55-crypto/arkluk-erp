@@ -118,3 +118,72 @@ export const taxInvoiceLinkSchema = z.object({
   orderId: z.coerce.number().int().positive().optional(),
   orderNo: z.string().trim().min(1).optional(),
 });
+
+export const purchaseOrderTemplateUpsertSchema = z.object({
+  supplierId: z.coerce.number().int().positive().optional().nullable(),
+  templateName: z.string().trim().min(1).max(120),
+  titleKo: z.string().trim().min(1).max(120),
+  titleEn: z.string().trim().min(1).max(120),
+  buyerName: z.string().trim().max(120).optional().nullable(),
+  footerNote: z.string().trim().max(500).optional().nullable(),
+  isDefault: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const supplierOrderConfirmSchema = z.object({
+  expectedDeliveryDate: z.coerce.date().optional().nullable(),
+  supplierNote: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const supplierDeliveryUpdateSchema = z.object({
+  expectedDeliveryDate: z.coerce.date(),
+  supplierNote: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const orderSupplierCancelSchema = z.object({
+  reason: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const projectStatusSchema = z.enum([
+  "DRAFT",
+  "QUOTING",
+  "QUOTED",
+  "ORDERING",
+  "ACTIVE",
+  "COMPLETED",
+  "CANCELLED",
+]);
+
+export const projectUpsertSchema = z.object({
+  projectName: z.string().trim().min(1).max(150),
+  buyerId: positiveNumber,
+  countryId: positiveNumber,
+  memo: z.string().trim().max(2000).optional().nullable(),
+  location: z.string().trim().max(200).optional().nullable(),
+  startDate: z.coerce.date().optional().nullable(),
+  endDate: z.coerce.date().optional().nullable(),
+  status: projectStatusSchema.optional(),
+});
+
+export const projectPatchSchema = z.object({
+  projectName: z.string().trim().min(1).max(150).optional(),
+  buyerId: positiveNumber.optional(),
+  countryId: positiveNumber.optional(),
+  memo: z.string().trim().max(2000).optional().nullable(),
+  location: z.string().trim().max(200).optional().nullable(),
+  startDate: z.coerce.date().optional().nullable(),
+  endDate: z.coerce.date().optional().nullable(),
+  status: projectStatusSchema.optional(),
+});
+
+export const createProjectQuoteSchema = z.object({
+  memo: z.string().trim().max(1000).optional().nullable(),
+  items: z
+    .array(
+      z.object({
+        productId: positiveNumber,
+        qty: z.coerce.number().positive(),
+      }),
+    )
+    .min(1),
+});

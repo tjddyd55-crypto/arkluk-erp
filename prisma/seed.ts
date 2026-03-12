@@ -101,6 +101,81 @@ async function main() {
     }),
   ]);
 
+  const existingDefaultTemplate = await prisma.purchaseOrderTemplate.findFirst({
+    where: { is_default: true },
+    orderBy: { id: "asc" },
+  });
+  const defaultTemplate = existingDefaultTemplate
+    ? await prisma.purchaseOrderTemplate.update({
+        where: { id: existingDefaultTemplate.id },
+        data: {
+          template_name: "기본 발주 템플릿",
+          title_ko: "발주서",
+          title_en: "Purchase Order",
+          buyer_name: "우리 회사명",
+          footer_note: "본 발주서는 시스템에서 자동 생성되었습니다.",
+          is_default: true,
+          is_active: true,
+          supplier_id: null,
+        },
+      })
+    : await prisma.purchaseOrderTemplate.create({
+        data: {
+          template_name: "기본 발주 템플릿",
+          title_ko: "발주서",
+          title_en: "Purchase Order",
+          buyer_name: "우리 회사명",
+          footer_note: "본 발주서는 시스템에서 자동 생성되었습니다.",
+          is_default: true,
+          is_active: true,
+          supplier_id: null,
+        },
+      });
+
+  const existingSupplierATemplate = await prisma.purchaseOrderTemplate.findFirst({
+    where: {
+      supplier_id: supplierA.id,
+      template_name: "A회사 전용 발주 템플릿",
+    },
+    orderBy: { id: "asc" },
+  });
+  if (existingSupplierATemplate) {
+    await prisma.purchaseOrderTemplate.update({
+      where: { id: existingSupplierATemplate.id },
+      data: {
+        supplier_id: supplierA.id,
+        template_name: "A회사 전용 발주 템플릿",
+        title_ko: "A회사 전용 발주서",
+        title_en: "A Supplier Purchase Order",
+        buyer_name: "ARKLUK KOREA",
+        footer_note: "A회사 전용 발주 안내 문구",
+        is_default: false,
+        is_active: true,
+      },
+    });
+  } else {
+    await prisma.purchaseOrderTemplate.create({
+      data: {
+        supplier_id: supplierA.id,
+        template_name: "A회사 전용 발주 템플릿",
+        title_ko: "A회사 전용 발주서",
+        title_en: "A Supplier Purchase Order",
+        buyer_name: "ARKLUK KOREA",
+        footer_note: "A회사 전용 발주 안내 문구",
+        is_default: false,
+        is_active: true,
+      },
+    });
+  }
+
+  await prisma.purchaseOrderTemplate.updateMany({
+    where: {
+      id: { not: defaultTemplate.id },
+      is_default: true,
+    },
+    data: { is_default: false },
+  });
+
   const categories = await Promise.all([
     prisma.category.upsert({
       where: {
@@ -245,7 +320,7 @@ async function main() {
     },
   });
 
-  await prisma.user.upsert({
+  const superAdminUser = await prisma.user.upsert({
     where: { login_id: "admin01" },
     update: {
       name: "Admin One",
@@ -371,6 +446,78 @@ async function main() {
     },
   });
 
+  await prisma.orderSupplier.upsert({
+    where: {
+      order_id_supplier_id: {
+        order_id: sampleOrder.id,
+        supplier_id: supplierB.id,
+      },
+    },
+    update: {},
+    create: {
+      order_id: sampleOrder.id,
+      supplier_id: supplierB.id,
+      status: "WAITING",
+    },
+  });
+
+  await prisma.orderItem.deleteMany({
+    where: { order_id: sampleOrder.id },
+  });
+
+  await prisma.orderItem.createMany({
+    data: [
+      {
+        order_id: sampleOrder.id,
+        supplier_id: supplierA.id,
+        category_id: aPipe.id,
+        product_id: (
+          await prisma.product.findUniqueOrThrow({
+            where: {
+              supplier_id_product_code: {
+                supplier_id: supplierA.id,
+                product_code: "A-PIPE-50",
+              },
+            },
+            select: { id: true },
+          })
+        ).id,
+        product_code_snapshot: "A-PIPE-50",
+        product_name_snapshot: "PVC 배관 50mm",
+        spec_snapshot: "50mm",
+        unit_snapshot: "EA",
+        price_snapshot: 12000,
+        qty: 5,
+        amount: 60000,
+        memo: "시드 주문 A",
+      },
+      {
+        order_id: sampleOrder.id,
+        supplier_id: supplierB.id,
+        category_id: bSanitary.id,
+        product_id: (
+          await prisma.product.findUniqueOrThrow({
+            where: {
+              supplier_id_product_code: {
+                supplier_id: supplierB.id,
+                product_code: "B-SAN-BASIC",
+              },
+            },
+            select: { id: true },
+          })
+        ).id,
+        product_code_snapshot: "B-SAN-BASIC",
+        product_name_snapshot: "기본형 세면기",
+        spec_snapshot: "일반형",
+        unit_snapshot: "EA",
+        price_snapshot: 98000,
+        qty: 2,
+        amount: 196000,
+        memo: "시드 주문 B",
+      },
+    ],
+  });
+
   const inboxA = await prisma.emailInbox.upsert({
     where: { message_id: "seed-mail-a-001" },
     update: {
@@ -478,6 +625,66 @@ async function main() {
         file_type: "XML",
       },
     ],
+  });
+
+  const purchaseOrderStorageDir = path.join(process.cwd(), "storage", "purchase-orders");
+  await mkdir(purchaseOrderStorageDir, { recursive: true });
+  const purchaseOrderAFile = `PO_${supplierA.id}_${sampleOrder.order_no}.pdf`;
+  const purchaseOrderBFile = `PO_${supplierB.id}_${sampleOrder.order_no}.pdf`;
+
+  await writeFile(
+    path.join(purchaseOrderStorageDir, purchaseOrderAFile),
+    Buffer.from("%PDF-1.1\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<<>>\n%%EOF"),
+  );
+  await writeFile(
+    path.join(purchaseOrderStorageDir, purchaseOrderBFile),
+    Buffer.from("%PDF-1.1\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<<>>\n%%EOF"),
+  );
+
+  await prisma.purchaseOrder.upsert({
+    where: {
+      order_id_supplier_id: {
+        order_id: sampleOrder.id,
+        supplier_id: supplierA.id,
+      },
+    },
+    update: {
+      file_name: purchaseOrderAFile,
+      file_url: `storage/purchase-orders/${purchaseOrderAFile}`,
+      created_by: superAdminUser.id,
+      created_at: new Date("2026-03-12T11:00:00Z"),
+    },
+    create: {
+      order_id: sampleOrder.id,
+      supplier_id: supplierA.id,
+      file_name: purchaseOrderAFile,
+      file_url: `storage/purchase-orders/${purchaseOrderAFile}`,
+      created_by: superAdminUser.id,
+      created_at: new Date("2026-03-12T11:00:00Z"),
+    },
+  });
+
+  await prisma.purchaseOrder.upsert({
+    where: {
+      order_id_supplier_id: {
+        order_id: sampleOrder.id,
+        supplier_id: supplierB.id,
+      },
+    },
+    update: {
+      file_name: purchaseOrderBFile,
+      file_url: `storage/purchase-orders/${purchaseOrderBFile}`,
+      created_by: superAdminUser.id,
+      created_at: new Date("2026-03-12T11:03:00Z"),
+    },
+    create: {
+      order_id: sampleOrder.id,
+      supplier_id: supplierB.id,
+      file_name: purchaseOrderBFile,
+      file_url: `storage/purchase-orders/${purchaseOrderBFile}`,
+      created_by: superAdminUser.id,
+      created_at: new Date("2026-03-12T11:03:00Z"),
+    },
   });
 }
 

@@ -25,6 +25,10 @@ enum OrderStatus {
 enum OrderSupplierStatus {
   WAITING
   SENT
+  SUPPLIER_CONFIRMED
+  DELIVERING
+  COMPLETED
+  CANCELLED
 }
 
 enum QuoteCreatorRole {
@@ -62,9 +66,22 @@ enum InvoiceOrderLinkType {
 }
 
 enum ProjectStatus {
-  OPEN
-  CLOSED
-  ARCHIVED
+  DRAFT
+  QUOTING
+  QUOTED
+  ORDERING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectFileType {
+  PDF
+  DWG
+  ZIP
+  PNG
+  JPG
+  JPEG
 }
 
 model Country {
@@ -102,6 +119,8 @@ model Supplier {
   invoice_senders             SupplierInvoiceSender[]
   email_inboxes               EmailInbox[]
   tax_invoices                TaxInvoice[]
+  purchase_orders             PurchaseOrder[]
+  purchase_order_templates    PurchaseOrderTemplate[]
 }
 
 model SupplierInvoiceSender {
@@ -174,13 +193,15 @@ model User {
   supplier              Supplier?        @relation(fields: [supplier_id], references: [id])
   buyer_orders          Order[]          @relation("BuyerOrders")
   buyer_quotes          Quote[]          @relation("BuyerQuotes")
-  projects              Project[]
+  projects              Project[]         @relation("BuyerProjects")
+  created_projects      Project[]         @relation("ProjectCreatedBy")
   created_quotes        Quote[]          @relation("CreatorQuotes")
   order_change_logs     OrderChangeLog[] @relation("OrderChangeBy")
   sent_order_suppliers  OrderSupplier[]  @relation("OrderSentBy")
   checked_order_records OrderSupplier[]  @relation("SupplierCheckedBy")
   project_files         ProjectFile[]    @relation("ProjectFileUploadedBy")
   audit_logs            AuditLog[]       @relation("AuditActor")
+  created_purchase_orders PurchaseOrder[] @relation("PurchaseOrderCreatedBy")
 
   @@index([role, is_active])
   @@index([country_id])
@@ -192,31 +213,39 @@ model Project {
   project_name String
   buyer_id    Int
   country_id  Int
-  status      ProjectStatus @default(OPEN)
+  status      ProjectStatus @default(DRAFT)
   memo        String?
+  location    String?
+  start_date  DateTime?
+  end_date    DateTime?
+  created_by  Int
   created_at  DateTime      @default(now())
   updated_at  DateTime      @updatedAt
-  buyer       User          @relation(fields: [buyer_id], references: [id])
+  buyer       User          @relation("BuyerProjects", fields: [buyer_id], references: [id])
+  creator     User          @relation("ProjectCreatedBy", fields: [created_by], references: [id])
   country     Country       @relation(fields: [country_id], references: [id])
   orders      Order[]
   quotes      Quote[]
   files       ProjectFile[]
 
   @@index([buyer_id, country_id, status])
+  @@index([created_by, created_at])
 }
 
 model ProjectFile {
   id          Int      @id @default(autoincrement())
   project_id  Int
   file_name   String
-  file_type   String
+  original_name String
+  file_size   Int
+  file_type   ProjectFileType
   file_url    String
   uploaded_by Int
   created_at  DateTime @default(now())
   project     Project  @relation(fields: [project_id], references: [id])
   uploader    User     @relation("ProjectFileUploadedBy", fields: [uploaded_by], references: [id])
 
-  @@index([project_id])
+  @@index([project_id, created_at])
 }
 
 model Order {
@@ -236,8 +265,10 @@ model Order {
   suppliers     OrderSupplier[]
   change_logs   OrderChangeLog[]
   tax_invoices  TaxInvoice[]
+  purchase_orders PurchaseOrder[]
 
   @@index([buyer_id, country_id, status])
+  @@index([project_id])
 }
 
 model OrderItem {
@@ -277,6 +308,9 @@ model OrderSupplier {
   supplier_checked    Boolean             @default(false)
   supplier_checked_at DateTime?
   supplier_checked_by Int?
+  supplier_confirmed_at DateTime?
+  expected_delivery_date DateTime?
+  supplier_note      String?
   created_at          DateTime            @default(now())
   updated_at          DateTime            @updatedAt
   order               Order               @relation(fields: [order_id], references: [id])
@@ -309,6 +343,7 @@ model Quote {
   quote_items  QuoteItem[]
 
   @@index([buyer_id, country_id, status])
+  @@index([project_id])
 }
 
 model QuoteItem {
@@ -401,6 +436,40 @@ model InvoiceFile {
   invoice    TaxInvoice      @relation(fields: [invoice_id], references: [id])
 
   @@index([invoice_id, file_type])
+}
+
+model PurchaseOrder {
+  id         Int      @id @default(autoincrement())
+  order_id   Int
+  supplier_id Int
+  file_name  String
+  file_url   String
+  created_by Int
+  created_at DateTime @default(now())
+  order      Order    @relation(fields: [order_id], references: [id])
+  supplier   Supplier @relation(fields: [supplier_id], references: [id])
+  creator    User     @relation("PurchaseOrderCreatedBy", fields: [created_by], references: [id])
+
+  @@unique([order_id, supplier_id])
+  @@index([supplier_id, created_at])
+}
+
+model PurchaseOrderTemplate {
+  id            Int       @id @default(autoincrement())
+  supplier_id   Int?
+  template_name String
+  title_ko      String    @default("발주서")
+  title_en      String    @default("Purchase Order")
+  buyer_name    String?
+  footer_note   String?
+  is_default    Boolean   @default(false)
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  supplier      Supplier? @relation(fields: [supplier_id], references: [id])
+
+  @@index([supplier_id, is_active])
+  @@index([is_default, is_active])
 }
 
 model AuditLog {

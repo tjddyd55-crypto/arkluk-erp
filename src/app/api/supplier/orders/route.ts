@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
 
     const where: Prisma.OrderSupplierWhereInput = {
       supplier_id: user.supplierId,
+      portal_visible: true,
       ...(status ? { status: status as Prisma.EnumOrderSupplierStatusFilter["equals"] } : {}),
       order: {
         ...(orderNo ? { order_no: { contains: orderNo, mode: "insensitive" } } : {}),

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
+import { supplierOrderConfirmSchema } from "@/lib/schemas";
 import { supplierCheckOrder } from "@/server/services/order-service";
 
 export async function POST(
@@ -20,7 +21,16 @@ export async function POST(
       throw new HttpError(400, "유효하지 않은 주문 ID입니다.");
     }
 
-    await supplierCheckOrder(orderId, user.supplierId, user.id);
+    const body = await request.json().catch(() => ({}));
+    const parsed = supplierOrderConfirmSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new HttpError(400, "주문 확인 요청 형식이 올바르지 않습니다.");
+    }
+
+    await supplierCheckOrder(orderId, user.supplierId, user.id, {
+      expectedDeliveryDate: parsed.data.expectedDeliveryDate ?? null,
+      supplierNote: parsed.data.supplierNote ?? null,
+    });
     return ok({ orderId });
   } catch (error) {
     return handleRouteError(error);

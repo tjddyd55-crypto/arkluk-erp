@@ -46,6 +46,13 @@ export async function GET(
           },
           orderBy: [{ created_at: "desc" }],
         },
+        purchase_orders: {
+          include: {
+            supplier: true,
+            creator: true,
+          },
+          orderBy: [{ created_at: "desc" }],
+        },
       },
     });
     if (!order) {

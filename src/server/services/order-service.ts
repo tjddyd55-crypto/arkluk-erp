@@ -1,9 +1,15 @@
-import { OrderStatus, OrderSupplierStatus, Prisma, Role } from "@prisma/client";
+import { OrderStatus, OrderSupplierStatus, Prisma, ProjectStatus, Role } from "@prisma/client";
 
 import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { buildDocumentNo } from "@/lib/utils";
 import { createAuditLog } from "@/server/services/audit-log";
+import { sendMail } from "@/server/services/mail-service";
+import { setProjectStatus, syncProjectStatusByOrderSuppliers } from "@/server/services/project-service";
+import {
+  generatePurchaseOrderPDF,
+  upsertPurchaseOrderRecord,
+} from "@/server/services/purchase-order-service";
 
 type CreateOrderInput = {
   buyerId: number;
@@ -42,6 +48,36 @@ function calcAmount(price: Prisma.Decimal, qty: number) {
   return price.mul(new Prisma.Decimal(qty));
 }
 
+function isSupplierSectionLocked(status: OrderSupplierStatus) {
+  return (
+    status === OrderSupplierStatus.SENT ||
+    status === OrderSupplierStatus.SUPPLIER_CONFIRMED ||
+    status === OrderSupplierStatus.DELIVERING ||
+    status === OrderSupplierStatus.COMPLETED
+  );
+}
+
+function isSupplierSectionDispatched(status: OrderSupplierStatus) {
+  return (
+    status === OrderSupplierStatus.SENT ||
+    status === OrderSupplierStatus.SUPPLIER_CONFIRMED ||
+    status === OrderSupplierStatus.DELIVERING ||
+    status === OrderSupplierStatus.COMPLETED
+  );
+}
+
+function canCancelOrderSupplier(status: OrderSupplierStatus) {
+  return status === OrderSupplierStatus.SENT || status === OrderSupplierStatus.SUPPLIER_CONFIRMED;
+}
+
+function normalizeSupplierNote(note?: string | null) {
+  if (typeof note !== "string") {
+    return null;
+  }
+  const trimmed = note.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export async function createOrder(input: CreateOrderInput) {
   const buyer = await prisma.user.findUnique({
     where: { id: input.buyerId },
@@ -49,6 +85,28 @@ export async function createOrder(input: CreateOrderInput) {
 
   if (!buyer || !buyer.is_active || buyer.role !== Role.BUYER || !buyer.country_id) {
     throw new HttpError(400, "유효한 바이어 계정이 아닙니다.");
+  }
+
+  const project =
+    input.projectId !== undefined && input.projectId !== null
+      ? await prisma.project.findUnique({
+          where: { id: input.projectId },
+          select: { id: true, buyer_id: true, country_id: true, status: true },
+        })
+      : null;
+  if (input.projectId !== undefined && input.projectId !== null) {
+    if (!project) {
+      throw new HttpError(404, "프로젝트를 찾을 수 없습니다.");
+    }
+    if (project.buyer_id !== buyer.id || project.country_id !== buyer.country_id) {
+      throw new HttpError(400, "프로젝트의 바이어/국가와 주문 정보가 일치하지 않습니다.");
+    }
+    if (
+      project.status === ProjectStatus.CANCELLED ||
+      project.status === ProjectStatus.COMPLETED
+    ) {
+      throw new HttpError(400, "종료된 프로젝트에는 주문을 생성할 수 없습니다.");
+    }
   }
 
   const productIds = [...new Set(input.items.map((item) => item.productId))];
@@ -128,6 +186,23 @@ export async function createOrder(input: CreateOrderInput) {
       tx,
     );
 
+    if (
+      project &&
+      (project.status === ProjectStatus.DRAFT ||
+        project.status === ProjectStatus.QUOTING ||
+        project.status === ProjectStatus.QUOTED)
+    ) {
+      await setProjectStatus(
+        {
+          projectId: project.id,
+          nextStatus: ProjectStatus.ORDERING,
+          actorId: buyer.id,
+          reason: "프로젝트 주문 생성",
+        },
+        tx,
+      );
+    }
+
     return order;
   });
 }
@@ -141,7 +216,7 @@ function ensureEditableBySupplierStatus(
     throw new HttpError(400, "공급사 발송 상태를 확인할 수 없습니다.");
   }
 
-  if (supplierStatus.status === OrderSupplierStatus.SENT) {
+  if (isSupplierSectionLocked(supplierStatus.status)) {
     throw new HttpError(400, "이미 발송된 공급사 항목은 수정할 수 없습니다.");
   }
 }
@@ -293,7 +368,7 @@ export async function updateOrder(orderId: number, input: UpdateOrderInput) {
 
     for (const orderSupplier of existingSuppliers) {
       if (!latestSupplierIds.has(orderSupplier.supplier_id)) {
-        if (orderSupplier.status === OrderSupplierStatus.SENT) {
+        if (isSupplierSectionLocked(orderSupplier.status)) {
           throw new HttpError(400, "이미 발송된 공급사 섹션은 삭제할 수 없습니다.");
         }
         await tx.orderSupplier.delete({ where: { id: orderSupplier.id } });
@@ -349,7 +424,7 @@ async function syncOrderStatus(orderId: number, tx: Prisma.TransactionClient) {
     return;
   }
 
-  const sentCount = suppliers.filter((supplier) => supplier.status === OrderSupplierStatus.SENT).length;
+  const sentCount = suppliers.filter((supplier) => isSupplierSectionDispatched(supplier.status)).length;
   const nextStatus =
     sentCount === 0
       ? OrderStatus.REVIEWING
@@ -364,31 +439,122 @@ async function syncOrderStatus(orderId: number, tx: Prisma.TransactionClient) {
 }
 
 export async function sendOrderToSupplier(orderId: number, supplierId: number, actorId: number) {
-  return prisma.$transaction(async (tx) => {
-    const orderSupplier = await tx.orderSupplier.findUnique({
-      where: {
-        order_id_supplier_id: { order_id: orderId, supplier_id: supplierId },
-      },
-      include: { supplier: true },
-    });
+  const result = await sendPurchaseOrderToSingleSupplier(orderId, supplierId, actorId);
+  if (!result.success) {
+    throw new HttpError(500, result.errorMessage ?? "발주 메일 발송에 실패했습니다.");
+  }
+}
 
-    if (!orderSupplier) {
-      throw new HttpError(404, "발송 대상 공급사 주문을 찾을 수 없습니다.");
-    }
-    if (orderSupplier.status === OrderSupplierStatus.SENT) {
-      throw new HttpError(400, "이미 발송된 공급사입니다.");
-    }
+export async function sendOrderToAll(orderId: number, actorId: number) {
+  const waitingSuppliers = await prisma.orderSupplier.findMany({
+    where: {
+      order_id: orderId,
+      status: OrderSupplierStatus.WAITING,
+    },
+    select: { supplier_id: true },
+  });
+  if (waitingSuppliers.length === 0) {
+    throw new HttpError(400, "발주 가능한 공급사가 없습니다.");
+  }
 
-    await tx.orderSupplier.update({
-      where: { id: orderSupplier.id },
-      data: {
-        status: OrderSupplierStatus.SENT,
-        sent_at: new Date(),
-        sent_by: actorId,
-        email_sent: true,
-        portal_visible: true,
+  const failedSuppliers: Array<{ supplierId: number; message: string }> = [];
+  for (const supplier of waitingSuppliers) {
+    const result = await sendPurchaseOrderToSingleSupplier(
+      orderId,
+      supplier.supplier_id,
+      actorId,
+    );
+    if (!result.success) {
+      failedSuppliers.push({
+        supplierId: supplier.supplier_id,
+        message: result.errorMessage ?? "알 수 없는 오류",
+      });
+    }
+  }
+
+  if (failedSuppliers.length > 0) {
+    const errorText = failedSuppliers
+      .map((failed) => `${failed.supplierId}:${failed.message}`)
+      .join(", ");
+    throw new HttpError(500, `일부 공급사 발주 실패 - ${errorText}`);
+  }
+}
+
+async function sendPurchaseOrderToSingleSupplier(
+  orderId: number,
+  supplierId: number,
+  actorId: number,
+) {
+  const orderSupplier = await prisma.orderSupplier.findUnique({
+    where: {
+      order_id_supplier_id: { order_id: orderId, supplier_id: supplierId },
+    },
+    include: {
+      supplier: true,
+      order: {
+        select: {
+          id: true,
+          order_no: true,
+          project_id: true,
+        },
       },
-    });
+    },
+  });
+
+  if (!orderSupplier) {
+    throw new HttpError(404, "발송 대상 공급사 주문을 찾을 수 없습니다.");
+  }
+  if (
+    orderSupplier.status !== OrderSupplierStatus.WAITING &&
+    orderSupplier.status !== OrderSupplierStatus.CANCELLED
+  ) {
+    throw new HttpError(400, "이미 발송 처리된 공급사입니다.");
+  }
+
+  const purchaseOrderFile = await generatePurchaseOrderPDF(orderId, supplierId);
+  const subject = `[발주서] ${orderSupplier.order.order_no}`;
+  const body = "발주서를 확인해주시기 바랍니다.\n첨부된 발주서를 확인 후 회신 부탁드립니다.";
+
+  const mailResult = await sendMail({
+    to: orderSupplier.supplier.order_email,
+    cc: orderSupplier.supplier.cc_email,
+    subject,
+    text: body,
+    attachments: [
+      {
+        filename: purchaseOrderFile.fileName,
+        path: purchaseOrderFile.filePath,
+        contentType: "application/pdf",
+      },
+    ],
+  });
+
+  const txResult = await prisma.$transaction(async (tx) => {
+    const purchaseOrder = await upsertPurchaseOrderRecord(
+      {
+        orderId,
+        supplierId,
+        fileName: purchaseOrderFile.fileName,
+        fileUrl: purchaseOrderFile.fileUrl,
+        createdBy: actorId,
+      },
+      tx,
+    );
+
+    await createAuditLog(
+      {
+        actorId,
+        actionType: "GENERATE_PURCHASE_ORDER",
+        targetType: "PURCHASE_ORDER",
+        targetId: purchaseOrder.id,
+        afterData: {
+          orderId,
+          supplierId,
+          fileName: purchaseOrder.file_name,
+        },
+      },
+      tx,
+    );
 
     await tx.emailLog.create({
       data: {
@@ -397,100 +563,117 @@ export async function sendOrderToSupplier(orderId: number, supplierId: number, a
         supplier_id: supplierId,
         to_email: orderSupplier.supplier.order_email,
         cc_email: orderSupplier.supplier.cc_email,
-        subject: `[ARKLUK] 주문 발송 - ${orderId}`,
-        body_preview: "관리자 검토 완료 주문이 발송되었습니다.",
-        status: "SUCCESS",
-        sent_at: new Date(),
+        subject,
+        body_preview: body,
+        status: mailResult.success ? "SUCCESS" : "FAILED",
+        error_message: mailResult.errorMessage,
+        sent_at: mailResult.success ? new Date() : null,
       },
     });
 
-    await syncOrderStatus(orderId, tx);
-    await createAuditLog(
-      {
-        actorId,
-        actionType: "SEND_SUPPLIER_ORDER",
-        targetType: "ORDER",
-        targetId: orderId,
-        afterData: { supplierId },
-      },
-      tx,
-    );
-  });
-}
-
-export async function sendOrderToAll(orderId: number, actorId: number) {
-  return prisma.$transaction(async (tx) => {
-    const waitingSuppliers = await tx.orderSupplier.findMany({
-      where: {
-        order_id: orderId,
-        status: OrderSupplierStatus.WAITING,
-      },
-      include: { supplier: true },
-    });
-
-    if (waitingSuppliers.length === 0) {
-      throw new HttpError(400, "발송 가능한 공급사가 없습니다.");
-    }
-
-    for (const supplier of waitingSuppliers) {
+    if (mailResult.success) {
       await tx.orderSupplier.update({
-        where: { id: supplier.id },
+        where: { id: orderSupplier.id },
         data: {
           status: OrderSupplierStatus.SENT,
           sent_at: new Date(),
           sent_by: actorId,
           email_sent: true,
           portal_visible: true,
+          supplier_checked: false,
+          supplier_checked_at: null,
+          supplier_checked_by: null,
+          supplier_confirmed_at: null,
+          expected_delivery_date: null,
+          supplier_note: null,
         },
       });
-      await tx.emailLog.create({
-        data: {
-          related_type: "ORDER",
-          related_id: orderId,
-          supplier_id: supplier.supplier_id,
-          to_email: supplier.supplier.order_email,
-          cc_email: supplier.supplier.cc_email,
-          subject: `[ARKLUK] 주문 일괄 발송 - ${orderId}`,
-          body_preview: "관리자 일괄 발송으로 주문이 전달되었습니다.",
-          status: "SUCCESS",
-          sent_at: new Date(),
+
+      await createAuditLog(
+        {
+          actorId,
+          actionType: "SEND_PURCHASE_ORDER",
+          targetType: "ORDER",
+          targetId: orderId,
+          afterData: { supplierId, purchaseOrderId: purchaseOrder.id },
         },
-      });
+        tx,
+      );
     }
 
     await syncOrderStatus(orderId, tx);
-    await createAuditLog(
-      {
-        actorId,
-        actionType: "SEND_SUPPLIER_ORDER_ALL",
-        targetType: "ORDER",
-        targetId: orderId,
-      },
-      tx,
-    );
+    if (orderSupplier.order.project_id) {
+      await syncProjectStatusByOrderSuppliers(
+        {
+          projectId: orderSupplier.order.project_id,
+          actorId,
+        },
+        tx,
+      );
+    }
+
+    return {
+      success: mailResult.success,
+      errorMessage: mailResult.errorMessage,
+      purchaseOrderId: purchaseOrder.id,
+    };
   });
+
+  return txResult;
 }
 
-export async function supplierCheckOrder(orderId: number, supplierId: number, actorId: number) {
+export async function supplierCheckOrder(
+  orderId: number,
+  supplierId: number,
+  actorId: number,
+  input?: {
+    expectedDeliveryDate?: Date | null;
+    supplierNote?: string | null;
+  },
+) {
   const orderSupplier = await prisma.orderSupplier.findUnique({
     where: { order_id_supplier_id: { order_id: orderId, supplier_id: supplierId } },
+    include: {
+      order: {
+        select: {
+          project_id: true,
+        },
+      },
+    },
   });
 
   if (!orderSupplier) {
     throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
   }
 
-  if (orderSupplier.status !== OrderSupplierStatus.SENT) {
+  if (orderSupplier.status === OrderSupplierStatus.WAITING) {
     throw new HttpError(400, "아직 발송되지 않은 주문입니다.");
   }
+  if (orderSupplier.status === OrderSupplierStatus.CANCELLED) {
+    throw new HttpError(400, "취소된 주문입니다.");
+  }
+  if (
+    orderSupplier.status === OrderSupplierStatus.SUPPLIER_CONFIRMED ||
+    orderSupplier.status === OrderSupplierStatus.DELIVERING ||
+    orderSupplier.status === OrderSupplierStatus.COMPLETED
+  ) {
+    throw new HttpError(400, "이미 주문 확인 처리되었습니다.");
+  }
+
+  const expectedDeliveryDate = input?.expectedDeliveryDate ?? null;
+  const supplierNote = normalizeSupplierNote(input?.supplierNote);
 
   await prisma.$transaction(async (tx) => {
     await tx.orderSupplier.update({
       where: { id: orderSupplier.id },
       data: {
+        status: OrderSupplierStatus.SUPPLIER_CONFIRMED,
         supplier_checked: true,
         supplier_checked_at: new Date(),
         supplier_checked_by: actorId,
+        supplier_confirmed_at: new Date(),
+        expected_delivery_date: expectedDeliveryDate,
+        supplier_note: supplierNote,
       },
     });
 
@@ -500,9 +683,224 @@ export async function supplierCheckOrder(orderId: number, supplierId: number, ac
         actionType: "SUPPLIER_CONFIRM_ORDER",
         targetType: "ORDER",
         targetId: orderId,
-        afterData: { supplierId },
+        afterData: {
+          supplierId,
+          expectedDeliveryDate: expectedDeliveryDate?.toISOString() ?? null,
+          supplierNote,
+        },
       },
       tx,
     );
+
+    if (orderSupplier.order.project_id) {
+      await syncProjectStatusByOrderSuppliers(
+        {
+          projectId: orderSupplier.order.project_id,
+          actorId,
+        },
+        tx,
+      );
+    }
+  });
+}
+
+export async function supplierSetDeliveryDate(
+  orderId: number,
+  supplierId: number,
+  actorId: number,
+  input: {
+    expectedDeliveryDate: Date;
+    supplierNote?: string | null;
+  },
+) {
+  const orderSupplier = await prisma.orderSupplier.findUnique({
+    where: { order_id_supplier_id: { order_id: orderId, supplier_id: supplierId } },
+    include: {
+      order: {
+        select: {
+          project_id: true,
+        },
+      },
+    },
+  });
+
+  if (!orderSupplier) {
+    throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
+  }
+  if (orderSupplier.status === OrderSupplierStatus.WAITING) {
+    throw new HttpError(400, "아직 발송되지 않은 주문입니다.");
+  }
+  if (orderSupplier.status === OrderSupplierStatus.CANCELLED) {
+    throw new HttpError(400, "취소된 주문입니다.");
+  }
+  if (orderSupplier.status === OrderSupplierStatus.COMPLETED) {
+    throw new HttpError(400, "완료된 발주의 납기는 수정할 수 없습니다.");
+  }
+  if (!orderSupplier.supplier_confirmed_at) {
+    throw new HttpError(400, "먼저 공급사 발주 확인을 진행해 주세요.");
+  }
+
+  const supplierNote = normalizeSupplierNote(input.supplierNote);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.orderSupplier.update({
+      where: { id: orderSupplier.id },
+      data: {
+        status: OrderSupplierStatus.DELIVERING,
+        expected_delivery_date: input.expectedDeliveryDate,
+        supplier_note: supplierNote,
+      },
+    });
+
+    await createAuditLog(
+      {
+        actorId,
+        actionType: "SUPPLIER_SET_DELIVERY_DATE",
+        targetType: "ORDER",
+        targetId: orderId,
+        afterData: {
+          supplierId,
+          expectedDeliveryDate: input.expectedDeliveryDate.toISOString(),
+          supplierNote,
+        },
+      },
+      tx,
+    );
+
+    if (orderSupplier.order.project_id) {
+      await syncProjectStatusByOrderSuppliers(
+        {
+          projectId: orderSupplier.order.project_id,
+          actorId,
+        },
+        tx,
+      );
+    }
+  });
+}
+
+export async function supplierCancelOrder(
+  orderId: number,
+  supplierId: number,
+  actorId: number,
+  input?: { reason?: string | null },
+) {
+  const orderSupplier = await prisma.orderSupplier.findUnique({
+    where: { order_id_supplier_id: { order_id: orderId, supplier_id: supplierId } },
+    include: {
+      order: {
+        select: {
+          project_id: true,
+        },
+      },
+    },
+  });
+
+  if (!orderSupplier || !orderSupplier.portal_visible) {
+    throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
+  }
+  if (!canCancelOrderSupplier(orderSupplier.status)) {
+    if (orderSupplier.status === OrderSupplierStatus.COMPLETED) {
+      throw new HttpError(400, "완료된 발주는 취소할 수 없습니다.");
+    }
+    throw new HttpError(400, "취소 가능한 상태가 아닙니다.");
+  }
+
+  const reason = normalizeSupplierNote(input?.reason);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.orderSupplier.update({
+      where: { id: orderSupplier.id },
+      data: {
+        status: OrderSupplierStatus.CANCELLED,
+        expected_delivery_date: null,
+        supplier_note: reason,
+      },
+    });
+
+    await createAuditLog(
+      {
+        actorId,
+        actionType: "SUPPLIER_CANCEL_ORDER",
+        targetType: "ORDER",
+        targetId: orderId,
+        afterData: { supplierId, reason },
+      },
+      tx,
+    );
+
+    await syncOrderStatus(orderId, tx);
+    if (orderSupplier.order.project_id) {
+      await syncProjectStatusByOrderSuppliers(
+        {
+          projectId: orderSupplier.order.project_id,
+          actorId,
+        },
+        tx,
+      );
+    }
+  });
+}
+
+export async function adminCancelSupplierOrder(
+  orderId: number,
+  supplierId: number,
+  actorId: number,
+  input?: { reason?: string | null },
+) {
+  const orderSupplier = await prisma.orderSupplier.findUnique({
+    where: { order_id_supplier_id: { order_id: orderId, supplier_id: supplierId } },
+    include: {
+      order: {
+        select: {
+          project_id: true,
+        },
+      },
+    },
+  });
+
+  if (!orderSupplier) {
+    throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
+  }
+  if (!canCancelOrderSupplier(orderSupplier.status)) {
+    if (orderSupplier.status === OrderSupplierStatus.COMPLETED) {
+      throw new HttpError(400, "완료된 발주는 취소할 수 없습니다.");
+    }
+    throw new HttpError(400, "취소 가능한 상태가 아닙니다.");
+  }
+
+  const reason = normalizeSupplierNote(input?.reason);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.orderSupplier.update({
+      where: { id: orderSupplier.id },
+      data: {
+        status: OrderSupplierStatus.CANCELLED,
+        expected_delivery_date: null,
+        supplier_note: reason,
+      },
+    });
+
+    await createAuditLog(
+      {
+        actorId,
+        actionType: "ADMIN_CANCEL_ORDER",
+        targetType: "ORDER",
+        targetId: orderId,
+        afterData: { supplierId, reason },
+      },
+      tx,
+    );
+
+    await syncOrderStatus(orderId, tx);
+    if (orderSupplier.order.project_id) {
+      await syncProjectStatusByOrderSuppliers(
+        {
+          projectId: orderSupplier.order.project_id,
+          actorId,
+        },
+        tx,
+      );
+    }
   });
 }

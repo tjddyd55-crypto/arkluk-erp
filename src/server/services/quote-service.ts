@@ -1,9 +1,10 @@
-import { Prisma, QuoteCreatorRole, QuoteStatus, Role } from "@prisma/client";
+import { Prisma, ProjectStatus, QuoteCreatorRole, QuoteStatus, Role } from "@prisma/client";
 
 import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { buildDocumentNo } from "@/lib/utils";
 import { createAuditLog } from "@/server/services/audit-log";
+import { setProjectStatus } from "@/server/services/project-service";
 
 type QuoteActor = {
   id: number;
@@ -36,6 +37,28 @@ export async function createQuote(actor: QuoteActor, input: CreateQuoteInput) {
 
   if (buyer.country_id !== input.countryId) {
     throw new HttpError(400, "바이어 국가와 견적 국가가 일치하지 않습니다.");
+  }
+
+  const project =
+    input.projectId !== undefined && input.projectId !== null
+      ? await prisma.project.findUnique({
+          where: { id: input.projectId },
+          select: { id: true, buyer_id: true, country_id: true, status: true },
+        })
+      : null;
+  if (input.projectId !== undefined && input.projectId !== null) {
+    if (!project) {
+      throw new HttpError(404, "프로젝트를 찾을 수 없습니다.");
+    }
+    if (project.buyer_id !== input.buyerId || project.country_id !== input.countryId) {
+      throw new HttpError(400, "프로젝트의 바이어/국가와 견적 정보가 일치하지 않습니다.");
+    }
+    if (
+      project.status === ProjectStatus.CANCELLED ||
+      project.status === ProjectStatus.COMPLETED
+    ) {
+      throw new HttpError(400, "종료된 프로젝트에는 견적을 생성할 수 없습니다.");
+    }
   }
 
   const productIds = [...new Set(input.items.map((item) => item.productId))];
@@ -115,6 +138,34 @@ export async function createQuote(actor: QuoteActor, input: CreateQuoteInput) {
       tx,
     );
 
+    if (project) {
+      await createAuditLog(
+        {
+          actorId: actor.id,
+          actionType: "CREATE_PROJECT_QUOTE",
+          targetType: "PROJECT",
+          targetId: project.id,
+          afterData: {
+            quoteId: quote.id,
+            quoteNo: quote.quote_no,
+          },
+        },
+        tx,
+      );
+
+      if (project.status === ProjectStatus.DRAFT) {
+        await setProjectStatus(
+          {
+            projectId: project.id,
+            nextStatus: ProjectStatus.QUOTING,
+            actorId: actor.id,
+            reason: "프로젝트 견적 작성 시작",
+          },
+          tx,
+        );
+      }
+    }
+
     return quote;
   });
 }
@@ -125,6 +176,12 @@ export async function sendQuote(quoteId: number, actorId: number) {
       where: { id: quoteId },
       include: {
         buyer: true,
+        project: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
       },
     });
     if (!quote) {
@@ -165,6 +222,35 @@ export async function sendQuote(quoteId: number, actorId: number) {
       },
       tx,
     );
+
+    if (quote.project_id) {
+      await createAuditLog(
+        {
+          actorId,
+          actionType: "SEND_PROJECT_QUOTE",
+          targetType: "PROJECT",
+          targetId: quote.project_id,
+          afterData: { quoteId, quoteNo: quote.quote_no },
+        },
+        tx,
+      );
+
+      if (
+        quote.project &&
+        (quote.project.status === ProjectStatus.DRAFT ||
+          quote.project.status === ProjectStatus.QUOTING)
+      ) {
+        await setProjectStatus(
+          {
+            projectId: quote.project_id,
+            nextStatus: ProjectStatus.QUOTED,
+            actorId,
+            reason: "프로젝트 견적 발송 완료",
+          },
+          tx,
+        );
+      }
+    }
   });
 }
 
@@ -183,7 +269,10 @@ export async function markQuoteViewed(quoteId: number, buyerId: number) {
 
 export async function rejectQuote(quoteId: number, buyerId: number) {
   return prisma.$transaction(async (tx) => {
-    const quote = await tx.quote.findUnique({ where: { id: quoteId } });
+    const quote = await tx.quote.findUnique({
+      where: { id: quoteId },
+      select: { id: true, buyer_id: true, status: true, project_id: true, quote_no: true },
+    });
     if (!quote || quote.buyer_id !== buyerId) {
       throw new HttpError(404, "견적을 찾을 수 없습니다.");
     }
@@ -204,6 +293,22 @@ export async function rejectQuote(quoteId: number, buyerId: number) {
       },
       tx,
     );
+
+    if (quote.project_id) {
+      await createAuditLog(
+        {
+          actorId: buyerId,
+          actionType: "REJECT_PROJECT_QUOTE",
+          targetType: "PROJECT",
+          targetId: quote.project_id,
+          afterData: {
+            quoteId,
+            quoteNo: quote.quote_no,
+          },
+        },
+        tx,
+      );
+    }
   });
 }
 
@@ -214,6 +319,12 @@ export async function acceptQuote(quoteId: number, buyerId: number) {
       include: {
         quote_items: true,
         buyer: true,
+        project: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
       },
     });
     if (!quote || quote.buyer_id !== buyerId) {
@@ -224,6 +335,13 @@ export async function acceptQuote(quoteId: number, buyerId: number) {
     }
     if (quote.status === QuoteStatus.REJECTED) {
       throw new HttpError(400, "거절된 견적은 승인할 수 없습니다.");
+    }
+    if (
+      quote.project &&
+      (quote.project.status === ProjectStatus.CANCELLED ||
+        quote.project.status === ProjectStatus.COMPLETED)
+    ) {
+      throw new HttpError(400, "종료된 프로젝트의 견적은 승인할 수 없습니다.");
     }
 
     const order = await tx.order.create({
@@ -280,6 +398,41 @@ export async function acceptQuote(quoteId: number, buyerId: number) {
       },
       tx,
     );
+
+    if (quote.project_id) {
+      await createAuditLog(
+        {
+          actorId: buyerId,
+          actionType: "ACCEPT_PROJECT_QUOTE",
+          targetType: "PROJECT",
+          targetId: quote.project_id,
+          afterData: {
+            quoteId,
+            quoteNo: quote.quote_no,
+            orderId: order.id,
+            orderNo: order.order_no,
+          },
+        },
+        tx,
+      );
+
+      if (
+        quote.project &&
+        (quote.project.status === ProjectStatus.DRAFT ||
+          quote.project.status === ProjectStatus.QUOTING ||
+          quote.project.status === ProjectStatus.QUOTED)
+      ) {
+        await setProjectStatus(
+          {
+            projectId: quote.project_id,
+            nextStatus: ProjectStatus.ORDERING,
+            actorId: buyerId,
+            reason: "프로젝트 견적 승인으로 주문 생성",
+          },
+          tx,
+        );
+      }
+    }
 
     return order;
   });

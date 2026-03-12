@@ -16,14 +16,17 @@ const adminMenu: MenuItem[] = [
   { href: "/admin/suppliers", label: "공급사 관리" },
   { href: "/admin/categories", label: "카테고리 관리" },
   { href: "/admin/products", label: "상품 관리" },
+  { href: "/admin/projects", label: "프로젝트 관리" },
   { href: "/admin/orders", label: "주문 관리" },
   { href: "/admin/quotes", label: "견적 관리" },
+  { href: "/admin/purchase-order-templates", label: "발주 템플릿" },
   { href: "/admin/tax-invoices", label: "세금계산서" },
   { href: "/admin/logs", label: "로그 관리" },
 ];
 
 const buyerMenu: MenuItem[] = [
   { href: "/buyer", label: "주문 작성" },
+  { href: "/buyer/projects", label: "내 프로젝트" },
   { href: "/buyer/orders", label: "내 주문" },
   { href: "/buyer/quotes", label: "받은 견적" },
 ];

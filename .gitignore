@@ -44,3 +44,7 @@ next-env.d.ts
 
 /storage/invoices/*
 !/storage/invoices/.gitkeep
+/storage/purchase-orders/*
+!/storage/purchase-orders/.gitkeep
+/storage/project-files/*
+!/storage/project-files/.gitkeep
