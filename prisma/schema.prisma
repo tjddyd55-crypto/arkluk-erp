@@ -1,0 +1,435 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  BUYER
+  SUPPLIER
+}
+
+enum OrderStatus {
+  PENDING
+  REVIEWING
+  PARTIAL_SENT
+  SENT
+  CANCELLED
+}
+
+enum OrderSupplierStatus {
+  WAITING
+  SENT
+}
+
+enum QuoteCreatorRole {
+  ADMIN
+  SUPPLIER
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+}
+
+enum EmailRelatedType {
+  ORDER
+  QUOTE
+}
+
+enum EmailStatus {
+  SUCCESS
+  FAILED
+  PENDING
+}
+
+enum InvoiceFileType {
+  PDF
+  XML
+}
+
+enum InvoiceOrderLinkType {
+  AUTO
+  MANUAL
+}
+
+enum ProjectStatus {
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+model Country {
+  id           Int       @id @default(autoincrement())
+  country_code String    @unique
+  country_name String
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  users        User[]
+  orders       Order[]
+  quotes       Quote[]
+  projects     Project[]
+}
+
+model Supplier {
+  id                          Int             @id @default(autoincrement())
+  supplier_code               String?         @unique
+  supplier_name               String
+  order_email                 String
+  cc_email                    String?
+  invoice_sender_email        String?
+  is_active                   Boolean         @default(true)
+  allow_supplier_product_edit Boolean         @default(false)
+  created_at                  DateTime        @default(now())
+  updated_at                  DateTime        @updatedAt
+  users                       User[]
+  categories                  Category[]
+  products                    Product[]
+  order_items                 OrderItem[]
+  order_suppliers             OrderSupplier[]
+  quote_items                 QuoteItem[]
+  quotes                      Quote[]
+  email_logs                  EmailLog[]
+  invoice_senders             SupplierInvoiceSender[]
+  email_inboxes               EmailInbox[]
+  tax_invoices                TaxInvoice[]
+}
+
+model SupplierInvoiceSender {
+  id          Int      @id @default(autoincrement())
+  supplier_id Int
+  sender_email String
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  supplier    Supplier @relation(fields: [supplier_id], references: [id])
+
+  @@unique([sender_email])
+  @@index([supplier_id, is_active])
+}
+
+model Category {
+  id            Int        @id @default(autoincrement())
+  supplier_id   Int
+  category_name String
+  sort_order    Int        @default(0)
+  is_active     Boolean    @default(true)
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+  supplier      Supplier   @relation(fields: [supplier_id], references: [id])
+  products      Product[]
+  order_items   OrderItem[]
+  quote_items   QuoteItem[]
+
+  @@unique([supplier_id, category_name])
+  @@index([supplier_id, is_active])
+}
+
+model Product {
+  id                Int        @id @default(autoincrement())
+  supplier_id       Int
+  category_id       Int
+  product_code      String
+  product_name      String
+  product_image_url String?
+  spec              String
+  unit              String
+  price             Decimal    @db.Decimal(18, 2)
+  memo              String?
+  is_active         Boolean    @default(true)
+  sort_order        Int        @default(0)
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+  supplier          Supplier   @relation(fields: [supplier_id], references: [id])
+  category          Category   @relation(fields: [category_id], references: [id])
+  order_items       OrderItem[]
+  quote_items       QuoteItem[]
+
+  @@unique([supplier_id, product_code])
+  @@index([supplier_id, category_id, is_active])
+  @@index([product_name])
+}
+
+model User {
+  id                    Int              @id @default(autoincrement())
+  login_id              String           @unique
+  password_hash         String
+  name                  String
+  email                 String?
+  role                  Role
+  country_id            Int?
+  supplier_id           Int?
+  is_active             Boolean          @default(true)
+  created_at            DateTime         @default(now())
+  updated_at            DateTime         @updatedAt
+  country               Country?         @relation(fields: [country_id], references: [id])
+  supplier              Supplier?        @relation(fields: [supplier_id], references: [id])
+  buyer_orders          Order[]          @relation("BuyerOrders")
+  buyer_quotes          Quote[]          @relation("BuyerQuotes")
+  projects              Project[]
+  created_quotes        Quote[]          @relation("CreatorQuotes")
+  order_change_logs     OrderChangeLog[] @relation("OrderChangeBy")
+  sent_order_suppliers  OrderSupplier[]  @relation("OrderSentBy")
+  checked_order_records OrderSupplier[]  @relation("SupplierCheckedBy")
+  project_files         ProjectFile[]    @relation("ProjectFileUploadedBy")
+  audit_logs            AuditLog[]       @relation("AuditActor")
+
+  @@index([role, is_active])
+  @@index([country_id])
+  @@index([supplier_id])
+}
+
+model Project {
+  id          Int           @id @default(autoincrement())
+  project_name String
+  buyer_id    Int
+  country_id  Int
+  status      ProjectStatus @default(OPEN)
+  memo        String?
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+  buyer       User          @relation(fields: [buyer_id], references: [id])
+  country     Country       @relation(fields: [country_id], references: [id])
+  orders      Order[]
+  quotes      Quote[]
+  files       ProjectFile[]
+
+  @@index([buyer_id, country_id, status])
+}
+
+model ProjectFile {
+  id          Int      @id @default(autoincrement())
+  project_id  Int
+  file_name   String
+  file_type   String
+  file_url    String
+  uploaded_by Int
+  created_at  DateTime @default(now())
+  project     Project  @relation(fields: [project_id], references: [id])
+  uploader    User     @relation("ProjectFileUploadedBy", fields: [uploaded_by], references: [id])
+
+  @@index([project_id])
+}
+
+model Order {
+  id            Int              @id @default(autoincrement())
+  order_no      String           @unique
+  buyer_id      Int
+  country_id    Int
+  project_id    Int?
+  status        OrderStatus      @default(PENDING)
+  memo          String?
+  created_at    DateTime         @default(now())
+  updated_at    DateTime         @updatedAt
+  buyer         User             @relation("BuyerOrders", fields: [buyer_id], references: [id])
+  country       Country          @relation(fields: [country_id], references: [id])
+  project       Project?         @relation(fields: [project_id], references: [id])
+  order_items   OrderItem[]
+  suppliers     OrderSupplier[]
+  change_logs   OrderChangeLog[]
+  tax_invoices  TaxInvoice[]
+
+  @@index([buyer_id, country_id, status])
+}
+
+model OrderItem {
+  id                    Int      @id @default(autoincrement())
+  order_id              Int
+  supplier_id           Int
+  category_id           Int?
+  product_id            Int
+  product_code_snapshot String
+  product_name_snapshot String
+  spec_snapshot         String
+  unit_snapshot         String
+  price_snapshot        Decimal  @db.Decimal(18, 2)
+  qty                   Decimal  @db.Decimal(18, 3)
+  amount                Decimal  @db.Decimal(18, 2)
+  memo                  String?
+  created_at            DateTime @default(now())
+  order                 Order    @relation(fields: [order_id], references: [id])
+  supplier              Supplier @relation(fields: [supplier_id], references: [id])
+  category              Category? @relation(fields: [category_id], references: [id])
+  product               Product  @relation(fields: [product_id], references: [id])
+  change_logs           OrderChangeLog[]
+
+  @@index([order_id, supplier_id])
+  @@index([product_id])
+}
+
+model OrderSupplier {
+  id                  Int                 @id @default(autoincrement())
+  order_id            Int
+  supplier_id         Int
+  status              OrderSupplierStatus @default(WAITING)
+  sent_at             DateTime?
+  sent_by             Int?
+  email_sent          Boolean             @default(false)
+  portal_visible      Boolean             @default(false)
+  supplier_checked    Boolean             @default(false)
+  supplier_checked_at DateTime?
+  supplier_checked_by Int?
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @updatedAt
+  order               Order               @relation(fields: [order_id], references: [id])
+  supplier            Supplier            @relation(fields: [supplier_id], references: [id])
+  sender              User?               @relation("OrderSentBy", fields: [sent_by], references: [id])
+  checker             User?               @relation("SupplierCheckedBy", fields: [supplier_checked_by], references: [id])
+
+  @@unique([order_id, supplier_id])
+  @@index([status])
+}
+
+model Quote {
+  id           Int            @id @default(autoincrement())
+  quote_no     String         @unique
+  buyer_id     Int
+  country_id   Int
+  project_id   Int?
+  created_by   Int
+  creator_role QuoteCreatorRole
+  supplier_id  Int?
+  status       QuoteStatus    @default(DRAFT)
+  memo         String?
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+  buyer        User           @relation("BuyerQuotes", fields: [buyer_id], references: [id])
+  country      Country        @relation(fields: [country_id], references: [id])
+  project      Project?       @relation(fields: [project_id], references: [id])
+  creator      User           @relation("CreatorQuotes", fields: [created_by], references: [id])
+  supplier     Supplier?      @relation(fields: [supplier_id], references: [id])
+  quote_items  QuoteItem[]
+
+  @@index([buyer_id, country_id, status])
+}
+
+model QuoteItem {
+  id                    Int      @id @default(autoincrement())
+  quote_id              Int
+  supplier_id           Int
+  category_id           Int?
+  product_id            Int
+  product_code_snapshot String
+  product_name_snapshot String
+  spec_snapshot         String
+  unit_snapshot         String
+  price_snapshot        Decimal  @db.Decimal(18, 2)
+  qty                   Decimal  @db.Decimal(18, 3)
+  amount                Decimal  @db.Decimal(18, 2)
+  created_at            DateTime @default(now())
+  quote                 Quote    @relation(fields: [quote_id], references: [id])
+  supplier              Supplier @relation(fields: [supplier_id], references: [id])
+  category              Category? @relation(fields: [category_id], references: [id])
+  product               Product  @relation(fields: [product_id], references: [id])
+
+  @@index([quote_id, supplier_id])
+}
+
+model EmailLog {
+  id            Int              @id @default(autoincrement())
+  related_type  EmailRelatedType
+  related_id    Int
+  supplier_id   Int?
+  to_email      String
+  cc_email      String?
+  subject       String
+  body_preview  String?
+  status        EmailStatus      @default(PENDING)
+  error_message String?
+  sent_at       DateTime?
+  created_at    DateTime         @default(now())
+  supplier      Supplier?        @relation(fields: [supplier_id], references: [id])
+
+  @@index([related_type, related_id])
+}
+
+model EmailInbox {
+  id               Int         @id @default(autoincrement())
+  message_id       String?     @unique
+  from_email       String
+  to_email         String
+  subject          String
+  body             String?
+  supplier_id      Int?
+  received_at      DateTime
+  attachment_count Int         @default(0)
+  processed        Boolean     @default(false)
+  created_at       DateTime    @default(now())
+  supplier         Supplier?   @relation(fields: [supplier_id], references: [id])
+  tax_invoice      TaxInvoice?
+
+  @@index([from_email, received_at])
+  @@index([supplier_id, received_at])
+}
+
+model TaxInvoice {
+  id             Int          @id @default(autoincrement())
+  supplier_id    Int?
+  order_id       Int?
+  order_link_type InvoiceOrderLinkType?
+  invoice_number String?
+  email_inbox_id Int          @unique
+  issue_date     DateTime?
+  amount         Decimal?     @db.Decimal(18, 2)
+  vat            Decimal?     @db.Decimal(18, 2)
+  total          Decimal?     @db.Decimal(18, 2)
+  created_at     DateTime     @default(now())
+  supplier       Supplier?    @relation(fields: [supplier_id], references: [id])
+  order          Order?       @relation(fields: [order_id], references: [id])
+  email_inbox    EmailInbox   @relation(fields: [email_inbox_id], references: [id])
+  files          InvoiceFile[]
+
+  @@index([supplier_id, created_at])
+  @@index([order_id])
+}
+
+model InvoiceFile {
+  id         Int             @id @default(autoincrement())
+  invoice_id Int
+  file_name  String
+  file_url   String
+  file_type  InvoiceFileType
+  created_at DateTime        @default(now())
+  invoice    TaxInvoice      @relation(fields: [invoice_id], references: [id])
+
+  @@index([invoice_id, file_type])
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  actor_id    Int
+  action_type String
+  target_type String
+  target_id   Int
+  before_data Json?
+  after_data  Json?
+  created_at  DateTime @default(now())
+  actor       User     @relation("AuditActor", fields: [actor_id], references: [id])
+
+  @@index([target_type, target_id])
+  @@index([actor_id, created_at])
+}
+
+model OrderChangeLog {
+  id            Int       @id @default(autoincrement())
+  order_id      Int
+  order_item_id Int?
+  action_type   String
+  before_data   Json?
+  after_data    Json?
+  changed_by    Int
+  created_at    DateTime  @default(now())
+  order         Order     @relation(fields: [order_id], references: [id])
+  order_item    OrderItem? @relation(fields: [order_item_id], references: [id])
+  changed_user  User      @relation("OrderChangeBy", fields: [changed_by], references: [id])
+
+  @@index([order_id, created_at])
+}

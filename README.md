@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ARKLUK ERP MVP
 
-## Getting Started
+국가 확장형 건축자재 B2B 유통 주문/견적 관리 1차 MVP 프로젝트입니다.
 
-First, run the development server:
+## 아키텍처 요약
+
+- 프레임워크: Next.js(App Router) + TypeScript
+- 데이터 계층: Prisma + PostgreSQL
+- 인증: JWT(HttpOnly Cookie) + Role 기반 API 접근 통제
+- 도메인: 국가/공급사/카테고리/상품/주문/견적/로그/프로젝트(2차 구조)
+
+## 실행 방법
+
+1) 환경 변수 설정 (`.env`)
+
+```env
+DATABASE_URL="postgresql://..."
+JWT_SECRET="32자 이상 비밀키"
+IMAP_HOST="imap.your-mail.com"
+IMAP_PORT="993"
+IMAP_USER="tax@ourcompany.com"
+IMAP_PASSWORD="your-imap-password"
+IMAP_SECURE="true"
+TAX_INVOICE_INBOX_EMAIL="tax@ourcompany.com"
+```
+
+2) 의존성 설치
+
+```bash
+npm install
+```
+
+3) Prisma 스키마 반영
+
+```bash
+npm run prisma:generate
+npm run prisma:migrate
+```
+
+4) 시드 데이터 생성
+
+```bash
+npm run prisma:seed
+```
+
+5) 개발 서버 실행
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+6) 세금계산서 메일 동기화(선택)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run invoice:cron
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 기본 계정 (seed 기준)
 
-## Learn More
+- SUPER_ADMIN: `superadmin` / `ChangeMe123!`
+- ADMIN: `admin01` / `ChangeMe123!`
+- BUYER: `buyer.mn.01` / `ChangeMe123!`
+- SUPPLIER A: `supplier.a.01` / `ChangeMe123!`
+- SUPPLIER B: `supplier.b.01` / `ChangeMe123!`
 
-To learn more about Next.js, take a look at the following resources:
+## 주요 API 그룹
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- 인증: `/api/auth/*`
+- 관리자: `/api/admin/*`
+- 바이어: `/api/buyer/*`
+- 공급사: `/api/supplier/*`
+- 세금계산서: `/api/admin/tax-invoices*`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 세금계산서 수집 정책
 
-## Deploy on Vercel
+- 발신 메일 분류는 `supplier_invoice_senders` 테이블(다중 발신 메일) 기준으로 수행
+- 미등록 발신 메일은 버리지 않고 `supplier_id = null`로 저장되어 미분류함에서 수동 분류 가능
+- 첨부가 없어도 `email_inbox`와 `tax_invoices`는 생성되며 UI에서 `첨부 없음`으로 표시
+- 주문번호 자동 연결은 `ORDER_NO_REGEX` 상수(`src/lib/constants.ts`)로 관리
+- 중복 정책:
+  - 1차: `message_id` 고유값 기반 스킵
+  - 2차: 발신자/제목/수신시각(2분 윈도우)/첨부 개수 기반 근접 중복 스킵
+  - 한계: 완전히 다른 제목/시간으로 재전송된 동일 메일은 중복으로 인식하지 못할 수 있음
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 2차 대비 구조(스키마만 반영)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `projects`
+- `project_files`

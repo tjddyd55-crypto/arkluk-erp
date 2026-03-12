@@ -1,0 +1,492 @@
+import { PrismaClient, Role } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
+
+const prisma = new PrismaClient();
+
+async function main() {
+  const passwordHash = await bcrypt.hash("ChangeMe123!", 12);
+
+  const countries = await Promise.all([
+    prisma.country.upsert({
+      where: { country_code: "MN" },
+      update: { country_name: "Mongolia", is_active: true },
+      create: { country_code: "MN", country_name: "Mongolia", is_active: true },
+    }),
+    prisma.country.upsert({
+      where: { country_code: "KZ" },
+      update: { country_name: "Kazakhstan", is_active: true },
+      create: { country_code: "KZ", country_name: "Kazakhstan", is_active: true },
+    }),
+    prisma.country.upsert({
+      where: { country_code: "SA" },
+      update: { country_name: "Saudi Arabia", is_active: true },
+      create: { country_code: "SA", country_name: "Saudi Arabia", is_active: true },
+    }),
+  ]);
+
+  const supplierA = await prisma.supplier.upsert({
+    where: { supplier_code: "SUP-A" },
+    update: {
+      supplier_name: "A 건축자재",
+      order_email: "supplier-a@example.com",
+      invoice_sender_email: "invoice@acompany.com",
+      is_active: true,
+    },
+    create: {
+      supplier_code: "SUP-A",
+      supplier_name: "A 건축자재",
+      order_email: "supplier-a@example.com",
+      cc_email: "supplier-a-cc@example.com",
+      invoice_sender_email: "invoice@acompany.com",
+      is_active: true,
+    },
+  });
+
+  const supplierB = await prisma.supplier.upsert({
+    where: { supplier_code: "SUP-B" },
+    update: {
+      supplier_name: "B 건축자재",
+      order_email: "supplier-b@example.com",
+      invoice_sender_email: "tax@bcompany.com",
+      is_active: true,
+    },
+    create: {
+      supplier_code: "SUP-B",
+      supplier_name: "B 건축자재",
+      order_email: "supplier-b@example.com",
+      cc_email: "supplier-b-cc@example.com",
+      invoice_sender_email: "tax@bcompany.com",
+      is_active: true,
+    },
+  });
+
+  await Promise.all([
+    prisma.supplierInvoiceSender.upsert({
+      where: { sender_email: "invoice@acompany.com" },
+      update: {
+        supplier_id: supplierA.id,
+        is_active: true,
+      },
+      create: {
+        supplier_id: supplierA.id,
+        sender_email: "invoice@acompany.com",
+        is_active: true,
+      },
+    }),
+    prisma.supplierInvoiceSender.upsert({
+      where: { sender_email: "tax@acompany.com" },
+      update: {
+        supplier_id: supplierA.id,
+        is_active: true,
+      },
+      create: {
+        supplier_id: supplierA.id,
+        sender_email: "tax@acompany.com",
+        is_active: true,
+      },
+    }),
+    prisma.supplierInvoiceSender.upsert({
+      where: { sender_email: "tax@bcompany.com" },
+      update: {
+        supplier_id: supplierB.id,
+        is_active: true,
+      },
+      create: {
+        supplier_id: supplierB.id,
+        sender_email: "tax@bcompany.com",
+        is_active: true,
+      },
+    }),
+  ]);
+
+  const categories = await Promise.all([
+    prisma.category.upsert({
+      where: {
+        supplier_id_category_name: {
+          supplier_id: supplierA.id,
+          category_name: "배관",
+        },
+      },
+      update: { sort_order: 1, is_active: true },
+      create: {
+        supplier_id: supplierA.id,
+        category_name: "배관",
+        sort_order: 1,
+        is_active: true,
+      },
+    }),
+    prisma.category.upsert({
+      where: {
+        supplier_id_category_name: {
+          supplier_id: supplierA.id,
+          category_name: "타일",
+        },
+      },
+      update: { sort_order: 2, is_active: true },
+      create: {
+        supplier_id: supplierA.id,
+        category_name: "타일",
+        sort_order: 2,
+        is_active: true,
+      },
+    }),
+    prisma.category.upsert({
+      where: {
+        supplier_id_category_name: {
+          supplier_id: supplierB.id,
+          category_name: "위생도기",
+        },
+      },
+      update: { sort_order: 1, is_active: true },
+      create: {
+        supplier_id: supplierB.id,
+        category_name: "위생도기",
+        sort_order: 1,
+        is_active: true,
+      },
+    }),
+  ]);
+
+  const [aPipe, aTile, bSanitary] = categories;
+
+  await Promise.all([
+    prisma.product.upsert({
+      where: {
+        supplier_id_product_code: {
+          supplier_id: supplierA.id,
+          product_code: "A-PIPE-50",
+        },
+      },
+      update: {
+        category_id: aPipe.id,
+        product_name: "PVC 배관 50mm",
+        spec: "50mm",
+        unit: "EA",
+        price: 12000,
+      },
+      create: {
+        supplier_id: supplierA.id,
+        category_id: aPipe.id,
+        product_code: "A-PIPE-50",
+        product_name: "PVC 배관 50mm",
+        spec: "50mm",
+        unit: "EA",
+        price: 12000,
+      },
+    }),
+    prisma.product.upsert({
+      where: {
+        supplier_id_product_code: {
+          supplier_id: supplierA.id,
+          product_code: "A-TILE-WHT",
+        },
+      },
+      update: {
+        category_id: aTile.id,
+        product_name: "세라믹 타일 화이트",
+        spec: "300x300",
+        unit: "BOX",
+        price: 45000,
+      },
+      create: {
+        supplier_id: supplierA.id,
+        category_id: aTile.id,
+        product_code: "A-TILE-WHT",
+        product_name: "세라믹 타일 화이트",
+        spec: "300x300",
+        unit: "BOX",
+        price: 45000,
+      },
+    }),
+    prisma.product.upsert({
+      where: {
+        supplier_id_product_code: {
+          supplier_id: supplierB.id,
+          product_code: "B-SAN-BASIC",
+        },
+      },
+      update: {
+        category_id: bSanitary.id,
+        product_name: "기본형 세면기",
+        spec: "일반형",
+        unit: "EA",
+        price: 98000,
+      },
+      create: {
+        supplier_id: supplierB.id,
+        category_id: bSanitary.id,
+        product_code: "B-SAN-BASIC",
+        product_name: "기본형 세면기",
+        spec: "일반형",
+        unit: "EA",
+        price: 98000,
+      },
+    }),
+  ]);
+
+  const mnCountry = countries[0];
+
+  const buyerUser = await prisma.user.upsert({
+    where: { login_id: "superadmin" },
+    update: {
+      name: "Super Admin",
+      role: Role.SUPER_ADMIN,
+      password_hash: passwordHash,
+      is_active: true,
+    },
+    create: {
+      login_id: "superadmin",
+      password_hash: passwordHash,
+      name: "Super Admin",
+      role: Role.SUPER_ADMIN,
+      is_active: true,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { login_id: "admin01" },
+    update: {
+      name: "Admin One",
+      role: Role.ADMIN,
+      password_hash: passwordHash,
+      is_active: true,
+    },
+    create: {
+      login_id: "admin01",
+      password_hash: passwordHash,
+      name: "Admin One",
+      role: Role.ADMIN,
+      is_active: true,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { login_id: "buyer.mn.01" },
+    update: {
+      name: "Buyer Mongolia 01",
+      role: Role.BUYER,
+      country_id: mnCountry.id,
+      password_hash: passwordHash,
+      is_active: true,
+    },
+    create: {
+      login_id: "buyer.mn.01",
+      password_hash: passwordHash,
+      name: "Buyer Mongolia 01",
+      role: Role.BUYER,
+      country_id: mnCountry.id,
+      email: "buyer-mn-01@example.com",
+      is_active: true,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { login_id: "supplier.a.01" },
+    update: {
+      name: "Supplier A",
+      role: Role.SUPPLIER,
+      supplier_id: supplierA.id,
+      password_hash: passwordHash,
+      is_active: true,
+    },
+    create: {
+      login_id: "supplier.a.01",
+      password_hash: passwordHash,
+      name: "Supplier A",
+      role: Role.SUPPLIER,
+      supplier_id: supplierA.id,
+      email: "supplier-a-user@example.com",
+      is_active: true,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { login_id: "supplier.b.01" },
+    update: {
+      name: "Supplier B",
+      role: Role.SUPPLIER,
+      supplier_id: supplierB.id,
+      password_hash: passwordHash,
+      is_active: true,
+    },
+    create: {
+      login_id: "supplier.b.01",
+      password_hash: passwordHash,
+      name: "Supplier B",
+      role: Role.SUPPLIER,
+      supplier_id: supplierB.id,
+      email: "supplier-b-user@example.com",
+      is_active: true,
+    },
+  });
+
+  const invoiceStorageDir = path.join(process.cwd(), "storage", "invoices");
+  await mkdir(invoiceStorageDir, { recursive: true });
+
+  const samplePdfFile = "seed_1001_invoice-a.pdf";
+  const sampleXmlFile = "seed_1002_invoice-b.xml";
+
+  await writeFile(
+    path.join(invoiceStorageDir, samplePdfFile),
+    Buffer.from("%PDF-1.1\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<<>>\n%%EOF"),
+  );
+  await writeFile(
+    path.join(invoiceStorageDir, sampleXmlFile),
+    Buffer.from(
+      `<?xml version="1.0" encoding="UTF-8"?><invoice><orderNo>ORD-20260312-001</orderNo></invoice>`,
+    ),
+  );
+
+  const sampleOrder = await prisma.order.upsert({
+    where: { order_no: "ORD-20260312-001" },
+    update: {
+      buyer_id: buyerUser.id,
+      country_id: mnCountry.id,
+      status: "REVIEWING",
+      memo: "세금계산서 시드 주문",
+    },
+    create: {
+      order_no: "ORD-20260312-001",
+      buyer_id: buyerUser.id,
+      country_id: mnCountry.id,
+      status: "REVIEWING",
+      memo: "세금계산서 시드 주문",
+    },
+  });
+
+  await prisma.orderSupplier.upsert({
+    where: {
+      order_id_supplier_id: {
+        order_id: sampleOrder.id,
+        supplier_id: supplierA.id,
+      },
+    },
+    update: {},
+    create: {
+      order_id: sampleOrder.id,
+      supplier_id: supplierA.id,
+      status: "WAITING",
+    },
+  });
+
+  const inboxA = await prisma.emailInbox.upsert({
+    where: { message_id: "seed-mail-a-001" },
+    update: {
+      from_email: "invoice@acompany.com",
+      to_email: "tax@ourcompany.com",
+      subject: "세금계산서 ORD-20260312-001",
+      body: "A회사 세금계산서 메일",
+      supplier_id: supplierA.id,
+      received_at: new Date("2026-03-12T10:00:00Z"),
+      attachment_count: 1,
+      processed: true,
+    },
+    create: {
+      message_id: "seed-mail-a-001",
+      from_email: "invoice@acompany.com",
+      to_email: "tax@ourcompany.com",
+      subject: "세금계산서 ORD-20260312-001",
+      body: "A회사 세금계산서 메일",
+      supplier_id: supplierA.id,
+      received_at: new Date("2026-03-12T10:00:00Z"),
+      attachment_count: 1,
+      processed: true,
+    },
+  });
+
+  const inboxB = await prisma.emailInbox.upsert({
+    where: { message_id: "seed-mail-b-001" },
+    update: {
+      from_email: "tax@bcompany.com",
+      to_email: "tax@ourcompany.com",
+      subject: "세금계산서 샘플",
+      body: "B회사 세금계산서 메일",
+      supplier_id: supplierB.id,
+      received_at: new Date("2026-03-12T10:05:00Z"),
+      attachment_count: 1,
+      processed: true,
+    },
+    create: {
+      message_id: "seed-mail-b-001",
+      from_email: "tax@bcompany.com",
+      to_email: "tax@ourcompany.com",
+      subject: "세금계산서 샘플",
+      body: "B회사 세금계산서 메일",
+      supplier_id: supplierB.id,
+      received_at: new Date("2026-03-12T10:05:00Z"),
+      attachment_count: 1,
+      processed: true,
+    },
+  });
+
+  const taxInvoiceA = await prisma.taxInvoice.upsert({
+    where: { email_inbox_id: inboxA.id },
+    update: {
+      supplier_id: supplierA.id,
+      order_id: sampleOrder.id,
+      order_link_type: "MANUAL",
+      invoice_number: "SEED-INV-A-001",
+    },
+    create: {
+      supplier_id: supplierA.id,
+      order_id: sampleOrder.id,
+      order_link_type: "MANUAL",
+      invoice_number: "SEED-INV-A-001",
+      email_inbox_id: inboxA.id,
+    },
+  });
+
+  const taxInvoiceB = await prisma.taxInvoice.upsert({
+    where: { email_inbox_id: inboxB.id },
+    update: {
+      supplier_id: supplierB.id,
+      order_id: null,
+      order_link_type: null,
+      invoice_number: "SEED-INV-B-001",
+    },
+    create: {
+      supplier_id: supplierB.id,
+      order_id: null,
+      order_link_type: null,
+      invoice_number: "SEED-INV-B-001",
+      email_inbox_id: inboxB.id,
+    },
+  });
+
+  await prisma.invoiceFile.deleteMany({
+    where: {
+      invoice_id: {
+        in: [taxInvoiceA.id, taxInvoiceB.id],
+      },
+    },
+  });
+
+  await prisma.invoiceFile.createMany({
+    data: [
+      {
+        invoice_id: taxInvoiceA.id,
+        file_name: "invoice-a.pdf",
+        file_url: `storage/invoices/${samplePdfFile}`,
+        file_type: "PDF",
+      },
+      {
+        invoice_id: taxInvoiceB.id,
+        file_name: "invoice-b.xml",
+        file_url: `storage/invoices/${sampleXmlFile}`,
+        file_type: "XML",
+      },
+    ],
+  });
+}
+
+main()
+  .then(async () => {
+    await prisma.$disconnect();
+  })
+  .catch(async (error) => {
+    console.error(error);
+    await prisma.$disconnect();
+    process.exit(1);
+  });
