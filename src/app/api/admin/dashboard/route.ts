@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
       buyers,
     ] = await Promise.all([
       prisma.order.count({ where: { created_at: { gte: todayStart } } }),
-      prisma.order.count({ where: { status: "REVIEWING" } }),
-      prisma.order.count({ where: { status: "PARTIAL_SENT" } }),
+      prisma.order.count({ where: { status: { in: ["UNDER_REVIEW", "REVIEWING"] } } }),
+      prisma.order.count({ where: { status: { in: ["ASSIGNED", "PARTIAL_SENT"] } } }),
       prisma.quote.count({
         where: { created_at: { gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7) } },
       }),
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.country.count({ where: { is_active: true } }),
       prisma.supplier.count({ where: { is_active: true } }),
-      prisma.user.count({ where: { role: "BUYER", is_active: true } }),
+      prisma.user.count({ where: { role: { in: ["BUYER", "COUNTRY_ADMIN"] }, is_active: true } }),
     ]);
 
     return ok({

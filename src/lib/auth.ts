@@ -16,6 +16,25 @@ export type AuthUser = {
   isActive: boolean;
 };
 
+const ROLE_ALIASES: Partial<Record<Role, Role[]>> = {
+  ADMIN: [Role.KOREA_SUPPLY_ADMIN],
+  KOREA_SUPPLY_ADMIN: [Role.ADMIN],
+  BUYER: [Role.COUNTRY_ADMIN],
+};
+
+function expandAllowedRoles(roles?: Role[]) {
+  if (!roles || roles.length === 0) {
+    return roles;
+  }
+  const roleSet = new Set<Role>(roles);
+  for (const role of roles) {
+    for (const alias of ROLE_ALIASES[role] ?? []) {
+      roleSet.add(alias);
+    }
+  }
+  return [...roleSet];
+}
+
 function readToken(req: NextRequest) {
   return req.cookies.get(AUTH_COOKIE_NAME)?.value ?? null;
 }
@@ -65,7 +84,19 @@ export async function requireAuth(req: NextRequest, roles?: Role[]) {
     throw new HttpError(401, "인증이 필요합니다.");
   }
 
-  if (roles && !roles.includes(user.role)) {
+  if (user.role === Role.SUPPLIER && !user.supplierId) {
+    throw new HttpError(403, "SUPPLIER 계정에는 supplier_id가 필요합니다.");
+  }
+  if (user.role === Role.COUNTRY_ADMIN && !user.countryId) {
+    throw new HttpError(403, "COUNTRY_ADMIN 계정에는 country_id가 필요합니다.");
+  }
+
+  if (user.role === Role.SUPER_ADMIN) {
+    return user;
+  }
+
+  const allowedRoles = expandAllowedRoles(roles);
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
     throw new HttpError(403, "권한이 없습니다.");
   }
 

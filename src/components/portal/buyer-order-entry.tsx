@@ -24,24 +24,53 @@ type CatalogResponse = {
   message?: string;
 };
 
+type Role = "BUYER" | "COUNTRY_ADMIN" | "SUPER_ADMIN" | "ADMIN" | "KOREA_SUPPLY_ADMIN" | "SUPPLIER";
+
+type AuthMeResponse = {
+  success: boolean;
+  data?: {
+    role: Role;
+  } | null;
+};
+
 export function BuyerOrderEntry() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierId, setSupplierId] = useState<number | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [qtyMap, setQtyMap] = useState<Record<number, string>>({});
   const [keyword, setKeyword] = useState("");
+  const [role, setRole] = useState<Role | null>(null);
+  const [draftOrderId, setDraftOrderId] = useState<number | null>(null);
+  const [draftOrderNo, setDraftOrderNo] = useState<string | null>(null);
+  const [draftCreating, setDraftCreating] = useState(false);
+  const [draftAdding, setDraftAdding] = useState(false);
+  const [draftSubmitting, setDraftSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const isCountryAdmin = role === "COUNTRY_ADMIN";
+
   useEffect(() => {
-    async function loadSuppliers() {
-      const response = await fetch("/api/buyer/suppliers");
-      const result = await response.json();
-      if (response.ok && result.success) {
-        setSuppliers(result.data as Supplier[]);
+    async function loadInitialData() {
+      const [suppliersResponse, meResponse] = await Promise.all([
+        fetch("/api/buyer/suppliers"),
+        fetch("/api/auth/me"),
+      ]);
+      const [suppliersResult, meResult] = await Promise.all([
+        suppliersResponse.json(),
+        meResponse.json(),
+      ]);
+
+      if (suppliersResponse.ok && suppliersResult.success) {
+        setSuppliers(suppliersResult.data as Supplier[]);
+      }
+      const me = meResult as AuthMeResponse;
+      if (meResponse.ok && me.success && me.data?.role) {
+        setRole(me.data.role);
       }
     }
-    loadSuppliers();
+
+    loadInitialData();
   }, []);
 
   useEffect(() => {
@@ -86,6 +115,39 @@ export function BuyerOrderEntry() {
       return;
     }
 
+    if (isCountryAdmin) {
+      if (!draftOrderId) {
+        setError("먼저 국가 주문 초안을 생성해 주세요.");
+        return;
+      }
+
+      setDraftAdding(true);
+      try {
+        const response = await fetch(`/api/buyer/orders/${draftOrderId}/items`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            items: selectedItems,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.message ?? "주문 품목 추가 실패");
+        }
+
+        setMessage(`초안 주문에 ${selectedItems.length}개 품목을 추가했습니다. (${draftOrderNo ?? ""})`);
+        setQtyMap({});
+        return;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "주문 품목 추가 실패");
+        return;
+      } finally {
+        setDraftAdding(false);
+      }
+    }
+
     const response = await fetch("/api/buyer/orders", {
       method: "POST",
       headers: {
@@ -103,6 +165,62 @@ export function BuyerOrderEntry() {
 
     setMessage(`주문 생성 완료: ${result.data.order_no}`);
     setQtyMap({});
+  }
+
+  async function createCountryOrderDraft() {
+    setError(null);
+    setMessage(null);
+    setDraftCreating(true);
+    try {
+      const response = await fetch("/api/buyer/orders/drafts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "주문 초안 생성 실패");
+      }
+
+      setDraftOrderId(result.data.id as number);
+      setDraftOrderNo(result.data.order_no as string);
+      setMessage(`국가 주문 초안을 생성했습니다: ${result.data.order_no as string}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "주문 초안 생성 실패");
+    } finally {
+      setDraftCreating(false);
+    }
+  }
+
+  async function submitCountryDraftOrder() {
+    setError(null);
+    setMessage(null);
+    if (!draftOrderId) {
+      setError("제출할 국가 주문 초안이 없습니다.");
+      return;
+    }
+    setDraftSubmitting(true);
+    try {
+      const response = await fetch(`/api/buyer/orders/${draftOrderId}/submit`, {
+        method: "POST",
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "주문 제출 실패");
+      }
+
+      const orderNo = (result.data.order_no as string) ?? draftOrderNo ?? String(draftOrderId);
+      setMessage(`주문 제출 완료: ${orderNo} (Korea Supply Admin 검토 대기)`);
+      setDraftOrderId(null);
+      setDraftOrderNo(null);
+      setQtyMap({});
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "주문 제출 실패");
+    } finally {
+      setDraftSubmitting(false);
+    }
   }
 
   async function onExcelUpload(e: FormEvent<HTMLFormElement>) {
@@ -174,6 +292,36 @@ export function BuyerOrderEntry() {
         </div>
       </section>
 
+      {isCountryAdmin ? (
+        <section className="rounded border border-slate-200 bg-white p-4">
+          <h3 className="text-sm font-semibold text-slate-900">국가 운영 주문 흐름</h3>
+          <p className="mt-1 text-sm text-slate-600">
+            1) 주문 초안 생성 → 2) 품목 추가 → 3) 주문 제출(UNDER_REVIEW)
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={createCountryOrderDraft}
+              disabled={draftCreating || !!draftOrderId}
+              className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
+            >
+              {draftCreating ? "초안 생성 중..." : "주문 초안 생성"}
+            </button>
+            <button
+              type="button"
+              onClick={submitCountryDraftOrder}
+              disabled={draftSubmitting || !draftOrderId}
+              className="rounded bg-slate-900 px-3 py-1 text-sm text-white disabled:opacity-60"
+            >
+              {draftSubmitting ? "주문 제출 중..." : "주문 제출"}
+            </button>
+            <span className="text-sm text-slate-700">
+              현재 초안: {draftOrderNo ?? "-"}
+            </span>
+          </div>
+        </section>
+      ) : null}
+
       <section className="rounded border border-slate-200 bg-white p-4">
         <h3 className="text-sm font-semibold text-slate-900">상품 목록</h3>
         <div className="mt-3 overflow-auto">
@@ -218,22 +366,29 @@ export function BuyerOrderEntry() {
           <button
             type="button"
             onClick={submitOrder}
-            className="rounded bg-slate-900 px-3 py-2 text-sm text-white"
+            className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
+            disabled={draftAdding}
           >
-            주문 제출
+            {isCountryAdmin
+              ? draftAdding
+                ? "품목 추가 중..."
+                : "초안에 품목 추가"
+              : "주문 제출"}
           </button>
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
-        <h3 className="text-sm font-semibold text-slate-900">공급사 엑셀 주문 업로드</h3>
-        <form className="mt-3 flex items-center gap-2" onSubmit={onExcelUpload}>
-          <input name="file" type="file" accept=".xlsx,.xls" />
-          <button className="rounded border border-slate-300 px-3 py-1 text-sm" type="submit">
-            엑셀 업로드 주문 생성
-          </button>
-        </form>
-      </section>
+      {!isCountryAdmin ? (
+        <section className="rounded border border-slate-200 bg-white p-4">
+          <h3 className="text-sm font-semibold text-slate-900">공급사 엑셀 주문 업로드</h3>
+          <form className="mt-3 flex items-center gap-2" onSubmit={onExcelUpload}>
+            <input name="file" type="file" accept=".xlsx,.xls" />
+            <button className="rounded border border-slate-300 px-3 py-1 text-sm" type="submit">
+              엑셀 업로드 주문 생성
+            </button>
+          </form>
+        </section>
+      ) : null}
 
       {message ? <p className="rounded bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p> : null}
       {error ? <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}

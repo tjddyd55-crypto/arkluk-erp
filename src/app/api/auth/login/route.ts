@@ -27,8 +27,8 @@ export async function POST(request: Request) {
       throw new HttpError(401, "로그인 정보가 올바르지 않습니다.");
     }
 
-    if (user.role === "BUYER" && !user.country_id) {
-      throw new HttpError(400, "BUYER 계정에는 country_id가 필요합니다.");
+    if ((user.role === "BUYER" || user.role === "COUNTRY_ADMIN") && !user.country_id) {
+      throw new HttpError(400, "BUYER/COUNTRY_ADMIN 계정에는 country_id가 필요합니다.");
     }
     if (user.role === "SUPPLIER" && !user.supplier_id) {
       throw new HttpError(400, "SUPPLIER 계정에는 supplier_id가 필요합니다.");

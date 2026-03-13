@@ -1,4 +1,4 @@
-import { PrismaClient, Role } from "@prisma/client";
+import { PrismaClient, Role, SupplierStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
@@ -29,12 +29,32 @@ async function main() {
   const supplierA = await prisma.supplier.upsert({
     where: { supplier_code: "SUP-A" },
     update: {
+      company_name: "A 건축자재",
+      company_code: "SUP-A",
+      country_code: "KR",
+      business_number: "100-01-00001",
+      representative_name: "홍길동",
+      contact_name: "A담당자",
+      contact_email: "supplier-a@example.com",
+      contact_phone: "010-1111-1111",
+      address: "서울시 공급구 A로 1",
+      status: SupplierStatus.ACTIVE,
       supplier_name: "A 건축자재",
       order_email: "supplier-a@example.com",
       invoice_sender_email: "invoice@acompany.com",
       is_active: true,
     },
     create: {
+      company_name: "A 건축자재",
+      company_code: "SUP-A",
+      country_code: "KR",
+      business_number: "100-01-00001",
+      representative_name: "홍길동",
+      contact_name: "A담당자",
+      contact_email: "supplier-a@example.com",
+      contact_phone: "010-1111-1111",
+      address: "서울시 공급구 A로 1",
+      status: SupplierStatus.ACTIVE,
       supplier_code: "SUP-A",
       supplier_name: "A 건축자재",
       order_email: "supplier-a@example.com",
@@ -47,12 +67,32 @@ async function main() {
   const supplierB = await prisma.supplier.upsert({
     where: { supplier_code: "SUP-B" },
     update: {
+      company_name: "B 건축자재",
+      company_code: "SUP-B",
+      country_code: "KR",
+      business_number: "200-02-00002",
+      representative_name: "김철수",
+      contact_name: "B담당자",
+      contact_email: "supplier-b@example.com",
+      contact_phone: "010-2222-2222",
+      address: "경기도 자재시 B길 2",
+      status: SupplierStatus.ACTIVE,
       supplier_name: "B 건축자재",
       order_email: "supplier-b@example.com",
       invoice_sender_email: "tax@bcompany.com",
       is_active: true,
     },
     create: {
+      company_name: "B 건축자재",
+      company_code: "SUP-B",
+      country_code: "KR",
+      business_number: "200-02-00002",
+      representative_name: "김철수",
+      contact_name: "B담당자",
+      contact_email: "supplier-b@example.com",
+      contact_phone: "010-2222-2222",
+      address: "경기도 자재시 B길 2",
+      status: SupplierStatus.ACTIVE,
       supplier_code: "SUP-B",
       supplier_name: "B 건축자재",
       order_email: "supplier-b@example.com",
@@ -333,6 +373,43 @@ async function main() {
       password_hash: passwordHash,
       name: "Admin One",
       role: Role.ADMIN,
+      is_active: true,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { login_id: "korea.supply.01" },
+    update: {
+      name: "Korea Supply Admin",
+      role: Role.KOREA_SUPPLY_ADMIN,
+      password_hash: passwordHash,
+      is_active: true,
+    },
+    create: {
+      login_id: "korea.supply.01",
+      password_hash: passwordHash,
+      name: "Korea Supply Admin",
+      role: Role.KOREA_SUPPLY_ADMIN,
+      is_active: true,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { login_id: "country.mn.admin" },
+    update: {
+      name: "Country Admin MN",
+      role: Role.COUNTRY_ADMIN,
+      country_id: mnCountry.id,
+      password_hash: passwordHash,
+      is_active: true,
+    },
+    create: {
+      login_id: "country.mn.admin",
+      password_hash: passwordHash,
+      name: "Country Admin MN",
+      role: Role.COUNTRY_ADMIN,
+      country_id: mnCountry.id,
+      email: "country-admin-mn@example.com",
       is_active: true,
     },
   });

@@ -42,10 +42,17 @@ const statusLabelMap: Record<
   WAITING: "발송 대기",
   SENT: "발송 완료",
   SUPPLIER_CONFIRMED: "공급사 확인",
-  DELIVERING: "납품 진행",
-  COMPLETED: "완료",
+  DELIVERING: "출고 완료",
+  COMPLETED: "납품 완료",
   CANCELLED: "취소",
 };
+
+function getSupplierStatusLabel(status: SupplierOrderDetail["status"], orderStatus: string) {
+  if (status === "WAITING" && orderStatus === "ASSIGNED") {
+    return "배정 완료";
+  }
+  return statusLabelMap[status];
+}
 
 function toDateInputValue(value: string | null) {
   if (!value) {
@@ -66,6 +73,8 @@ export default function SupplierOrderDetailPage() {
   const [confirming, setConfirming] = useState(false);
   const [updatingDelivery, setUpdatingDelivery] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [shipping, setShipping] = useState(false);
+  const [delivering, setDelivering] = useState(false);
   const [confirmDate, setConfirmDate] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [supplierNote, setSupplierNote] = useState("");
@@ -185,6 +194,62 @@ export default function SupplierOrderDetailPage() {
     }
   }
 
+  async function handleMarkShipped() {
+    if (!detail) {
+      return;
+    }
+    setMessage(null);
+    setActionError(null);
+    setShipping(true);
+    try {
+      const response = await fetch(`/api/supplier/orders/${orderId}/ship`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          supplierNote: supplierNote || null,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "출고 처리 실패");
+      }
+      setMessage("출고 처리되었습니다.");
+      await loadDetail();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "출고 처리 실패");
+    } finally {
+      setShipping(false);
+    }
+  }
+
+  async function handleMarkDelivered() {
+    if (!detail) {
+      return;
+    }
+    setMessage(null);
+    setActionError(null);
+    setDelivering(true);
+    try {
+      const response = await fetch(`/api/supplier/orders/${orderId}/deliver`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          supplierNote: supplierNote || null,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "납품 완료 처리 실패");
+      }
+      setMessage("납품 완료 처리되었습니다.");
+      await loadDetail();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "납품 완료 처리 실패");
+    } finally {
+      setDelivering(false);
+    }
+  }
+
   if (loading) {
     return <p className="text-sm text-slate-500">주문 상세를 불러오는 중...</p>;
   }
@@ -192,9 +257,12 @@ export default function SupplierOrderDetailPage() {
     return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error ?? "주문 없음"}</p>;
   }
 
-  const canConfirm = detail.status === "SENT";
+  const canConfirm =
+    detail.status === "SENT" || (detail.status === "WAITING" && detail.order.status === "ASSIGNED");
   const canSetDelivery = detail.status === "SUPPLIER_CONFIRMED" || detail.status === "DELIVERING";
   const canCancel = detail.status === "SENT" || detail.status === "SUPPLIER_CONFIRMED";
+  const canShip = detail.status === "SUPPLIER_CONFIRMED" || detail.status === "DELIVERING";
+  const canDeliver = detail.status === "SUPPLIER_CONFIRMED" || detail.status === "DELIVERING";
 
   return (
     <div className="space-y-4">
@@ -203,7 +271,9 @@ export default function SupplierOrderDetailPage() {
         <p className="mt-1 text-sm text-slate-600">
           바이어: {detail.order.buyer.name} / 국가: {detail.order.country.country_name}
         </p>
-        <p className="mt-1 text-sm text-slate-600">발주 상태: {statusLabelMap[detail.status]}</p>
+        <p className="mt-1 text-sm text-slate-600">
+          발주 상태: {getSupplierStatusLabel(detail.status, detail.order.status)}
+        </p>
         <p className="mt-1 text-xs text-slate-500">
           발송일: {detail.sent_at ? new Date(detail.sent_at).toLocaleString() : "-"} / 확인일:{" "}
           {detail.supplier_confirmed_at
@@ -266,6 +336,22 @@ export default function SupplierOrderDetailPage() {
             disabled={!canSetDelivery || updatingDelivery}
           >
             {updatingDelivery ? "저장 중..." : "납기 입력"}
+          </button>
+          <button
+            type="button"
+            className="rounded border border-indigo-300 px-3 py-2 text-sm text-indigo-700 disabled:opacity-60"
+            onClick={handleMarkShipped}
+            disabled={!canShip || shipping}
+          >
+            {shipping ? "처리 중..." : "출고 처리"}
+          </button>
+          <button
+            type="button"
+            className="rounded border border-emerald-300 px-3 py-2 text-sm text-emerald-700 disabled:opacity-60"
+            onClick={handleMarkDelivered}
+            disabled={!canDeliver || delivering}
+          >
+            {delivering ? "처리 중..." : "납품 완료"}
           </button>
           <button
             type="button"

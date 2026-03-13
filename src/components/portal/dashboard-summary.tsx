@@ -41,12 +41,12 @@ export function DashboardSummary() {
 
   const cards = [
     { label: "오늘 주문 수", value: data.todayOrders },
-    { label: "발송 대기 주문 수", value: data.waitingOrders },
-    { label: "일부 발송 주문 수", value: data.partialOrders },
+    { label: "중앙 검토 주문 수", value: data.waitingOrders },
+    { label: "배정 진행 주문 수", value: data.partialOrders },
     { label: "최근 견적 수", value: data.recentQuotes },
     { label: "활성 국가 수", value: data.countries },
     { label: "활성 공급사 수", value: data.suppliers },
-    { label: "활성 바이어 수", value: data.buyers },
+    { label: "활성 국가/바이어 계정 수", value: data.buyers },
   ];
 
   return (

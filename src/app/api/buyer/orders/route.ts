@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { Role } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { createOrderSchema } from "@/lib/schemas";
@@ -9,13 +10,20 @@ import { createOrder } from "@/server/services/order-service";
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth(request, ["BUYER"]);
+    const where =
+      user.role === Role.COUNTRY_ADMIN
+        ? {
+            country_id: user.countryId!,
+          }
+        : {
+            buyer_id: user.id,
+          };
 
     const orders = await prisma.order.findMany({
-      where: {
-        buyer_id: user.id,
-      },
+      where,
       include: {
         country: true,
+        buyer: true,
         suppliers: {
           include: { supplier: true },
         },

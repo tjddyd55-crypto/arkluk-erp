@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { Role } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
@@ -17,12 +18,19 @@ export async function GET(
     }
 
     const order = await prisma.order.findFirst({
-      where: {
-        id: orderId,
-        buyer_id: user.id,
-      },
+      where:
+        user.role === Role.COUNTRY_ADMIN
+          ? {
+              id: orderId,
+              country_id: user.countryId!,
+            }
+          : {
+              id: orderId,
+              buyer_id: user.id,
+            },
       include: {
         country: true,
+        buyer: true,
         order_items: true,
         suppliers: {
           include: { supplier: true },

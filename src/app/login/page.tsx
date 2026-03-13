@@ -6,13 +6,27 @@ import { useRouter } from "next/navigation";
 type LoginResponse = {
   success: boolean;
   data?: {
-    role: "SUPER_ADMIN" | "ADMIN" | "BUYER" | "SUPPLIER";
+    role:
+      | "SUPER_ADMIN"
+      | "KOREA_SUPPLY_ADMIN"
+      | "COUNTRY_ADMIN"
+      | "ADMIN"
+      | "BUYER"
+      | "SUPPLIER";
   };
   message?: string;
 };
 
-function routeByRole(role: "SUPER_ADMIN" | "ADMIN" | "BUYER" | "SUPPLIER") {
-  if (role === "BUYER") {
+function routeByRole(
+  role:
+    | "SUPER_ADMIN"
+    | "KOREA_SUPPLY_ADMIN"
+    | "COUNTRY_ADMIN"
+    | "ADMIN"
+    | "BUYER"
+    | "SUPPLIER",
+) {
+  if (role === "BUYER" || role === "COUNTRY_ADMIN") {
     return "/buyer";
   }
   if (role === "SUPPLIER") {

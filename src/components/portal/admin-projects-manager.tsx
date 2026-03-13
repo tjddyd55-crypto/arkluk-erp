@@ -80,7 +80,7 @@ export function AdminProjectsManager() {
   const [createForm, setCreateForm] = useState<CreateForm>(initialCreateForm);
 
   const buyerOptions = useMemo(
-    () => buyers.filter((user) => user.role === "BUYER"),
+    () => buyers.filter((user) => user.role === "BUYER" || user.role === "COUNTRY_ADMIN"),
     [buyers],
   );
 

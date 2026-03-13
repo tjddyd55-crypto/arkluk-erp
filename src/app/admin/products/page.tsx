@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ApiTable } from "@/components/portal/api-table";
+import { AdminProductReview } from "@/components/portal/admin-product-review";
 
 export default function AdminProductsPage() {
   return (
@@ -17,6 +18,7 @@ export default function AdminProductsPage() {
           상품 엑셀 다운로드
         </Link>
       </div>
+      <AdminProductReview />
       <ApiTable endpoint="/api/admin/products" title="상품 목록" />
     </div>
   );

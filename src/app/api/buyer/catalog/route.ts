@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, ProductStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, ok } from "@/lib/http";
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     const where: Prisma.ProductWhereInput = {
       supplier_id: supplierId,
       is_active: true,
+      status: ProductStatus.APPROVED,
       ...(categoryId ? { category_id: categoryId } : {}),
       ...(keyword
         ? {

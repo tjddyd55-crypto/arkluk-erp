@@ -1,9 +1,23 @@
-import { OrderStatus, OrderSupplierStatus, Prisma, ProjectStatus, Role } from "@prisma/client";
+import {
+  AssignmentMode,
+  OrderItemStatus,
+  OrderStatus,
+  OrderSupplierStatus,
+  Prisma,
+  ProductStatus,
+  ProjectStatus,
+  Role,
+} from "@prisma/client";
 
 import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { buildDocumentNo } from "@/lib/utils";
 import { createAuditLog } from "@/server/services/audit-log";
+import { notifyOrderAssignment } from "@/server/services/assignment-notification-service";
+import {
+  assertAssignmentModeEnabled,
+  getAssignmentSettings,
+} from "@/server/services/assignment-settings-service";
 import { sendMail } from "@/server/services/mail-service";
 import { setProjectStatus, syncProjectStatusByOrderSuppliers } from "@/server/services/project-service";
 import {
@@ -22,9 +36,24 @@ type CreateOrderInput = {
   }>;
 };
 
+type CreateCountryOrderDraftInput = {
+  actorId: number;
+  projectId?: number | null;
+  memo?: string | null;
+};
+
+type CountryOrderItemsInput = {
+  actorId: number;
+  items: Array<{
+    productId: number;
+    qty: number;
+    memo?: string | null;
+  }>;
+};
+
 type UpdateOrderInput = {
   actorId: number;
-  status?: "PENDING" | "REVIEWING";
+  status?: "CREATED" | "UNDER_REVIEW" | "ASSIGNED" | "PENDING" | "REVIEWING";
   operations: Array<
     | {
         actionType: "UPDATE_QTY";
@@ -78,12 +107,40 @@ function normalizeSupplierNote(note?: string | null) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+async function requireCountryAdminActor(actorId: number) {
+  const actor = await prisma.user.findUnique({
+    where: { id: actorId },
+    select: {
+      id: true,
+      role: true,
+      is_active: true,
+      country_id: true,
+    },
+  });
+
+  if (
+    !actor ||
+    !actor.is_active ||
+    actor.role !== Role.COUNTRY_ADMIN ||
+    !actor.country_id
+  ) {
+    throw new HttpError(403, "COUNTRY_ADMIN 권한이 필요합니다.");
+  }
+
+  return actor;
+}
+
 export async function createOrder(input: CreateOrderInput) {
   const buyer = await prisma.user.findUnique({
     where: { id: input.buyerId },
   });
 
-  if (!buyer || !buyer.is_active || buyer.role !== Role.BUYER || !buyer.country_id) {
+  if (
+    !buyer ||
+    !buyer.is_active ||
+    (buyer.role !== Role.BUYER && buyer.role !== Role.COUNTRY_ADMIN) ||
+    !buyer.country_id
+  ) {
     throw new HttpError(400, "유효한 바이어 계정이 아닙니다.");
   }
 
@@ -111,7 +168,7 @@ export async function createOrder(input: CreateOrderInput) {
 
   const productIds = [...new Set(input.items.map((item) => item.productId))];
   const products = await prisma.product.findMany({
-    where: { id: { in: productIds }, is_active: true },
+    where: { id: { in: productIds }, is_active: true, status: ProductStatus.APPROVED },
     include: { category: true, supplier: true },
   });
   const productMap = new Map(products.map((product) => [product.id, product]));
@@ -122,7 +179,7 @@ export async function createOrder(input: CreateOrderInput) {
 
   const orderNo = buildDocumentNo("ORD");
 
-  return prisma.$transaction(async (tx) => {
+  const updatedItem = await prisma.$transaction(async (tx) => {
     const order = await tx.order.create({
       data: {
         order_no: orderNo,
@@ -130,7 +187,7 @@ export async function createOrder(input: CreateOrderInput) {
         country_id: buyer.country_id!,
         project_id: input.projectId ?? null,
         memo: input.memo ?? null,
-        status: OrderStatus.PENDING,
+        status: OrderStatus.CREATED,
       },
     });
 
@@ -148,6 +205,7 @@ export async function createOrder(input: CreateOrderInput) {
         data: {
           order_id: order.id,
           supplier_id: product.supplier_id,
+          status: OrderItemStatus.CREATED,
           category_id: product.category_id,
           product_id: product.id,
           product_code_snapshot: product.product_code,
@@ -207,6 +265,268 @@ export async function createOrder(input: CreateOrderInput) {
   });
 }
 
+export async function createCountryOrderDraft(input: CreateCountryOrderDraftInput) {
+  const actor = await requireCountryAdminActor(input.actorId);
+
+  const project =
+    input.projectId !== undefined && input.projectId !== null
+      ? await prisma.project.findUnique({
+          where: { id: input.projectId },
+          select: { id: true, country_id: true, status: true },
+        })
+      : null;
+  if (input.projectId !== undefined && input.projectId !== null) {
+    if (!project) {
+      throw new HttpError(404, "프로젝트를 찾을 수 없습니다.");
+    }
+    if (project.country_id !== actor.country_id) {
+      throw new HttpError(400, "국가가 다른 프로젝트에는 주문을 생성할 수 없습니다.");
+    }
+    if (
+      project.status === ProjectStatus.CANCELLED ||
+      project.status === ProjectStatus.COMPLETED
+    ) {
+      throw new HttpError(400, "종료된 프로젝트에는 주문을 생성할 수 없습니다.");
+    }
+  }
+
+  const orderNo = buildDocumentNo("ORD");
+  const updatedItem = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.create({
+      data: {
+        order_no: orderNo,
+        buyer_id: actor.id,
+        country_id: actor.country_id!,
+        project_id: input.projectId ?? null,
+        memo: input.memo ?? null,
+        status: OrderStatus.CREATED,
+      },
+    });
+
+    await createAuditLog(
+      {
+        actorId: actor.id,
+        actionType: "CREATE_COUNTRY_ORDER_DRAFT",
+        targetType: "ORDER",
+        targetId: order.id,
+        afterData: {
+          orderNo: order.order_no,
+          status: order.status,
+        },
+      },
+      tx,
+    );
+
+    return order;
+  });
+}
+
+export async function addCountryOrderItems(orderId: number, input: CountryOrderItemsInput) {
+  const actor = await requireCountryAdminActor(input.actorId);
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true,
+      buyer_id: true,
+      country_id: true,
+      status: true,
+    },
+  });
+  if (!order) {
+    throw new HttpError(404, "주문을 찾을 수 없습니다.");
+  }
+  if (order.buyer_id !== actor.id || order.country_id !== actor.country_id) {
+    throw new HttpError(403, "자신이 생성한 국가 주문만 수정할 수 있습니다.");
+  }
+  if (order.status !== OrderStatus.CREATED) {
+    throw new HttpError(400, "CREATED 상태 주문만 품목 추가가 가능합니다.");
+  }
+
+  const productIds = [...new Set(input.items.map((item) => item.productId))];
+  const products = await prisma.product.findMany({
+    where: {
+      id: { in: productIds },
+      is_active: true,
+      status: ProductStatus.APPROVED,
+    },
+  });
+  if (products.length !== productIds.length) {
+    throw new HttpError(400, "추가 대상 상품 중 유효하지 않은 항목이 있습니다.");
+  }
+  const productMap = new Map(products.map((product) => [product.id, product]));
+
+  const updatedItem = await prisma.$transaction(async (tx) => {
+    const touchedSupplierIds = new Set<number>();
+
+    for (const item of input.items) {
+      const product = productMap.get(item.productId);
+      if (!product) {
+        throw new HttpError(400, `상품을 찾을 수 없습니다. (${item.productId})`);
+      }
+      touchedSupplierIds.add(product.supplier_id);
+
+      const existing = await tx.orderItem.findFirst({
+        where: {
+          order_id: orderId,
+          product_id: product.id,
+        },
+      });
+
+      if (!existing) {
+        const qty = new Prisma.Decimal(item.qty);
+        const created = await tx.orderItem.create({
+          data: {
+            order_id: orderId,
+            supplier_id: product.supplier_id,
+            status: OrderItemStatus.CREATED,
+            category_id: product.category_id,
+            product_id: product.id,
+            product_code_snapshot: product.product_code,
+            product_name_snapshot: product.product_name,
+            spec_snapshot: product.spec,
+            unit_snapshot: product.unit,
+            price_snapshot: product.price,
+            qty,
+            amount: product.price.mul(qty),
+            memo: item.memo ?? null,
+          },
+        });
+
+        await tx.orderChangeLog.create({
+          data: {
+            order_id: orderId,
+            order_item_id: created.id,
+            action_type: "ADD_ITEM",
+            before_data: {},
+            after_data: {
+              productId: product.id,
+              qty: qty.toString(),
+            },
+            changed_by: actor.id,
+          },
+        });
+        continue;
+      }
+
+      const beforeQty = existing.qty;
+      const nextQty = beforeQty.add(new Prisma.Decimal(item.qty));
+      const nextAmount = existing.price_snapshot.mul(nextQty);
+      await tx.orderItem.update({
+        where: { id: existing.id },
+        data: {
+          qty: nextQty,
+          amount: nextAmount,
+          memo: item.memo ?? existing.memo,
+        },
+      });
+      await tx.orderChangeLog.create({
+        data: {
+          order_id: orderId,
+          order_item_id: existing.id,
+          action_type: "UPDATE_QTY",
+          before_data: {
+            qty: beforeQty.toString(),
+          },
+          after_data: {
+            qty: nextQty.toString(),
+          },
+          changed_by: actor.id,
+        },
+      });
+    }
+
+    for (const supplierId of touchedSupplierIds) {
+      await tx.orderSupplier.upsert({
+        where: {
+          order_id_supplier_id: {
+            order_id: orderId,
+            supplier_id: supplierId,
+          },
+        },
+        update: {},
+        create: {
+          order_id: orderId,
+          supplier_id: supplierId,
+          status: OrderSupplierStatus.WAITING,
+        },
+      });
+    }
+
+    await createAuditLog(
+      {
+        actorId: actor.id,
+        actionType: "COUNTRY_ADMIN_ADD_ORDER_ITEMS",
+        targetType: "ORDER",
+        targetId: orderId,
+        afterData: {
+          addedItemCount: input.items.length,
+          supplierCount: touchedSupplierIds.size,
+        },
+      },
+      tx,
+    );
+
+    const updated = await tx.order.findUnique({
+      where: { id: orderId },
+      include: {
+        order_items: true,
+        suppliers: true,
+      },
+    });
+    if (!updated) {
+      throw new HttpError(404, "주문을 찾을 수 없습니다.");
+    }
+    return updated;
+  });
+}
+
+export async function submitCountryOrder(orderId: number, actorId: number) {
+  const actor = await requireCountryAdminActor(actorId);
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      order_items: {
+        select: { id: true },
+      },
+    },
+  });
+  if (!order) {
+    throw new HttpError(404, "주문을 찾을 수 없습니다.");
+  }
+  if (order.buyer_id !== actor.id || order.country_id !== actor.country_id) {
+    throw new HttpError(403, "자신이 생성한 국가 주문만 제출할 수 있습니다.");
+  }
+  if (order.status !== OrderStatus.CREATED) {
+    throw new HttpError(400, "CREATED 상태 주문만 제출할 수 있습니다.");
+  }
+  if (order.order_items.length === 0) {
+    throw new HttpError(400, "주문에 최소 1개 이상의 품목이 필요합니다.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.order.update({
+      where: { id: orderId },
+      data: {
+        status: OrderStatus.UNDER_REVIEW,
+      },
+    });
+
+    await createAuditLog(
+      {
+        actorId: actor.id,
+        actionType: "COUNTRY_ADMIN_SUBMIT_ORDER",
+        targetType: "ORDER",
+        targetId: orderId,
+        beforeData: { status: order.status },
+        afterData: { status: updated.status },
+      },
+      tx,
+    );
+
+    return updated;
+  });
+}
+
 function ensureEditableBySupplierStatus(
   supplierStatusMap: Map<number, { status: OrderSupplierStatus }>,
   supplierId: number,
@@ -236,6 +556,7 @@ export async function updateOrder(orderId: number, input: UpdateOrderInput) {
 
   if (
     currentOrder.status === OrderStatus.SENT ||
+    currentOrder.status === OrderStatus.DELIVERED ||
     currentOrder.status === OrderStatus.CANCELLED
   ) {
     throw new HttpError(400, "완료/취소된 주문은 수정할 수 없습니다.");
@@ -312,7 +633,7 @@ export async function updateOrder(orderId: number, input: UpdateOrderInput) {
         const product = await tx.product.findUnique({
           where: { id: operation.productId },
         });
-        if (!product || !product.is_active) {
+        if (!product || !product.is_active || product.status !== ProductStatus.APPROVED) {
           throw new HttpError(400, "추가 대상 상품이 유효하지 않습니다.");
         }
         ensureEditableBySupplierStatus(supplierStatusMap, product.supplier_id);
@@ -322,6 +643,7 @@ export async function updateOrder(orderId: number, input: UpdateOrderInput) {
           data: {
             order_id: orderId,
             supplier_id: product.supplier_id,
+            status: OrderItemStatus.CREATED,
             category_id: product.category_id,
             product_id: product.id,
             product_code_snapshot: product.product_code,
@@ -419,18 +741,31 @@ async function syncOrderStatus(orderId: number, tx: Prisma.TransactionClient) {
   if (suppliers.length === 0) {
     await tx.order.update({
       where: { id: orderId },
-      data: { status: OrderStatus.PENDING },
+      data: { status: OrderStatus.CREATED },
     });
     return;
   }
 
-  const sentCount = suppliers.filter((supplier) => isSupplierSectionDispatched(supplier.status)).length;
-  const nextStatus =
-    sentCount === 0
-      ? OrderStatus.REVIEWING
-      : sentCount === suppliers.length
-        ? OrderStatus.SENT
-        : OrderStatus.PARTIAL_SENT;
+  const allDelivered = suppliers.every((supplier) => supplier.status === OrderSupplierStatus.COMPLETED);
+  const hasShipped = suppliers.some(
+    (supplier) =>
+      supplier.status === OrderSupplierStatus.DELIVERING ||
+      supplier.status === OrderSupplierStatus.COMPLETED,
+  );
+  const hasSupplierConfirmed = suppliers.some(
+    (supplier) => supplier.status === OrderSupplierStatus.SUPPLIER_CONFIRMED,
+  );
+  const hasAssigned = suppliers.some((supplier) => isSupplierSectionDispatched(supplier.status));
+
+  const nextStatus = allDelivered
+    ? OrderStatus.DELIVERED
+    : hasShipped
+      ? OrderStatus.SHIPPED
+      : hasSupplierConfirmed
+        ? OrderStatus.SUPPLIER_CONFIRMED
+        : hasAssigned
+          ? OrderStatus.ASSIGNED
+          : OrderStatus.UNDER_REVIEW;
 
   await tx.order.update({
     where: { id: orderId },
@@ -589,6 +924,20 @@ async function sendPurchaseOrderToSingleSupplier(
         },
       });
 
+      await tx.orderItem.updateMany({
+        where: {
+          order_id: orderId,
+          supplier_id: supplierId,
+          status: OrderItemStatus.CREATED,
+        },
+        data: {
+          status: OrderItemStatus.ASSIGNED,
+          assigned_by: actorId,
+          assigned_at: new Date(),
+          assignment_mode: AssignmentMode.AUTO_PRODUCT,
+        },
+      });
+
       await createAuditLog(
         {
           actorId,
@@ -647,7 +996,16 @@ export async function supplierCheckOrder(
   }
 
   if (orderSupplier.status === OrderSupplierStatus.WAITING) {
-    throw new HttpError(400, "아직 발송되지 않은 주문입니다.");
+    const assignedItemCount = await prisma.orderItem.count({
+      where: {
+        order_id: orderId,
+        supplier_id: supplierId,
+        status: OrderItemStatus.ASSIGNED,
+      },
+    });
+    if (assignedItemCount === 0) {
+      throw new HttpError(400, "아직 배정되지 않은 주문입니다.");
+    }
   }
   if (orderSupplier.status === OrderSupplierStatus.CANCELLED) {
     throw new HttpError(400, "취소된 주문입니다.");
@@ -668,12 +1026,24 @@ export async function supplierCheckOrder(
       where: { id: orderSupplier.id },
       data: {
         status: OrderSupplierStatus.SUPPLIER_CONFIRMED,
+        portal_visible: true,
         supplier_checked: true,
         supplier_checked_at: new Date(),
         supplier_checked_by: actorId,
         supplier_confirmed_at: new Date(),
+        sent_at: orderSupplier.sent_at ?? new Date(),
         expected_delivery_date: expectedDeliveryDate,
         supplier_note: supplierNote,
+      },
+    });
+
+    await tx.orderItem.updateMany({
+      where: {
+        order_id: orderId,
+        supplier_id: supplierId,
+      },
+      data: {
+        status: OrderItemStatus.SUPPLIER_CONFIRMED,
       },
     });
 
@@ -752,6 +1122,16 @@ export async function supplierSetDeliveryDate(
       },
     });
 
+    await tx.orderItem.updateMany({
+      where: {
+        order_id: orderId,
+        supplier_id: supplierId,
+      },
+      data: {
+        status: OrderItemStatus.SHIPPED,
+      },
+    });
+
     await createAuditLog(
       {
         actorId,
@@ -767,6 +1147,434 @@ export async function supplierSetDeliveryDate(
       tx,
     );
 
+    if (orderSupplier.order.project_id) {
+      await syncProjectStatusByOrderSuppliers(
+        {
+          projectId: orderSupplier.order.project_id,
+          actorId,
+        },
+        tx,
+      );
+    }
+  });
+}
+
+type OrderItemAssignmentInput = {
+  orderItemId: number;
+  supplierId: number;
+  mode?: "MANUAL" | "AUTO_PRODUCT" | "AUTO_TIMEOUT";
+};
+
+function toAssignmentMode(mode?: "MANUAL" | "AUTO_PRODUCT" | "AUTO_TIMEOUT") {
+  if (mode === "AUTO_PRODUCT") return AssignmentMode.AUTO_PRODUCT;
+  if (mode === "AUTO_TIMEOUT") return AssignmentMode.AUTO_TIMEOUT;
+  return AssignmentMode.MANUAL;
+}
+
+export async function assignOrderItemSupplier(
+  orderId: number,
+  actorId: number,
+  input: OrderItemAssignmentInput,
+) {
+  const mode = input.mode ?? "MANUAL";
+  const settings = await assertAssignmentModeEnabled(mode);
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true,
+      order_no: true,
+      status: true,
+    },
+  });
+  if (!order) {
+    throw new HttpError(404, "주문을 찾을 수 없습니다.");
+  }
+  if (order.status === OrderStatus.DELIVERED || order.status === OrderStatus.CANCELLED) {
+    throw new HttpError(400, "납품 완료/취소된 주문은 재배정할 수 없습니다.");
+  }
+
+  const orderItem = await prisma.orderItem.findUnique({
+    where: { id: input.orderItemId },
+    select: {
+      id: true,
+      order_id: true,
+      supplier_id: true,
+      status: true,
+    },
+  });
+  if (!orderItem || orderItem.order_id !== orderId) {
+    throw new HttpError(404, "배정 대상 주문 품목을 찾을 수 없습니다.");
+  }
+
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: input.supplierId },
+    select: { id: true, is_active: true, supplier_name: true, order_email: true, cc_email: true },
+  });
+  if (!supplier || !supplier.is_active) {
+    throw new HttpError(400, "유효하지 않은 공급사입니다.");
+  }
+
+  const assignmentMode = toAssignmentMode(mode);
+  const beforeSupplierId = orderItem.supplier_id;
+
+  const updatedItem = await prisma.$transaction(async (tx) => {
+    const updatedItem = await tx.orderItem.update({
+      where: { id: orderItem.id },
+      data: {
+        supplier_id: input.supplierId,
+        status: OrderItemStatus.ASSIGNED,
+        assigned_by: actorId,
+        assigned_at: new Date(),
+        assignment_mode: assignmentMode,
+      },
+    });
+
+    await tx.orderAssignment.create({
+      data: {
+        order_item_id: orderItem.id,
+        supplier_id: input.supplierId,
+        assigned_by: actorId,
+        assigned_at: new Date(),
+      },
+    });
+
+    await tx.orderSupplier.upsert({
+      where: {
+        order_id_supplier_id: {
+          order_id: orderId,
+          supplier_id: input.supplierId,
+        },
+      },
+      update: {},
+      create: {
+        order_id: orderId,
+        supplier_id: input.supplierId,
+        status: OrderSupplierStatus.WAITING,
+      },
+    });
+
+    if (beforeSupplierId !== input.supplierId) {
+      const remains = await tx.orderItem.count({
+        where: {
+          order_id: orderId,
+          supplier_id: beforeSupplierId,
+          id: { not: orderItem.id },
+        },
+      });
+
+      if (remains === 0) {
+        const previousSupplierRow = await tx.orderSupplier.findUnique({
+          where: {
+            order_id_supplier_id: {
+              order_id: orderId,
+              supplier_id: beforeSupplierId,
+            },
+          },
+        });
+        if (previousSupplierRow && previousSupplierRow.status === OrderSupplierStatus.WAITING) {
+          await tx.orderSupplier.delete({
+            where: {
+              order_id_supplier_id: {
+                order_id: orderId,
+                supplier_id: beforeSupplierId,
+              },
+            },
+          });
+        }
+      }
+    }
+
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.ASSIGNED },
+    });
+
+    await createAuditLog(
+      {
+        actorId,
+        actionType: "ASSIGN_ORDER_ITEM_SUPPLIER",
+        targetType: "ORDER_ITEM",
+        targetId: orderItem.id,
+        beforeData: { supplierId: beforeSupplierId, status: orderItem.status },
+        afterData: {
+          supplierId: input.supplierId,
+          status: OrderItemStatus.ASSIGNED,
+          mode: assignmentMode,
+        },
+      },
+      tx,
+    );
+
+    return updatedItem;
+  });
+
+  await notifyOrderAssignment({
+    orderId,
+    orderNo: order.order_no,
+    supplier,
+    mode: assignmentMode,
+    settings,
+  });
+
+  return updatedItem;
+}
+
+export async function autoAssignOrderItemsByProduct(orderId: number, actorId: number) {
+  const items = await prisma.orderItem.findMany({
+    where: { order_id: orderId },
+    select: {
+      id: true,
+      supplier_id: true,
+      status: true,
+      product: {
+        select: {
+          supplier_id: true,
+        },
+      },
+    },
+  });
+
+  let assignedCount = 0;
+  for (const item of items) {
+    const targetSupplierId = item.product.supplier_id;
+    const shouldAssign =
+      item.supplier_id !== targetSupplierId || item.status === OrderItemStatus.CREATED;
+    if (!shouldAssign) {
+      continue;
+    }
+    await assignOrderItemSupplier(orderId, actorId, {
+      orderItemId: item.id,
+      supplierId: targetSupplierId,
+      mode: "AUTO_PRODUCT",
+    });
+    assignedCount += 1;
+  }
+
+  return {
+    orderId,
+    totalItems: items.length,
+    assignedCount,
+  };
+}
+
+export async function autoAssignOrderItemsByTimeout(orderId: number, actorId: number) {
+  const items = await prisma.orderItem.findMany({
+    where: {
+      order_id: orderId,
+      status: OrderItemStatus.CREATED,
+    },
+    select: {
+      id: true,
+      product: {
+        select: {
+          supplier_id: true,
+        },
+      },
+    },
+  });
+
+  let assignedCount = 0;
+  for (const item of items) {
+    await assignOrderItemSupplier(orderId, actorId, {
+      orderItemId: item.id,
+      supplierId: item.product.supplier_id,
+      mode: "AUTO_TIMEOUT",
+    });
+    assignedCount += 1;
+  }
+
+  return {
+    orderId,
+    totalItems: items.length,
+    assignedCount,
+  };
+}
+
+export async function runTimeoutAutoAssignmentSweep(actorId: number) {
+  const settings = await getAssignmentSettings();
+  if (!settings.modes.autoTimeout) {
+    return {
+      scannedOrders: 0,
+      assignedOrders: 0,
+      assignedItems: 0,
+      skipped: "AUTO_TIMEOUT_DISABLED",
+    };
+  }
+
+  const threshold = new Date(Date.now() - settings.timeoutHours * 60 * 60 * 1000);
+  const orders = await prisma.order.findMany({
+    where: {
+      status: OrderStatus.UNDER_REVIEW,
+      updated_at: {
+        lte: threshold,
+      },
+      order_items: {
+        some: {
+          status: OrderItemStatus.CREATED,
+        },
+      },
+    },
+    select: {
+      id: true,
+    },
+    orderBy: [{ created_at: "asc" }],
+  });
+
+  let assignedOrders = 0;
+  let assignedItems = 0;
+  for (const order of orders) {
+    const result = await autoAssignOrderItemsByTimeout(order.id, actorId);
+    if (result.assignedCount > 0) {
+      assignedOrders += 1;
+      assignedItems += result.assignedCount;
+    }
+  }
+
+  return {
+    scannedOrders: orders.length,
+    assignedOrders,
+    assignedItems,
+    skipped: null,
+  };
+}
+
+export async function supplierMarkShipped(
+  orderId: number,
+  supplierId: number,
+  actorId: number,
+  input?: { supplierNote?: string | null },
+) {
+  const orderSupplier = await prisma.orderSupplier.findUnique({
+    where: { order_id_supplier_id: { order_id: orderId, supplier_id: supplierId } },
+    include: {
+      order: {
+        select: {
+          project_id: true,
+        },
+      },
+    },
+  });
+  if (!orderSupplier || !orderSupplier.portal_visible) {
+    throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
+  }
+  if (
+    orderSupplier.status !== OrderSupplierStatus.SUPPLIER_CONFIRMED &&
+    orderSupplier.status !== OrderSupplierStatus.DELIVERING
+  ) {
+    throw new HttpError(400, "출고 처리 가능한 상태가 아닙니다.");
+  }
+
+  const supplierNote = normalizeSupplierNote(input?.supplierNote);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.orderSupplier.update({
+      where: { id: orderSupplier.id },
+      data: {
+        status: OrderSupplierStatus.DELIVERING,
+        supplier_note: supplierNote,
+      },
+    });
+
+    await tx.orderItem.updateMany({
+      where: {
+        order_id: orderId,
+        supplier_id: supplierId,
+        status: {
+          notIn: [OrderItemStatus.CANCELLED, OrderItemStatus.DELIVERED],
+        },
+      },
+      data: {
+        status: OrderItemStatus.SHIPPED,
+      },
+    });
+
+    await createAuditLog(
+      {
+        actorId,
+        actionType: "SUPPLIER_MARK_SHIPPED",
+        targetType: "ORDER",
+        targetId: orderId,
+        afterData: { supplierId, supplierNote },
+      },
+      tx,
+    );
+
+    await syncOrderStatus(orderId, tx);
+    if (orderSupplier.order.project_id) {
+      await syncProjectStatusByOrderSuppliers(
+        {
+          projectId: orderSupplier.order.project_id,
+          actorId,
+        },
+        tx,
+      );
+    }
+  });
+}
+
+export async function supplierMarkDelivered(
+  orderId: number,
+  supplierId: number,
+  actorId: number,
+  input?: { supplierNote?: string | null },
+) {
+  const orderSupplier = await prisma.orderSupplier.findUnique({
+    where: { order_id_supplier_id: { order_id: orderId, supplier_id: supplierId } },
+    include: {
+      order: {
+        select: {
+          project_id: true,
+        },
+      },
+    },
+  });
+  if (!orderSupplier || !orderSupplier.portal_visible) {
+    throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
+  }
+  if (
+    orderSupplier.status !== OrderSupplierStatus.DELIVERING &&
+    orderSupplier.status !== OrderSupplierStatus.SUPPLIER_CONFIRMED
+  ) {
+    throw new HttpError(400, "납품 완료 처리 가능한 상태가 아닙니다.");
+  }
+
+  const supplierNote = normalizeSupplierNote(input?.supplierNote);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.orderSupplier.update({
+      where: { id: orderSupplier.id },
+      data: {
+        status: OrderSupplierStatus.COMPLETED,
+        supplier_note: supplierNote,
+      },
+    });
+
+    await tx.orderItem.updateMany({
+      where: {
+        order_id: orderId,
+        supplier_id: supplierId,
+        status: {
+          not: OrderItemStatus.CANCELLED,
+        },
+      },
+      data: {
+        status: OrderItemStatus.DELIVERED,
+      },
+    });
+
+    await createAuditLog(
+      {
+        actorId,
+        actionType: "SUPPLIER_MARK_DELIVERED",
+        targetType: "ORDER",
+        targetId: orderId,
+        afterData: { supplierId, supplierNote },
+      },
+      tx,
+    );
+
+    await syncOrderStatus(orderId, tx);
     if (orderSupplier.order.project_id) {
       await syncProjectStatusByOrderSuppliers(
         {
@@ -815,6 +1623,16 @@ export async function supplierCancelOrder(
         status: OrderSupplierStatus.CANCELLED,
         expected_delivery_date: null,
         supplier_note: reason,
+      },
+    });
+
+    await tx.orderItem.updateMany({
+      where: {
+        order_id: orderId,
+        supplier_id: supplierId,
+      },
+      data: {
+        status: OrderItemStatus.CANCELLED,
       },
     });
 
@@ -878,6 +1696,16 @@ export async function adminCancelSupplierOrder(
         status: OrderSupplierStatus.CANCELLED,
         expected_delivery_date: null,
         supplier_note: reason,
+      },
+    });
+
+    await tx.orderItem.updateMany({
+      where: {
+        order_id: orderId,
+        supplier_id: supplierId,
+      },
+      data: {
+        status: OrderItemStatus.CANCELLED,
       },
     });
 

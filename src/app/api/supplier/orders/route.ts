@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { Prisma } from "@prisma/client";
+import { OrderItemStatus, Prisma } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
@@ -17,15 +17,39 @@ export async function GET(request: NextRequest) {
     const buyerName = request.nextUrl.searchParams.get("buyerName");
     const countryId = request.nextUrl.searchParams.get("countryId");
 
+    const orderFilter: Prisma.OrderWhereInput = {
+      ...(orderNo ? { order_no: { contains: orderNo, mode: "insensitive" } } : {}),
+      ...(countryId ? { country_id: Number(countryId) } : {}),
+      ...(buyerName ? { buyer: { name: { contains: buyerName, mode: "insensitive" } } } : {}),
+    };
+
     const where: Prisma.OrderSupplierWhereInput = {
       supplier_id: user.supplierId,
-      portal_visible: true,
       ...(status ? { status: status as Prisma.EnumOrderSupplierStatusFilter["equals"] } : {}),
-      order: {
-        ...(orderNo ? { order_no: { contains: orderNo, mode: "insensitive" } } : {}),
-        ...(countryId ? { country_id: Number(countryId) } : {}),
-        ...(buyerName ? { buyer: { name: { contains: buyerName, mode: "insensitive" } } } : {}),
-      },
+      OR: [
+        {
+          portal_visible: true,
+          order: orderFilter,
+        },
+        {
+          order: {
+            ...orderFilter,
+            order_items: {
+              some: {
+                supplier_id: user.supplierId,
+                status: {
+                  in: [
+                    OrderItemStatus.ASSIGNED,
+                    OrderItemStatus.SUPPLIER_CONFIRMED,
+                    OrderItemStatus.SHIPPED,
+                    OrderItemStatus.DELIVERED,
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ],
     };
 
     const records = await prisma.orderSupplier.findMany({

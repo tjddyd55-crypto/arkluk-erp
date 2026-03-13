@@ -5,7 +5,7 @@ export default function BuyerOrderPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-slate-900">바이어 주문 작성</h1>
       <p className="text-sm text-slate-600">
-        회사(공급사) 선택 기반으로 주문을 작성하고, 엑셀 템플릿 다운로드/업로드 주문을 수행합니다.
+        BUYER는 즉시 주문 생성, COUNTRY_ADMIN은 주문 초안 생성/품목추가/제출(검토요청) 흐름을 사용합니다.
       </p>
       <BuyerOrderEntry />
     </div>

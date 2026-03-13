@@ -72,6 +72,8 @@ npm run invoice:cron
 
 - SUPER_ADMIN: `superadmin` / `ChangeMe123!`
 - ADMIN: `admin01` / `ChangeMe123!`
+- KOREA_SUPPLY_ADMIN: `korea.supply.01` / `ChangeMe123!`
+- COUNTRY_ADMIN: `country.mn.admin` / `ChangeMe123!`
 - BUYER: `buyer.mn.01` / `ChangeMe123!`
 - SUPPLIER A: `supplier.a.01` / `ChangeMe123!`
 - SUPPLIER B: `supplier.b.01` / `ChangeMe123!`

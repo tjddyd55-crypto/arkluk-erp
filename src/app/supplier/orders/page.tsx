@@ -16,6 +16,7 @@ type SupplierOrderRow = {
   expected_delivery_date: string | null;
   order: {
     order_no: string;
+    status: string;
     created_at: string;
     buyer: { name: string };
     country: { country_name: string };
@@ -29,8 +30,8 @@ const statusLabelMap: Record<
   WAITING: "발송 대기",
   SENT: "발송 완료",
   SUPPLIER_CONFIRMED: "공급사 확인",
-  DELIVERING: "납품 진행",
-  COMPLETED: "완료",
+  DELIVERING: "출고 완료",
+  COMPLETED: "납품 완료",
   CANCELLED: "취소",
 };
 
@@ -38,6 +39,13 @@ export default function SupplierOrdersPage() {
   const [rows, setRows] = useState<SupplierOrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  function getStatusLabel(row: SupplierOrderRow) {
+    if (row.status === "WAITING" && row.order.status === "ASSIGNED") {
+      return "배정 완료";
+    }
+    return statusLabelMap[row.status];
+  }
 
   useEffect(() => {
     async function load() {
@@ -62,7 +70,7 @@ export default function SupplierOrdersPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">공급사 주문 목록</h1>
+      <h1 className="text-2xl font-bold text-slate-900">My Orders</h1>
 
       {loading ? <p className="text-sm text-slate-500">주문 목록을 불러오는 중...</p> : null}
       {error ? <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
@@ -93,7 +101,7 @@ export default function SupplierOrdersPage() {
                   <td className="border border-slate-200 px-2 py-1">
                     {row.sent_at ? new Date(row.sent_at).toLocaleString() : "-"}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{statusLabelMap[row.status]}</td>
+                  <td className="border border-slate-200 px-2 py-1">{getStatusLabel(row)}</td>
                   <td className="border border-slate-200 px-2 py-1">
                     {row.expected_delivery_date
                       ? new Date(row.expected_delivery_date).toLocaleDateString()

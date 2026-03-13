@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { Prisma } from "@prisma/client";
+import { Prisma, ProductStatus } from "@prisma/client";
 
 import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
@@ -127,8 +127,15 @@ export async function upsertProductsFromExcel(actorId: number, buffer: Buffer) {
       const payload = {
         supplier_id: supplier.id,
         category_id: category.id,
+        name: row.productName,
+        sku: row.productCode,
+        description: row.memo || null,
+        specification: row.spec,
         product_code: row.productCode,
         product_name: row.productName,
+        thumbnail_url: null,
+        currency: "KRW",
+        status: ProductStatus.APPROVED,
         spec: row.spec,
         unit: row.unit,
         price: new Prisma.Decimal(row.price),
@@ -172,6 +179,7 @@ export async function buildOrderTemplateBySupplier(supplierId: number) {
     where: {
       supplier_id: supplierId,
       is_active: true,
+      status: ProductStatus.APPROVED,
     },
     include: { category: true },
     orderBy: [{ category: { sort_order: "asc" } }, { sort_order: "asc" }],
@@ -212,6 +220,7 @@ export async function parseBuyerOrderExcel(supplierId: number, buffer: Buffer) {
     where: {
       supplier_id: supplierId,
       product_code: { in: productCodeList },
+      status: ProductStatus.APPROVED,
     },
   });
   const productCodeMap = new Map(products.map((product) => [product.product_code, product]));

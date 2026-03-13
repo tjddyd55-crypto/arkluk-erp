@@ -1,4 +1,13 @@
-import { Prisma, ProjectStatus, QuoteCreatorRole, QuoteStatus, Role } from "@prisma/client";
+import {
+  OrderItemStatus,
+  OrderStatus,
+  Prisma,
+  ProductStatus,
+  ProjectStatus,
+  QuoteCreatorRole,
+  QuoteStatus,
+  Role,
+} from "@prisma/client";
 
 import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
@@ -63,7 +72,7 @@ export async function createQuote(actor: QuoteActor, input: CreateQuoteInput) {
 
   const productIds = [...new Set(input.items.map((item) => item.productId))];
   const products = await prisma.product.findMany({
-    where: { id: { in: productIds }, is_active: true },
+    where: { id: { in: productIds }, is_active: true, status: ProductStatus.APPROVED },
   });
   if (products.length !== productIds.length) {
     throw new HttpError(400, "견적 대상 상품 중 유효하지 않은 항목이 있습니다.");
@@ -351,7 +360,7 @@ export async function acceptQuote(quoteId: number, buyerId: number) {
         country_id: quote.country_id,
         project_id: quote.project_id,
         memo: `견적(${quote.quote_no}) 전환 주문`,
-        status: "PENDING",
+        status: OrderStatus.CREATED,
       },
     });
 
@@ -360,6 +369,7 @@ export async function acceptQuote(quoteId: number, buyerId: number) {
         data: {
           order_id: order.id,
           supplier_id: item.supplier_id,
+          status: OrderItemStatus.CREATED,
           category_id: item.category_id,
           product_id: item.product_id,
           product_code_snapshot: item.product_code_snapshot,

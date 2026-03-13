@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { SupplierStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
@@ -6,7 +7,36 @@ import { prisma } from "@/lib/prisma";
 import { supplierUpsertSchema } from "@/lib/schemas";
 import { createAuditLog } from "@/server/services/audit-log";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "ADMIN"] as const;
+const ADMIN_ROLES = ["SUPER_ADMIN", "KOREA_SUPPLY_ADMIN", "ADMIN"] as const;
+
+function resolveSupplierStatus(
+  inputStatus?: "PENDING" | "ACTIVE" | "INACTIVE" | "SUSPENDED",
+  inputIsActive?: boolean,
+) {
+  if (inputStatus === "PENDING") {
+    return SupplierStatus.PENDING;
+  }
+  if (inputStatus === "ACTIVE") {
+    return SupplierStatus.ACTIVE;
+  }
+  if (inputStatus === "INACTIVE") {
+    return SupplierStatus.INACTIVE;
+  }
+  if (inputStatus === "SUSPENDED") {
+    return SupplierStatus.SUSPENDED;
+  }
+  if (inputIsActive === undefined) {
+    return undefined;
+  }
+  return inputIsActive ? SupplierStatus.ACTIVE : SupplierStatus.INACTIVE;
+}
+
+function isActiveByStatus(status?: SupplierStatus) {
+  if (!status) {
+    return undefined;
+  }
+  return status === SupplierStatus.ACTIVE;
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -34,14 +64,24 @@ export async function PATCH(
     const updated = await prisma.supplier.update({
       where: { id: supplierId },
       data: {
+        company_name: parsed.data.companyName,
+        company_code: parsed.data.companyCode,
+        country_code: parsed.data.countryCode?.toUpperCase(),
+        business_number: parsed.data.businessNumber,
+        representative_name: parsed.data.representativeName,
+        contact_name: parsed.data.contactName,
+        contact_email: parsed.data.contactEmail?.toLowerCase(),
+        contact_phone: parsed.data.contactPhone,
+        address: parsed.data.address,
+        status: resolveSupplierStatus(parsed.data.status, parsed.data.isActive),
         supplier_code: parsed.data.supplierCode,
-        supplier_name: parsed.data.supplierName,
-        order_email: parsed.data.orderEmail,
+        supplier_name: parsed.data.supplierName ?? parsed.data.companyName,
+        order_email: parsed.data.orderEmail?.toLowerCase(),
         cc_email: parsed.data.ccEmail,
         invoice_sender_email: parsed.data.invoiceSenderEmail
           ? parsed.data.invoiceSenderEmail.toLowerCase()
           : parsed.data.invoiceSenderEmail,
-        is_active: parsed.data.isActive,
+        is_active: isActiveByStatus(resolveSupplierStatus(parsed.data.status, parsed.data.isActive)),
         allow_supplier_product_edit: parsed.data.allowSupplierProductEdit,
       },
     });

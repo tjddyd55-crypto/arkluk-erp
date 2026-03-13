@@ -9,17 +9,53 @@ datasource db {
 
 enum Role {
   SUPER_ADMIN
+  KOREA_SUPPLY_ADMIN
+  COUNTRY_ADMIN
   ADMIN
   BUYER
   SUPPLIER
 }
 
 enum OrderStatus {
+  CREATED
+  UNDER_REVIEW
+  ASSIGNED
+  SUPPLIER_CONFIRMED
+  SHIPPED
+  DELIVERED
   PENDING
   REVIEWING
   PARTIAL_SENT
   SENT
   CANCELLED
+}
+
+enum OrderItemStatus {
+  CREATED
+  ASSIGNED
+  SUPPLIER_CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum AssignmentMode {
+  MANUAL
+  AUTO_PRODUCT
+  AUTO_TIMEOUT
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProductApprovalAction {
+  SUBMIT
+  APPROVE
+  REJECT
 }
 
 enum OrderSupplierStatus {
@@ -84,6 +120,13 @@ enum ProjectFileType {
   JPEG
 }
 
+enum SupplierStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
 model Country {
   id           Int       @id @default(autoincrement())
   country_code String    @unique
@@ -99,6 +142,16 @@ model Country {
 
 model Supplier {
   id                          Int             @id @default(autoincrement())
+  company_name                String
+  company_code                String?         @unique
+  country_code                String          @default("KR")
+  business_number             String?
+  representative_name         String?
+  contact_name                String?
+  contact_email               String?
+  contact_phone               String?
+  address                     String?
+  status                      SupplierStatus  @default(PENDING)
   supplier_code               String?         @unique
   supplier_name               String
   order_email                 String
@@ -112,6 +165,7 @@ model Supplier {
   categories                  Category[]
   products                    Product[]
   order_items                 OrderItem[]
+  order_assignments           OrderAssignment[]
   order_suppliers             OrderSupplier[]
   quote_items                 QuoteItem[]
   quotes                      Quote[]
@@ -121,6 +175,8 @@ model Supplier {
   tax_invoices                TaxInvoice[]
   purchase_orders             PurchaseOrder[]
   purchase_order_templates    PurchaseOrderTemplate[]
+
+  @@index([status, country_code])
 }
 
 model SupplierInvoiceSender {
@@ -156,8 +212,16 @@ model Product {
   id                Int        @id @default(autoincrement())
   supplier_id       Int
   category_id       Int
+  name              String?
+  sku               String?
+  description       String?
+  specification     String?
   product_code      String
   product_name      String
+  thumbnail_url     String?
+  currency          String     @default("KRW")
+  status            ProductStatus @default(APPROVED)
+  rejection_reason  String?
   product_image_url String?
   spec              String
   unit              String
@@ -171,8 +235,10 @@ model Product {
   category          Category   @relation(fields: [category_id], references: [id])
   order_items       OrderItem[]
   quote_items       QuoteItem[]
+  approval_logs     ProductApprovalLog[]
 
   @@unique([supplier_id, product_code])
+  @@index([supplier_id, status])
   @@index([supplier_id, category_id, is_active])
   @@index([product_name])
 }
@@ -199,13 +265,40 @@ model User {
   order_change_logs     OrderChangeLog[] @relation("OrderChangeBy")
   sent_order_suppliers  OrderSupplier[]  @relation("OrderSentBy")
   checked_order_records OrderSupplier[]  @relation("SupplierCheckedBy")
+  order_assignments     OrderAssignment[] @relation("OrderAssignmentBy")
   project_files         ProjectFile[]    @relation("ProjectFileUploadedBy")
   audit_logs            AuditLog[]       @relation("AuditActor")
   created_purchase_orders PurchaseOrder[] @relation("PurchaseOrderCreatedBy")
+  product_approval_logs ProductApprovalLog[] @relation("ProductApprovalActor")
+  updated_system_settings SystemSetting[] @relation("SystemSettingUpdatedBy")
 
   @@index([role, is_active])
   @@index([country_id])
   @@index([supplier_id])
+}
+
+model SystemSetting {
+  id         Int      @id @default(autoincrement())
+  setting_key String  @unique
+  value_json Json
+  updated_by Int?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  updater    User?    @relation("SystemSettingUpdatedBy", fields: [updated_by], references: [id])
+}
+
+model ProductApprovalLog {
+  id            Int                   @id @default(autoincrement())
+  product_id    Int
+  action        ProductApprovalAction
+  actor_user_id Int
+  reason        String?
+  created_at    DateTime              @default(now())
+  product       Product               @relation(fields: [product_id], references: [id])
+  actor         User                  @relation("ProductApprovalActor", fields: [actor_user_id], references: [id])
+
+  @@index([product_id, created_at])
+  @@index([actor_user_id, created_at])
 }
 
 model Project {
@@ -275,6 +368,10 @@ model OrderItem {
   id                    Int      @id @default(autoincrement())
   order_id              Int
   supplier_id           Int
+  status                OrderItemStatus @default(CREATED)
+  assigned_by           Int?
+  assigned_at           DateTime?
+  assignment_mode       AssignmentMode?
   category_id           Int?
   product_id            Int
   product_code_snapshot String
@@ -291,9 +388,27 @@ model OrderItem {
   category              Category? @relation(fields: [category_id], references: [id])
   product               Product  @relation(fields: [product_id], references: [id])
   change_logs           OrderChangeLog[]
+  assignments           OrderAssignment[]
 
   @@index([order_id, supplier_id])
+  @@index([order_id, status])
+  @@index([supplier_id, status])
   @@index([product_id])
+}
+
+model OrderAssignment {
+  id            Int      @id @default(autoincrement())
+  order_item_id Int
+  supplier_id   Int
+  assigned_by   Int
+  assigned_at   DateTime @default(now())
+  order_item    OrderItem @relation(fields: [order_item_id], references: [id])
+  supplier      Supplier @relation(fields: [supplier_id], references: [id])
+  assignee      User     @relation("OrderAssignmentBy", fields: [assigned_by], references: [id])
+
+  @@index([order_item_id, assigned_at])
+  @@index([supplier_id, assigned_at])
+  @@index([assigned_by, assigned_at])
 }
 
 model OrderSupplier {

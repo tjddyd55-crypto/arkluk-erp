@@ -49,6 +49,12 @@ type OrderDetail = {
   }>;
 };
 
+type SupplierOption = {
+  id: number;
+  supplier_name: string;
+  is_active: boolean;
+};
+
 export default function AdminOrderDetailPage() {
   const params = useParams<{ id: string }>();
   const orderId = Number(params.id);
@@ -60,6 +66,10 @@ export default function AdminOrderDetailPage() {
   const [sendingSupplierId, setSendingSupplierId] = useState<number | null>(null);
   const [sendingAll, setSendingAll] = useState(false);
   const [cancellingSupplierId, setCancellingSupplierId] = useState<number | null>(null);
+  const [supplierOptions, setSupplierOptions] = useState<SupplierOption[]>([]);
+  const [selectedSupplierMap, setSelectedSupplierMap] = useState<Record<number, number>>({});
+  const [assigningItemId, setAssigningItemId] = useState<number | null>(null);
+  const [assigningOrderMode, setAssigningOrderMode] = useState<"AUTO" | "TIMEOUT" | null>(null);
 
   async function loadOrderDetail() {
     setLoading(true);
@@ -70,7 +80,14 @@ export default function AdminOrderDetailPage() {
       if (!response.ok || !result.success) {
         throw new Error(result.message ?? "주문 상세 조회 실패");
       }
-      setOrder(result.data as OrderDetail);
+      const detail = result.data as OrderDetail;
+      setOrder(detail);
+      setSelectedSupplierMap(
+        detail.order_items.reduce<Record<number, number>>((acc, item) => {
+          acc[item.id] = item.supplier_id;
+          return acc;
+        }, {}),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "주문 상세 조회 실패");
     } finally {
@@ -78,9 +95,25 @@ export default function AdminOrderDetailPage() {
     }
   }
 
+  async function loadSupplierOptions() {
+    try {
+      const response = await fetch("/api/admin/suppliers");
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "공급사 목록 조회 실패");
+      }
+      setSupplierOptions(
+        (result.data as SupplierOption[]).filter((supplier) => supplier.is_active),
+      );
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "공급사 목록 조회 실패");
+    }
+  }
+
   useEffect(() => {
     if (!Number.isNaN(orderId)) {
       loadOrderDetail();
+      loadSupplierOptions();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
@@ -154,6 +187,61 @@ export default function AdminOrderDetailPage() {
     }
   }
 
+  async function assignOrderItem(orderItemId: number) {
+    const supplierId = selectedSupplierMap[orderItemId];
+    if (!supplierId) {
+      setActionError("배정할 공급사를 선택해 주세요.");
+      return;
+    }
+    setActionMessage(null);
+    setActionError(null);
+    setAssigningItemId(orderItemId);
+    try {
+      const response = await fetch(`/api/admin/orders/${orderId}/assignment/manual`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderItemId, supplierId }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "품목 공급사 배정 실패");
+      }
+      setActionMessage("품목 공급사 배정이 반영되었습니다.");
+      await loadOrderDetail();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "품목 공급사 배정 실패");
+    } finally {
+      setAssigningItemId(null);
+    }
+  }
+
+  async function runAutoAssignment(mode: "AUTO" | "TIMEOUT") {
+    setActionMessage(null);
+    setActionError(null);
+    setAssigningOrderMode(mode);
+    try {
+      const endpoint =
+        mode === "AUTO"
+          ? `/api/admin/orders/${orderId}/assignment/auto`
+          : `/api/admin/orders/${orderId}/assignment/timeout`;
+      const response = await fetch(endpoint, { method: "POST" });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "자동 배정 처리 실패");
+      }
+      setActionMessage(
+        mode === "AUTO"
+          ? "상품 기준 자동 배정이 완료되었습니다."
+          : "타임아웃 자동 배정이 완료되었습니다.",
+      );
+      await loadOrderDetail();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "자동 배정 처리 실패");
+    } finally {
+      setAssigningOrderMode(null);
+    }
+  }
+
   if (loading) {
     return <p className="text-sm text-slate-500">주문 상세를 불러오는 중...</p>;
   }
@@ -223,8 +311,8 @@ export default function AdminOrderDetailPage() {
     WAITING: "발송 대기",
     SENT: "발송 완료",
     SUPPLIER_CONFIRMED: "공급사 확인",
-    DELIVERING: "납품 진행",
-    COMPLETED: "완료",
+    DELIVERING: "출고 완료",
+    COMPLETED: "납품 완료",
     CANCELLED: "취소",
   };
 
@@ -240,14 +328,32 @@ export default function AdminOrderDetailPage() {
       <section className="rounded border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">공급사별 발주</h2>
-          <button
-            type="button"
-            className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
-            disabled={sendingAll}
-            onClick={sendPurchaseOrderToAll}
-          >
-            {sendingAll ? "전체 발주 처리 중..." : "전체 발주"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
+              disabled={assigningOrderMode !== null}
+              onClick={() => runAutoAssignment("AUTO")}
+            >
+              {assigningOrderMode === "AUTO" ? "처리 중..." : "상품 기준 자동 배정"}
+            </button>
+            <button
+              type="button"
+              className="rounded border border-indigo-300 px-3 py-2 text-sm text-indigo-700 disabled:opacity-60"
+              disabled={assigningOrderMode !== null}
+              onClick={() => runAutoAssignment("TIMEOUT")}
+            >
+              {assigningOrderMode === "TIMEOUT" ? "처리 중..." : "타임아웃 자동 배정"}
+            </button>
+            <button
+              type="button"
+              className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
+              disabled={sendingAll}
+              onClick={sendPurchaseOrderToAll}
+            >
+              {sendingAll ? "전체 발주 처리 중..." : "전체 발주"}
+            </button>
+          </div>
         </div>
         {actionMessage ? (
           <p className="mt-2 rounded bg-emerald-50 p-2 text-xs text-emerald-700">{actionMessage}</p>
@@ -334,6 +440,7 @@ export default function AdminOrderDetailPage() {
                         <th className="border border-slate-200 px-2 py-1 text-left">단위</th>
                         <th className="border border-slate-200 px-2 py-1 text-left">수량</th>
                         <th className="border border-slate-200 px-2 py-1 text-left">비고</th>
+                        <th className="border border-slate-200 px-2 py-1 text-left">공급사 배정</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -351,6 +458,34 @@ export default function AdminOrderDetailPage() {
                           </td>
                           <td className="border border-slate-200 px-2 py-1">{item.qty}</td>
                           <td className="border border-slate-200 px-2 py-1">{item.memo ?? ""}</td>
+                          <td className="border border-slate-200 px-2 py-1">
+                            <div className="flex gap-2">
+                              <select
+                                className="rounded border border-slate-300 px-2 py-1"
+                                value={selectedSupplierMap[item.id] ?? supplierRow.supplier_id}
+                                onChange={(event) =>
+                                  setSelectedSupplierMap((prev) => ({
+                                    ...prev,
+                                    [item.id]: Number(event.target.value),
+                                  }))
+                                }
+                              >
+                                {supplierOptions.map((supplier) => (
+                                  <option key={supplier.id} value={supplier.id}>
+                                    {supplier.supplier_name}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
+                                disabled={assigningItemId === item.id}
+                                onClick={() => assignOrderItem(item.id)}
+                              >
+                                {assigningItemId === item.id ? "처리 중..." : "배정"}
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

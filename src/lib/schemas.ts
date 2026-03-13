@@ -14,9 +14,19 @@ export const countryUpsertSchema = z.object({
 });
 
 export const supplierUpsertSchema = z.object({
+  companyName: z.string().trim().min(2).max(150),
+  companyCode: z.string().trim().min(1).max(50),
+  countryCode: z.string().trim().min(2).max(10).default("KR"),
+  businessNumber: z.string().trim().min(3).max(40).optional().nullable(),
+  representativeName: z.string().trim().min(2).max(100).optional().nullable(),
+  contactName: z.string().trim().min(2).max(100).optional().nullable(),
+  contactEmail: z.email(),
+  contactPhone: z.string().trim().min(3).max(40).optional().nullable(),
+  address: z.string().trim().max(300).optional().nullable(),
+  status: z.enum(["PENDING", "ACTIVE", "INACTIVE", "SUSPENDED"]).optional(),
   supplierCode: z.string().max(50).optional().nullable(),
-  supplierName: z.string().min(2).max(150),
-  orderEmail: z.email(),
+  supplierName: z.string().min(2).max(150).optional(),
+  orderEmail: z.email().optional(),
   ccEmail: z.email().optional().nullable(),
   invoiceSenderEmail: z.email().optional().nullable(),
   isActive: z.boolean().optional(),
@@ -46,6 +56,42 @@ export const productUpsertSchema = z.object({
   memo: z.string().max(500).optional().nullable(),
   sortOrder: z.coerce.number().int().default(0),
   isActive: z.boolean().optional(),
+  status: z.enum(["DRAFT", "PENDING", "APPROVED", "REJECTED"]).optional(),
+  currency: z.string().trim().min(3).max(10).optional(),
+});
+
+export const supplierProductCreateSchema = z.object({
+  categoryId: positiveNumber,
+  name: z.string().trim().min(1).max(200),
+  sku: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(1000).optional().nullable(),
+  specification: z.string().trim().min(1).max(300),
+  price: z.coerce.number().positive(),
+  currency: z.string().trim().min(3).max(10).default("KRW"),
+  thumbnailUrl: z.url().optional().nullable(),
+});
+
+export const supplierProductUpdateSchema = supplierProductCreateSchema
+  .partial()
+  .extend({
+    categoryId: positiveNumber.optional(),
+  });
+
+export const supplierProductSubmitSchema = z.object({
+  submit: z.literal(true).optional().default(true),
+});
+
+export const productReviewSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED"]),
+  reason: z.string().trim().max(1000).optional().nullable(),
+}).superRefine((value, ctx) => {
+  if (value.status === "REJECTED" && !value.reason?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["reason"],
+      message: "반려 사유를 입력해 주세요.",
+    });
+  }
 });
 
 export const userUpsertSchema = z.object({
@@ -53,7 +99,14 @@ export const userUpsertSchema = z.object({
   password: z.string().min(6).max(120).optional(),
   name: z.string().min(2).max(100),
   email: z.email().optional().nullable(),
-  role: z.enum(["SUPER_ADMIN", "ADMIN", "BUYER", "SUPPLIER"]),
+  role: z.enum([
+    "SUPER_ADMIN",
+    "KOREA_SUPPLY_ADMIN",
+    "COUNTRY_ADMIN",
+    "ADMIN",
+    "BUYER",
+    "SUPPLIER",
+  ]),
   countryId: z.coerce.number().int().positive().optional().nullable(),
   supplierId: z.coerce.number().int().positive().optional().nullable(),
   isActive: z.boolean().optional(),
@@ -73,8 +126,33 @@ export const createOrderSchema = z.object({
     .min(1),
 });
 
+export const createCountryOrderDraftSchema = z.object({
+  memo: z.string().max(1000).optional().nullable(),
+  projectId: z.coerce.number().int().positive().optional().nullable(),
+});
+
+export const addCountryOrderItemsSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        productId: positiveNumber,
+        qty: z.coerce.number().positive(),
+        memo: z.string().max(500).optional().nullable(),
+      }),
+    )
+    .min(1),
+});
+
 export const updateOrderSchema = z.object({
-  status: z.enum(["PENDING", "REVIEWING"]).optional(),
+  status: z
+    .enum([
+      "CREATED",
+      "UNDER_REVIEW",
+      "ASSIGNED",
+      "PENDING",
+      "REVIEWING",
+    ])
+    .optional(),
   operations: z
     .array(
       z.discriminatedUnion("actionType", [
@@ -140,8 +218,38 @@ export const supplierDeliveryUpdateSchema = z.object({
   supplierNote: z.string().trim().max(1000).optional().nullable(),
 });
 
+export const supplierShipSchema = z.object({
+  supplierNote: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const supplierDeliverSchema = z.object({
+  supplierNote: z.string().trim().max(1000).optional().nullable(),
+});
+
 export const orderSupplierCancelSchema = z.object({
   reason: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const orderItemAssignSchema = z.object({
+  orderItemId: positiveNumber,
+  supplierId: positiveNumber,
+});
+
+export const assignmentSettingsSchema = z.object({
+  modes: z.object({
+    manual: z.boolean().default(true),
+    autoProduct: z.boolean().default(true),
+    autoTimeout: z.boolean().default(true),
+  }),
+  timeoutHours: z.coerce.number().int().min(1).max(168).default(24),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    slack: z.boolean().default(false),
+    sms: z.boolean().default(false),
+    webhook: z.boolean().default(false),
+  }),
+  webhookUrl: z.url().optional().nullable(),
+  automationActorUserId: z.coerce.number().int().positive().optional().nullable(),
 });
 
 export const projectStatusSchema = z.enum([

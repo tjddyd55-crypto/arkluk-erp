@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { OrderItemStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
@@ -39,7 +40,17 @@ export async function GET(
       },
     });
 
-    if (!orderSupplier || !orderSupplier.portal_visible) {
+    const hasWorkflowItems = Boolean(
+      orderSupplier?.order.order_items.some(
+        (item) =>
+          item.status === OrderItemStatus.ASSIGNED ||
+          item.status === OrderItemStatus.SUPPLIER_CONFIRMED ||
+          item.status === OrderItemStatus.SHIPPED ||
+          item.status === OrderItemStatus.DELIVERED,
+      ),
+    );
+
+    if (!orderSupplier || (!orderSupplier.portal_visible && !hasWorkflowItems)) {
       throw new HttpError(404, "주문을 찾을 수 없습니다.");
     }
     return ok(orderSupplier);

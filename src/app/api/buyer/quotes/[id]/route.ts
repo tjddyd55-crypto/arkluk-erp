@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { Role } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
@@ -17,11 +18,17 @@ export async function GET(
       throw new HttpError(400, "유효하지 않은 견적 ID입니다.");
     }
 
-    await markQuoteViewed(quoteId, user.id);
+    if (user.role !== Role.COUNTRY_ADMIN) {
+      await markQuoteViewed(quoteId, user.id);
+    }
 
     const quote = await prisma.quote.findFirst({
-      where: { id: quoteId, buyer_id: user.id },
+      where:
+        user.role === Role.COUNTRY_ADMIN
+          ? { id: quoteId, country_id: user.countryId! }
+          : { id: quoteId, buyer_id: user.id },
       include: {
+        buyer: true,
         quote_items: true,
         supplier: true,
       },
@@ -46,6 +53,10 @@ export async function POST(
     const quoteId = Number(id);
     if (Number.isNaN(quoteId)) {
       throw new HttpError(400, "유효하지 않은 견적 ID입니다.");
+    }
+
+    if (user.role === Role.COUNTRY_ADMIN) {
+      throw new HttpError(403, "COUNTRY_ADMIN은 견적 승인/거절 권한이 없습니다.");
     }
 
     const action = request.nextUrl.searchParams.get("action");

@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
+import { Role } from "@prisma/client";
 
 import { env } from "@/lib/env";
 
@@ -7,7 +8,7 @@ const secret = new TextEncoder().encode(env.JWT_SECRET);
 
 export type SessionPayload = {
   userId: number;
-  role: "SUPER_ADMIN" | "ADMIN" | "BUYER" | "SUPPLIER";
+  role: Role;
   countryId: number | null;
   supplierId: number | null;
 };
