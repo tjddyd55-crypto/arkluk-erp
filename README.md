@@ -50,6 +50,12 @@ npm run prisma:migrate
 npm run prisma:seed
 ```
 
+관리자 계정만 빠르게 보정하려면 아래를 실행합니다.
+
+```bash
+npm run prisma:bootstrap-admin
+```
+
 5) 개발 서버 실행
 
 ```bash

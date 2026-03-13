@@ -5,12 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "prisma migrate deploy && next start",
+    "start": "prisma migrate deploy && npm run prisma:bootstrap-admin && next start",
     "postinstall": "prisma generate",
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
+    "prisma:bootstrap-admin": "tsx prisma/bootstrap-admin.ts",
     "prisma:seed": "tsx prisma/seed.ts",
     "invoice:cron": "tsx src/server/jobs/invoice-email-cron.ts"
   },
