@@ -67,6 +67,50 @@ enum OrderSupplierStatus {
   CANCELLED
 }
 
+enum ShipmentStatus {
+  CREATED
+  SHIPPED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum BuyerOrderStatus {
+  ORDER_CREATED
+  PAYMENT_PENDING
+  PAYMENT_COMPLETED
+  ORDER_CANCELLED
+}
+
+enum SupplierShipmentStatus {
+  CONFIRMED
+  PREPARING
+  PACKING
+  SHIPPED
+  DELIVERED
+  HOLD
+}
+
+enum NotificationEvent {
+  ORDER_CREATED
+  ORDER_ASSIGNED
+  SUPPLIER_CONFIRMED
+  SHIPMENT_SHIPPED
+  SHIPMENT_DELIVERED
+  ORDER_DELAYED
+  SHIPMENT_DELAYED
+}
+
+enum OrderEventType {
+  ORDER_CREATED
+  ORDER_REVIEWED
+  ORDER_ASSIGNED
+  SUPPLIER_CONFIRMED
+  SHIPMENT_CREATED
+  SHIPMENT_SHIPPED
+  SHIPMENT_DELIVERED
+}
+
 enum QuoteCreatorRole {
   ADMIN
   SUPPLIER
@@ -212,6 +256,7 @@ model Product {
   id                Int        @id @default(autoincrement())
   supplier_id       Int
   category_id       Int
+  country_code      String
   name              String?
   sku               String?
   description       String?
@@ -239,6 +284,7 @@ model Product {
 
   @@unique([supplier_id, product_code])
   @@index([supplier_id, status])
+  @@index([country_code, is_active, status])
   @@index([supplier_id, category_id, is_active])
   @@index([product_name])
 }
@@ -271,6 +317,11 @@ model User {
   created_purchase_orders PurchaseOrder[] @relation("PurchaseOrderCreatedBy")
   product_approval_logs ProductApprovalLog[] @relation("ProductApprovalActor")
   updated_system_settings SystemSetting[] @relation("SystemSettingUpdatedBy")
+  shipment_status_logs  ShipmentStatusLog[] @relation("ShipmentStatusLogCreatedBy")
+  notification_recipients NotificationRecipient[]
+  order_event_logs     OrderEventLog[] @relation("OrderEventCreatedBy")
+  buyer_status_updated_orders Order[] @relation("BuyerOrderStatusUpdatedBy")
+  supplier_status_updated_shipments Shipment[] @relation("SupplierShipmentStatusUpdatedBy")
 
   @@index([role, is_active])
   @@index([country_id])
@@ -346,8 +397,12 @@ model Order {
   order_no      String           @unique
   buyer_id      Int
   country_id    Int
+  country_code  String
   project_id    Int?
   status        OrderStatus      @default(PENDING)
+  buyer_status  BuyerOrderStatus @default(ORDER_CREATED)
+  buyer_status_updated_by Int?
+  buyer_status_updated_at DateTime?
   memo          String?
   created_at    DateTime         @default(now())
   updated_at    DateTime         @updatedAt
@@ -359,8 +414,11 @@ model Order {
   change_logs   OrderChangeLog[]
   tax_invoices  TaxInvoice[]
   purchase_orders PurchaseOrder[]
+  event_logs    OrderEventLog[]
+  buyer_status_updater User?     @relation("BuyerOrderStatusUpdatedBy", fields: [buyer_status_updated_by], references: [id])
 
   @@index([buyer_id, country_id, status])
+  @@index([buyer_id, buyer_status])
   @@index([project_id])
 }
 
@@ -389,6 +447,7 @@ model OrderItem {
   product               Product  @relation(fields: [product_id], references: [id])
   change_logs           OrderChangeLog[]
   assignments           OrderAssignment[]
+  shipment_items        ShipmentItem[]
 
   @@index([order_id, supplier_id])
   @@index([order_id, status])
@@ -432,9 +491,101 @@ model OrderSupplier {
   supplier            Supplier            @relation(fields: [supplier_id], references: [id])
   sender              User?               @relation("OrderSentBy", fields: [sent_by], references: [id])
   checker             User?               @relation("SupplierCheckedBy", fields: [supplier_checked_by], references: [id])
+  shipments           Shipment[]
 
   @@unique([order_id, supplier_id])
   @@index([status])
+}
+
+model Shipment {
+  id               Int            @id @default(autoincrement())
+  order_supplier_id Int
+  shipment_no      String         @unique
+  carrier          String?
+  tracking_number  String?
+  status           ShipmentStatus @default(CREATED)
+  supplier_status  SupplierShipmentStatus @default(CONFIRMED)
+  supplier_status_updated_by Int?
+  supplier_status_updated_at DateTime?
+  shipped_at       DateTime?
+  delivered_at     DateTime?
+  created_at       DateTime       @default(now())
+  order_supplier   OrderSupplier  @relation(fields: [order_supplier_id], references: [id])
+  supplier_status_updater User? @relation("SupplierShipmentStatusUpdatedBy", fields: [supplier_status_updated_by], references: [id])
+  items            ShipmentItem[]
+  status_logs      ShipmentStatusLog[]
+
+  @@index([order_supplier_id, created_at])
+  @@index([status, created_at])
+  @@index([supplier_status, created_at])
+}
+
+model ShipmentItem {
+  id           Int      @id @default(autoincrement())
+  shipment_id  Int
+  order_item_id Int
+  quantity     Decimal  @db.Decimal(18, 3)
+  created_at   DateTime @default(now())
+  shipment     Shipment @relation(fields: [shipment_id], references: [id])
+  order_item   OrderItem @relation(fields: [order_item_id], references: [id])
+
+  @@unique([shipment_id, order_item_id])
+  @@index([order_item_id, created_at])
+}
+
+model ShipmentStatusLog {
+  id             Int      @id @default(autoincrement())
+  shipment_id    Int
+  status_message String
+  created_by     Int
+  created_at     DateTime @default(now())
+  shipment       Shipment @relation(fields: [shipment_id], references: [id])
+  creator        User     @relation("ShipmentStatusLogCreatedBy", fields: [created_by], references: [id])
+
+  @@index([shipment_id, created_at])
+  @@index([created_by, created_at])
+}
+
+model Notification {
+  id         Int               @id @default(autoincrement())
+  event_type NotificationEvent
+  entity_type String
+  entity_id  Int
+  message    String
+  created_at DateTime          @default(now())
+  recipients NotificationRecipient[]
+
+  @@index([event_type, created_at])
+  @@index([entity_type, entity_id])
+}
+
+model NotificationRecipient {
+  id              Int          @id @default(autoincrement())
+  notification_id Int
+  user_id         Int
+  is_read         Boolean      @default(false)
+  created_at      DateTime     @default(now())
+  notification    Notification @relation(fields: [notification_id], references: [id])
+  user            User         @relation(fields: [user_id], references: [id])
+
+  @@unique([notification_id, user_id])
+  @@index([user_id, is_read, created_at])
+  @@index([notification_id])
+}
+
+model OrderEventLog {
+  id         Int            @id @default(autoincrement())
+  order_id   Int
+  event_type OrderEventType
+  message    String
+  created_by Int
+  created_at DateTime       @default(now())
+  order      Order          @relation(fields: [order_id], references: [id])
+  creator    User           @relation("OrderEventCreatedBy", fields: [created_by], references: [id])
+
+  @@index([order_id, created_at])
+  @@index([event_type, created_at])
+  @@index([created_by, created_at])
 }
 
 model Quote {

@@ -1,5 +1,6 @@
 import {
   OrderItemStatus,
+  OrderEventType,
   OrderStatus,
   Prisma,
   ProductStatus,
@@ -13,6 +14,7 @@ import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { buildDocumentNo } from "@/lib/utils";
 import { createAuditLog } from "@/server/services/audit-log";
+import { createOrderEventLog } from "@/server/services/order-event-log-service";
 import { setProjectStatus } from "@/server/services/project-service";
 
 type QuoteActor = {
@@ -328,6 +330,11 @@ export async function acceptQuote(quoteId: number, buyerId: number) {
       include: {
         quote_items: true,
         buyer: true,
+        country: {
+          select: {
+            country_code: true,
+          },
+        },
         project: {
           select: {
             id: true,
@@ -358,6 +365,7 @@ export async function acceptQuote(quoteId: number, buyerId: number) {
         order_no: buildDocumentNo("ORD"),
         buyer_id: quote.buyer_id,
         country_id: quote.country_id,
+        country_code: quote.country.country_code,
         project_id: quote.project_id,
         memo: `견적(${quote.quote_no}) 전환 주문`,
         status: OrderStatus.CREATED,
@@ -405,6 +413,15 @@ export async function acceptQuote(quoteId: number, buyerId: number) {
         targetType: "QUOTE",
         targetId: quoteId,
         afterData: { orderId: order.id, orderNo: order.order_no },
+      },
+      tx,
+    );
+    await createOrderEventLog(
+      {
+        orderId: order.id,
+        eventType: OrderEventType.ORDER_CREATED,
+        message: `견적 승인으로 주문 생성 (${quote.quote_no})`,
+        createdBy: buyerId,
       },
       tx,
     );

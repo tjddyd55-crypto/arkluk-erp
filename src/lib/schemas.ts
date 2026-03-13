@@ -47,6 +47,7 @@ export const categoryUpsertSchema = z.object({
 export const productUpsertSchema = z.object({
   supplierId: positiveNumber,
   categoryId: positiveNumber,
+  countryCode: z.string().trim().min(2).max(10).optional(),
   productCode: z.string().min(1).max(80),
   productName: z.string().min(1).max(200),
   productImageUrl: z.url().optional().nullable(),
@@ -250,6 +251,34 @@ export const assignmentSettingsSchema = z.object({
   }),
   webhookUrl: z.url().optional().nullable(),
   automationActorUserId: z.coerce.number().int().positive().optional().nullable(),
+});
+
+export const shipmentCreateSchema = z.object({
+  carrier: z.string().trim().max(100).optional().nullable(),
+  trackingNumber: z.string().trim().max(120).optional().nullable(),
+});
+
+export const shipmentItemAddSchema = z.object({
+  orderItemId: positiveNumber,
+  quantity: z.coerce.number().positive(),
+});
+
+export const shipmentStatusAddSchema = z.object({
+  statusMessage: z.string().trim().min(1).max(1000),
+});
+
+export const buyerOrderStatusUpdateSchema = z.object({
+  status: z.enum([
+    "ORDER_CREATED",
+    "PAYMENT_PENDING",
+    "PAYMENT_COMPLETED",
+    "ORDER_CANCELLED",
+  ]),
+});
+
+export const supplierShipmentStatusUpdateSchema = z.object({
+  status: z.enum(["CONFIRMED", "PREPARING", "PACKING", "SHIPPED", "DELIVERED", "HOLD"]),
+  statusMessage: z.string().trim().max(1000).optional().nullable(),
 });
 
 export const projectStatusSchema = z.enum([

@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     await requireAuth(request, [...ADMIN_ROLES]);
     const supplierId = toNumber(request.nextUrl.searchParams.get("supplierId"));
     const categoryId = toNumber(request.nextUrl.searchParams.get("categoryId"));
+    const countryCode = request.nextUrl.searchParams.get("countryCode")?.trim();
     const keyword = request.nextUrl.searchParams.get("keyword")?.trim();
     const isActive = request.nextUrl.searchParams.get("isActive");
     const status = resolveProductStatus(request.nextUrl.searchParams.get("status"));
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
     const where: Prisma.ProductWhereInput = {
       ...(supplierId ? { supplier_id: supplierId } : {}),
       ...(categoryId ? { category_id: categoryId } : {}),
+      ...(countryCode ? { country_code: countryCode } : {}),
       ...(isActive ? { is_active: isActive === "true" } : {}),
       ...(status ? { status } : {}),
       ...(keyword
@@ -66,11 +68,19 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       throw new HttpError(400, "상품 요청 값이 올바르지 않습니다.");
     }
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: parsed.data.supplierId },
+      select: { country_code: true },
+    });
+    if (!supplier) {
+      throw new HttpError(400, "공급사를 찾을 수 없습니다.");
+    }
 
     const created = await prisma.product.create({
       data: {
         supplier_id: parsed.data.supplierId,
         category_id: parsed.data.categoryId,
+        country_code: parsed.data.countryCode ?? supplier.country_code,
         name: parsed.data.productName,
         sku: parsed.data.productCode,
         description: parsed.data.memo ?? null,

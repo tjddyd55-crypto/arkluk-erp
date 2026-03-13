@@ -2,12 +2,23 @@ import { NextRequest } from "next/server";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
+import { prisma } from "@/lib/prisma";
 import { parseBuyerOrderExcel } from "@/server/services/excel-service";
 import { createOrder } from "@/server/services/order-service";
 
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth(request, ["BUYER"]);
+    if (!user.countryId) {
+      throw new HttpError(400, "BUYER에는 countryId가 필요합니다.");
+    }
+    const country = await prisma.country.findUnique({
+      where: { id: user.countryId },
+      select: { country_code: true },
+    });
+    if (!country) {
+      throw new HttpError(400, "국가 정보를 찾을 수 없습니다.");
+    }
     const formData = await request.formData();
     const supplierIdRaw = formData.get("supplierId");
     const commitRaw = formData.get("commit");
@@ -26,6 +37,7 @@ export async function POST(request: NextRequest) {
 
     const parsed = await parseBuyerOrderExcel(
       supplierId,
+      country.country_code,
       Buffer.from(await file.arrayBuffer()),
     );
     const commit = String(commitRaw ?? "false").toLowerCase() === "true";

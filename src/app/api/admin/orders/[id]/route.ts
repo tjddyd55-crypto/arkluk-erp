@@ -81,6 +81,9 @@ export async function PATCH(
     if (!parsed.success) {
       throw new HttpError(400, "주문 수정 요청 형식이 올바르지 않습니다.");
     }
+    if (parsed.data.status) {
+      throw new HttpError(403, "관리자 계정은 주문 상태를 변경할 수 없습니다. 조회/품목 수정만 가능합니다.");
+    }
 
     const updated = await updateOrder(orderId, {
       actorId: user.id,

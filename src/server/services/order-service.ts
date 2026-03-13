@@ -1,5 +1,8 @@
 import {
   AssignmentMode,
+  BuyerOrderStatus,
+  NotificationEvent,
+  OrderEventType,
   OrderItemStatus,
   OrderStatus,
   OrderSupplierStatus,
@@ -19,6 +22,12 @@ import {
   getAssignmentSettings,
 } from "@/server/services/assignment-settings-service";
 import { sendMail } from "@/server/services/mail-service";
+import {
+  createNotification,
+  listActiveUserIdsByRoles,
+  listActiveUserIdsBySupplier,
+} from "@/server/services/notification-service";
+import { createOrderEventLog } from "@/server/services/order-event-log-service";
 import { setProjectStatus, syncProjectStatusByOrderSuppliers } from "@/server/services/project-service";
 import {
   generatePurchaseOrderPDF,
@@ -72,6 +81,8 @@ type UpdateOrderInput = {
       }
   >;
 };
+
+const ADMIN_NOTIFICATION_ROLES: Role[] = [Role.SUPER_ADMIN, Role.ADMIN, Role.KOREA_SUPPLY_ADMIN];
 
 function calcAmount(price: Prisma.Decimal, qty: number) {
   return price.mul(new Prisma.Decimal(qty));
@@ -133,16 +144,25 @@ async function requireCountryAdminActor(actorId: number) {
 export async function createOrder(input: CreateOrderInput) {
   const buyer = await prisma.user.findUnique({
     where: { id: input.buyerId },
+    include: {
+      country: {
+        select: {
+          country_code: true,
+        },
+      },
+    },
   });
 
   if (
     !buyer ||
     !buyer.is_active ||
     (buyer.role !== Role.BUYER && buyer.role !== Role.COUNTRY_ADMIN) ||
-    !buyer.country_id
+    !buyer.country_id ||
+    !buyer.country
   ) {
     throw new HttpError(400, "유효한 바이어 계정이 아닙니다.");
   }
+  const buyerCountryCode = buyer.country.country_code;
 
   const project =
     input.projectId !== undefined && input.projectId !== null
@@ -168,7 +188,12 @@ export async function createOrder(input: CreateOrderInput) {
 
   const productIds = [...new Set(input.items.map((item) => item.productId))];
   const products = await prisma.product.findMany({
-    where: { id: { in: productIds }, is_active: true, status: ProductStatus.APPROVED },
+    where: {
+      id: { in: productIds },
+      is_active: true,
+      status: ProductStatus.APPROVED,
+      country_code: buyerCountryCode,
+    },
     include: { category: true, supplier: true },
   });
   const productMap = new Map(products.map((product) => [product.id, product]));
@@ -185,6 +210,7 @@ export async function createOrder(input: CreateOrderInput) {
         order_no: orderNo,
         buyer_id: buyer.id,
         country_id: buyer.country_id!,
+        country_code: buyerCountryCode,
         project_id: input.projectId ?? null,
         memo: input.memo ?? null,
         status: OrderStatus.CREATED,
@@ -243,6 +269,15 @@ export async function createOrder(input: CreateOrderInput) {
       },
       tx,
     );
+    await createOrderEventLog(
+      {
+        orderId: order.id,
+        eventType: OrderEventType.ORDER_CREATED,
+        message: "주문 생성",
+        createdBy: buyer.id,
+      },
+      tx,
+    );
 
     if (
       project &&
@@ -263,10 +298,28 @@ export async function createOrder(input: CreateOrderInput) {
 
     return order;
   });
+
+  const adminUserIds = await listActiveUserIdsByRoles(ADMIN_NOTIFICATION_ROLES);
+  await createNotification({
+    eventType: NotificationEvent.ORDER_CREATED,
+    entityType: "ORDER",
+    entityId: updatedItem.id,
+    message: `신규 주문이 생성되었습니다. (${updatedItem.order_no})`,
+    recipientUserIds: adminUserIds,
+  });
+
+  return updatedItem;
 }
 
 export async function createCountryOrderDraft(input: CreateCountryOrderDraftInput) {
   const actor = await requireCountryAdminActor(input.actorId);
+  const actorCountry = await prisma.country.findUnique({
+    where: { id: actor.country_id! },
+    select: { country_code: true },
+  });
+  if (!actorCountry) {
+    throw new HttpError(400, "COUNTRY_ADMIN 국가 정보가 올바르지 않습니다.");
+  }
 
   const project =
     input.projectId !== undefined && input.projectId !== null
@@ -297,6 +350,7 @@ export async function createCountryOrderDraft(input: CreateCountryOrderDraftInpu
         order_no: orderNo,
         buyer_id: actor.id,
         country_id: actor.country_id!,
+        country_code: actorCountry.country_code,
         project_id: input.projectId ?? null,
         memo: input.memo ?? null,
         status: OrderStatus.CREATED,
@@ -316,9 +370,29 @@ export async function createCountryOrderDraft(input: CreateCountryOrderDraftInpu
       },
       tx,
     );
+    await createOrderEventLog(
+      {
+        orderId: order.id,
+        eventType: OrderEventType.ORDER_CREATED,
+        message: "주문 초안 생성",
+        createdBy: actor.id,
+      },
+      tx,
+    );
 
     return order;
   });
+
+  const adminUserIds = await listActiveUserIdsByRoles(ADMIN_NOTIFICATION_ROLES);
+  await createNotification({
+    eventType: NotificationEvent.ORDER_CREATED,
+    entityType: "ORDER",
+    entityId: updatedItem.id,
+    message: `국가 주문 초안이 생성되었습니다. (${updatedItem.order_no})`,
+    recipientUserIds: adminUserIds,
+  });
+
+  return updatedItem;
 }
 
 export async function addCountryOrderItems(orderId: number, input: CountryOrderItemsInput) {
@@ -329,6 +403,7 @@ export async function addCountryOrderItems(orderId: number, input: CountryOrderI
       id: true,
       buyer_id: true,
       country_id: true,
+      country_code: true,
       status: true,
     },
   });
@@ -348,6 +423,7 @@ export async function addCountryOrderItems(orderId: number, input: CountryOrderI
       id: { in: productIds },
       is_active: true,
       status: ProductStatus.APPROVED,
+      country_code: order.country_code,
     },
   });
   if (products.length !== productIds.length) {
@@ -478,6 +554,8 @@ export async function addCountryOrderItems(orderId: number, input: CountryOrderI
     }
     return updated;
   });
+
+  return updatedItem;
 }
 
 export async function submitCountryOrder(orderId: number, actorId: number) {
@@ -519,6 +597,98 @@ export async function submitCountryOrder(orderId: number, actorId: number) {
         targetId: orderId,
         beforeData: { status: order.status },
         afterData: { status: updated.status },
+      },
+      tx,
+    );
+    await createOrderEventLog(
+      {
+        orderId,
+        eventType: OrderEventType.ORDER_REVIEWED,
+        message: "주문 검토 단계로 제출",
+        createdBy: actor.id,
+      },
+      tx,
+    );
+
+    return updated;
+  });
+}
+
+function isAllowedBuyerStatusTransition(
+  currentStatus: BuyerOrderStatus,
+  nextStatus: BuyerOrderStatus,
+) {
+  if (currentStatus === nextStatus) {
+    return true;
+  }
+  if (currentStatus === BuyerOrderStatus.ORDER_CREATED) {
+    return (
+      nextStatus === BuyerOrderStatus.PAYMENT_PENDING ||
+      nextStatus === BuyerOrderStatus.ORDER_CANCELLED
+    );
+  }
+  if (currentStatus === BuyerOrderStatus.PAYMENT_PENDING) {
+    return (
+      nextStatus === BuyerOrderStatus.PAYMENT_COMPLETED ||
+      nextStatus === BuyerOrderStatus.ORDER_CANCELLED
+    );
+  }
+  return false;
+}
+
+export async function buyerUpdateOrderStatus(
+  orderId: number,
+  buyerId: number,
+  nextStatus: BuyerOrderStatus,
+) {
+  const order = await prisma.order.findFirst({
+    where: {
+      id: orderId,
+      buyer_id: buyerId,
+    },
+    select: {
+      id: true,
+      status: true,
+      buyer_status: true,
+      order_no: true,
+    },
+  });
+  if (!order) {
+    throw new HttpError(404, "주문을 찾을 수 없습니다.");
+  }
+  if (!isAllowedBuyerStatusTransition(order.buyer_status, nextStatus)) {
+    throw new HttpError(
+      400,
+      `허용되지 않은 주문 상태 전이입니다. (${order.buyer_status} -> ${nextStatus})`,
+    );
+  }
+  if (order.status === OrderStatus.DELIVERED && nextStatus === BuyerOrderStatus.ORDER_CANCELLED) {
+    throw new HttpError(400, "배송 완료된 주문은 취소할 수 없습니다.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.order.update({
+      where: { id: order.id },
+      data: {
+        buyer_status: nextStatus,
+        buyer_status_updated_by: buyerId,
+        buyer_status_updated_at: new Date(),
+      },
+    });
+
+    await createAuditLog(
+      {
+        actorId: buyerId,
+        actionType: "BUYER_UPDATE_ORDER_STATUS",
+        targetType: "ORDER",
+        targetId: order.id,
+        beforeData: {
+          buyerStatus: order.buyer_status,
+        },
+        afterData: {
+          buyerStatus: nextStatus,
+          orderNo: order.order_no,
+        },
       },
       tx,
     );
@@ -633,7 +803,12 @@ export async function updateOrder(orderId: number, input: UpdateOrderInput) {
         const product = await tx.product.findUnique({
           where: { id: operation.productId },
         });
-        if (!product || !product.is_active || product.status !== ProductStatus.APPROVED) {
+        if (
+          !product ||
+          !product.is_active ||
+          product.status !== ProductStatus.APPROVED ||
+          product.country_code !== currentOrder.country_code
+        ) {
           throw new HttpError(400, "추가 대상 상품이 유효하지 않습니다.");
         }
         ensureEditableBySupplierStatus(supplierStatusMap, product.supplier_id);
@@ -985,6 +1160,9 @@ export async function supplierCheckOrder(
     include: {
       order: {
         select: {
+          id: true,
+          order_no: true,
+          buyer_id: true,
           project_id: true,
         },
       },
@@ -1061,6 +1239,15 @@ export async function supplierCheckOrder(
       },
       tx,
     );
+    await createOrderEventLog(
+      {
+        orderId,
+        eventType: OrderEventType.SUPPLIER_CONFIRMED,
+        message: "공급사 주문 확인",
+        createdBy: actorId,
+      },
+      tx,
+    );
 
     if (orderSupplier.order.project_id) {
       await syncProjectStatusByOrderSuppliers(
@@ -1072,6 +1259,28 @@ export async function supplierCheckOrder(
       );
     }
   });
+
+  await createNotification({
+    eventType: NotificationEvent.SUPPLIER_CONFIRMED,
+    entityType: "ORDER",
+    entityId: orderSupplier.order.id,
+    message: `공급사가 주문을 확인했습니다. (${orderSupplier.order.order_no})`,
+    recipientUserIds: [orderSupplier.order.buyer_id],
+  });
+
+  const isDelayedConfirm =
+    orderSupplier.sent_at instanceof Date &&
+    Date.now() - orderSupplier.sent_at.getTime() >= 1000 * 60 * 60 * 24;
+  if (isDelayedConfirm) {
+    const adminUserIds = await listActiveUserIdsByRoles(ADMIN_NOTIFICATION_ROLES);
+    await createNotification({
+      eventType: NotificationEvent.SUPPLIER_CONFIRMED,
+      entityType: "ORDER",
+      entityId: orderSupplier.order.id,
+      message: `공급사 확인이 지연 후 완료되었습니다. (${orderSupplier.order.order_no})`,
+      recipientUserIds: adminUserIds,
+    });
+  }
 }
 
 export async function supplierSetDeliveryDate(
@@ -1305,6 +1514,15 @@ export async function assignOrderItemSupplier(
       },
       tx,
     );
+    await createOrderEventLog(
+      {
+        orderId,
+        eventType: OrderEventType.ORDER_ASSIGNED,
+        message: `주문 품목 공급사 배정: ${supplier.supplier_name}`,
+        createdBy: actorId,
+      },
+      tx,
+    );
 
     return updatedItem;
   });
@@ -1315,6 +1533,15 @@ export async function assignOrderItemSupplier(
     supplier,
     mode: assignmentMode,
     settings,
+  });
+
+  const supplierRecipientIds = await listActiveUserIdsBySupplier(input.supplierId);
+  await createNotification({
+    eventType: NotificationEvent.ORDER_ASSIGNED,
+    entityType: "ORDER",
+    entityId: orderId,
+    message: `주문이 배정되었습니다. (${order.order_no})`,
+    recipientUserIds: supplierRecipientIds,
   });
 
   return updatedItem;
@@ -1499,6 +1726,15 @@ export async function supplierMarkShipped(
       },
       tx,
     );
+    await createOrderEventLog(
+      {
+        orderId,
+        eventType: OrderEventType.SHIPMENT_SHIPPED,
+        message: "배송 시작",
+        createdBy: actorId,
+      },
+      tx,
+    );
 
     await syncOrderStatus(orderId, tx);
     if (orderSupplier.order.project_id) {
@@ -1570,6 +1806,15 @@ export async function supplierMarkDelivered(
         targetType: "ORDER",
         targetId: orderId,
         afterData: { supplierId, supplierNote },
+      },
+      tx,
+    );
+    await createOrderEventLog(
+      {
+        orderId,
+        eventType: OrderEventType.SHIPMENT_DELIVERED,
+        message: "배송 완료",
+        createdBy: actorId,
       },
       tx,
     );

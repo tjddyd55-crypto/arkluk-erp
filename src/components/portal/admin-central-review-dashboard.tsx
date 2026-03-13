@@ -16,7 +16,7 @@ type ReviewOrder = {
   buyer: {
     id: number;
     name: string;
-    role: "COUNTRY_ADMIN";
+    role: "COUNTRY_ADMIN" | "BUYER";
   };
   country: {
     id: number;
@@ -47,6 +47,7 @@ export function AdminCentralReviewDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [assigningItemId, setAssigningItemId] = useState<number | null>(null);
+  const statusChangeDisabled = true;
 
   async function loadDashboard() {
     setLoading(true);
@@ -134,7 +135,10 @@ export function AdminCentralReviewDashboard() {
         </button>
       </div>
       <p className="text-sm text-slate-600">
-        국가에서 제출한 주문(UNDER_REVIEW)을 검토하고 품목별 공급사를 배정합니다.
+        COUNTRY_ADMIN 검토를 거쳐 UNDER_REVIEW 상태인 주문을 조회합니다.
+      </p>
+      <p className="text-xs text-amber-700">
+        정책 변경으로 관리자 계정은 상태 변경/공급사 배정을 수행할 수 없습니다.
       </p>
 
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
@@ -193,6 +197,7 @@ export function AdminCentralReviewDashboard() {
                             <select
                               className="rounded border border-slate-300 px-2 py-1 text-xs"
                               value={selectedSupplierMap[item.id] ?? item.supplier_id}
+                              disabled={statusChangeDisabled}
                               onChange={(event) =>
                                 setSelectedSupplierMap((prev) => ({
                                   ...prev,
@@ -209,7 +214,7 @@ export function AdminCentralReviewDashboard() {
                             <button
                               type="button"
                               className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
-                              disabled={assigningItemId === item.id}
+                              disabled={statusChangeDisabled || assigningItemId === item.id}
                               onClick={() => assignSupplier(order.id, item.id)}
                             >
                               {assigningItemId === item.id ? "배정 중..." : "배정"}

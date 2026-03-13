@@ -276,6 +276,7 @@ async function main() {
       },
       update: {
         category_id: aPipe.id,
+        country_code: supplierA.country_code,
         product_name: "PVC 배관 50mm",
         spec: "50mm",
         unit: "EA",
@@ -284,6 +285,7 @@ async function main() {
       create: {
         supplier_id: supplierA.id,
         category_id: aPipe.id,
+        country_code: supplierA.country_code,
         product_code: "A-PIPE-50",
         product_name: "PVC 배관 50mm",
         spec: "50mm",
@@ -300,6 +302,7 @@ async function main() {
       },
       update: {
         category_id: aTile.id,
+        country_code: supplierA.country_code,
         product_name: "세라믹 타일 화이트",
         spec: "300x300",
         unit: "BOX",
@@ -308,6 +311,7 @@ async function main() {
       create: {
         supplier_id: supplierA.id,
         category_id: aTile.id,
+        country_code: supplierA.country_code,
         product_code: "A-TILE-WHT",
         product_name: "세라믹 타일 화이트",
         spec: "300x300",
@@ -324,6 +328,7 @@ async function main() {
       },
       update: {
         category_id: bSanitary.id,
+        country_code: supplierB.country_code,
         product_name: "기본형 세면기",
         spec: "일반형",
         unit: "EA",
@@ -332,6 +337,7 @@ async function main() {
       create: {
         supplier_id: supplierB.id,
         category_id: bSanitary.id,
+        country_code: supplierB.country_code,
         product_code: "B-SAN-BASIC",
         product_name: "기본형 세면기",
         spec: "일반형",
@@ -496,6 +502,7 @@ async function main() {
     update: {
       buyer_id: buyerUser.id,
       country_id: mnCountry.id,
+      country_code: mnCountry.country_code,
       status: "REVIEWING",
       memo: "세금계산서 시드 주문",
     },
@@ -503,6 +510,7 @@ async function main() {
       order_no: "ORD-20260312-001",
       buyer_id: buyerUser.id,
       country_id: mnCountry.id,
+      country_code: mnCountry.country_code,
       status: "REVIEWING",
       memo: "세금계산서 시드 주문",
     },

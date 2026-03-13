@@ -32,8 +32,37 @@ export async function GET(
         country: true,
         buyer: true,
         order_items: true,
+        event_logs: {
+          include: {
+            creator: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: [{ created_at: "asc" }, { id: "asc" }],
+        },
         suppliers: {
-          include: { supplier: true },
+          include: {
+            supplier: true,
+            shipments: {
+              include: {
+                status_logs: {
+                  include: {
+                    creator: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
+                    },
+                  },
+                  orderBy: [{ created_at: "asc" }, { id: "asc" }],
+                },
+              },
+              orderBy: [{ created_at: "desc" }, { id: "desc" }],
+            },
+          },
         },
       },
     });

@@ -304,6 +304,8 @@ export default function AdminOrderDetailPage() {
     return acc;
   }, {});
 
+  const statusChangeDisabled = true;
+
   const statusLabelMap: Record<
     "WAITING" | "SENT" | "SUPPLIER_CONFIRMED" | "DELIVERING" | "COMPLETED" | "CANCELLED",
     string
@@ -327,12 +329,12 @@ export default function AdminOrderDetailPage() {
 
       <section className="rounded border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">공급사별 발주</h2>
+          <h2 className="text-lg font-semibold">공급사별 발주 (조회 전용)</h2>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               className="rounded border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
-              disabled={assigningOrderMode !== null}
+              disabled={statusChangeDisabled || assigningOrderMode !== null}
               onClick={() => runAutoAssignment("AUTO")}
             >
               {assigningOrderMode === "AUTO" ? "처리 중..." : "상품 기준 자동 배정"}
@@ -340,7 +342,7 @@ export default function AdminOrderDetailPage() {
             <button
               type="button"
               className="rounded border border-indigo-300 px-3 py-2 text-sm text-indigo-700 disabled:opacity-60"
-              disabled={assigningOrderMode !== null}
+              disabled={statusChangeDisabled || assigningOrderMode !== null}
               onClick={() => runAutoAssignment("TIMEOUT")}
             >
               {assigningOrderMode === "TIMEOUT" ? "처리 중..." : "타임아웃 자동 배정"}
@@ -348,7 +350,7 @@ export default function AdminOrderDetailPage() {
             <button
               type="button"
               className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
-              disabled={sendingAll}
+              disabled={statusChangeDisabled || sendingAll}
               onClick={sendPurchaseOrderToAll}
             >
               {sendingAll ? "전체 발주 처리 중..." : "전체 발주"}
@@ -361,6 +363,9 @@ export default function AdminOrderDetailPage() {
         {actionError ? (
           <p className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700">{actionError}</p>
         ) : null}
+        <p className="mt-2 text-xs text-amber-700">
+          정책 변경으로 관리자 계정은 주문/배송 상태를 변경할 수 없으며 조회만 가능합니다.
+        </p>
 
         <div className="mt-3 space-y-4">
           {order.suppliers.map((supplierRow) => {
@@ -398,6 +403,7 @@ export default function AdminOrderDetailPage() {
                       type="button"
                       className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
                       disabled={
+                        statusChangeDisabled ||
                         supplierRow.status !== "WAITING" ||
                         sendingSupplierId === supplierRow.supplier_id
                       }
@@ -411,6 +417,7 @@ export default function AdminOrderDetailPage() {
                       type="button"
                       className="rounded border border-red-300 px-3 py-1 text-sm text-red-700 disabled:opacity-60"
                       disabled={
+                        statusChangeDisabled ||
                         (supplierRow.status !== "SENT" &&
                           supplierRow.status !== "SUPPLIER_CONFIRMED") ||
                         cancellingSupplierId === supplierRow.supplier_id
@@ -463,6 +470,7 @@ export default function AdminOrderDetailPage() {
                               <select
                                 className="rounded border border-slate-300 px-2 py-1"
                                 value={selectedSupplierMap[item.id] ?? supplierRow.supplier_id}
+                                disabled={statusChangeDisabled}
                                 onChange={(event) =>
                                   setSelectedSupplierMap((prev) => ({
                                     ...prev,
@@ -479,7 +487,7 @@ export default function AdminOrderDetailPage() {
                               <button
                                 type="button"
                                 className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
-                                disabled={assigningItemId === item.id}
+                                disabled={statusChangeDisabled || assigningItemId === item.id}
                                 onClick={() => assignOrderItem(item.id)}
                               >
                                 {assigningItemId === item.id ? "처리 중..." : "배정"}

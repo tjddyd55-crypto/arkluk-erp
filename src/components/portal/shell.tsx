@@ -2,52 +2,72 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { NotificationBell } from "@/components/portal/notification-bell";
 
 type MenuItem = {
   href: string;
   label: string;
 };
 
-const adminMenu: MenuItem[] = [
-  { href: "/admin", label: "대시보드" },
-  { href: "/admin/users", label: "사용자 관리" },
-  { href: "/admin/countries", label: "국가 관리" },
-  { href: "/admin/suppliers", label: "공급사 관리" },
-  { href: "/admin/categories", label: "카테고리 관리" },
-  { href: "/admin/products", label: "상품 관리" },
-  { href: "/admin/projects", label: "프로젝트 관리" },
-  { href: "/admin/orders", label: "주문 관리" },
-  { href: "/admin/quotes", label: "견적 관리" },
-  { href: "/admin/purchase-order-templates", label: "발주 템플릿" },
-  { href: "/admin/tax-invoices", label: "세금계산서" },
-  { href: "/admin/logs", label: "로그 관리" },
+const superAdminMenu: MenuItem[] = [
+  { href: "/admin/dashboard", label: "Dashboard" },
+  { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/suppliers", label: "Suppliers" },
+  { href: "/admin/countries", label: "Countries" },
+  { href: "/admin/users", label: "Users" },
+];
+
+const koreaSupplyAdminMenu: MenuItem[] = [
+  { href: "/admin/supply-dashboard", label: "Supply Dashboard" },
+  { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/suppliers", label: "Suppliers" },
 ];
 
 const buyerMenu: MenuItem[] = [
-  { href: "/buyer", label: "주문 작성" },
-  { href: "/buyer/projects", label: "내 프로젝트" },
-  { href: "/buyer/orders", label: "내 주문" },
-  { href: "/buyer/quotes", label: "받은 견적" },
+  { href: "/buyer", label: "Dashboard" },
+  { href: "/buyer/orders", label: "My Orders" },
+  { href: "/buyer/profile", label: "Profile" },
 ];
 
 const supplierMenu: MenuItem[] = [
-  { href: "/supplier", label: "대시보드" },
-  { href: "/supplier/orders", label: "주문 목록" },
-  { href: "/supplier/quotes", label: "견적 목록" },
-  { href: "/supplier/products", label: "상품 목록" },
+  { href: "/supplier", label: "Dashboard" },
+  { href: "/supplier/orders", label: "My Orders" },
+  { href: "/supplier/products", label: "Products" },
 ];
 
-function getMenu(pathname: string) {
+function getMenu(pathname: string, role: string | null) {
   if (pathname.startsWith("/buyer")) return buyerMenu;
   if (pathname.startsWith("/supplier")) return supplierMenu;
-  return adminMenu;
+  if (role === "SUPER_ADMIN") {
+    return superAdminMenu;
+  }
+  if (role === "KOREA_SUPPLY_ADMIN" || role === "ADMIN") {
+    return koreaSupplyAdminMenu;
+  }
+  return superAdminMenu;
 }
 
 export function PortalShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const menu = getMenu(pathname);
+  const [role, setRole] = useState<string | null>(null);
+  const menu = getMenu(pathname, role);
+
+  useEffect(() => {
+    async function loadMe() {
+      try {
+        const response = await fetch("/api/auth/me");
+        const result = await response.json();
+        if (response.ok && result.success && result.data?.role) {
+          setRole(result.data.role as string);
+        }
+      } catch {
+        // no-op
+      }
+    }
+    loadMe();
+  }, []);
 
   async function onLogout() {
     await fetch("/api/auth/login", { method: "DELETE" });
@@ -81,7 +101,12 @@ export function PortalShell({ children }: { children: ReactNode }) {
           로그아웃
         </button>
       </aside>
-      <main className="flex-1 p-6">{children}</main>
+      <main className="flex-1 p-6">
+        <div className="mb-4 flex justify-end">
+          <NotificationBell />
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

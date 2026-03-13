@@ -90,6 +90,9 @@ export async function requireAuth(req: NextRequest, roles?: Role[]) {
   if (user.role === Role.COUNTRY_ADMIN && !user.countryId) {
     throw new HttpError(403, "COUNTRY_ADMIN 계정에는 country_id가 필요합니다.");
   }
+  if (user.role === Role.BUYER && !user.countryId) {
+    throw new HttpError(403, "BUYER 계정에는 country_id가 필요합니다.");
+  }
 
   if (user.role === Role.SUPER_ADMIN) {
     return user;

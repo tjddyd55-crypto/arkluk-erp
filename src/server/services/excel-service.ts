@@ -127,6 +127,7 @@ export async function upsertProductsFromExcel(actorId: number, buffer: Buffer) {
       const payload = {
         supplier_id: supplier.id,
         category_id: category.id,
+        country_code: supplier.country_code,
         name: row.productName,
         sku: row.productCode,
         description: row.memo || null,
@@ -174,12 +175,13 @@ export async function upsertProductsFromExcel(actorId: number, buffer: Buffer) {
   };
 }
 
-export async function buildOrderTemplateBySupplier(supplierId: number) {
+export async function buildOrderTemplateBySupplier(supplierId: number, countryCode?: string) {
   const products = await prisma.product.findMany({
     where: {
       supplier_id: supplierId,
       is_active: true,
       status: ProductStatus.APPROVED,
+      ...(countryCode ? { country_code: countryCode } : {}),
     },
     include: { category: true },
     orderBy: [{ category: { sort_order: "asc" } }, { sort_order: "asc" }],
@@ -203,7 +205,11 @@ export async function buildOrderTemplateBySupplier(supplierId: number) {
   return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 }
 
-export async function parseBuyerOrderExcel(supplierId: number, buffer: Buffer) {
+export async function parseBuyerOrderExcel(
+  supplierId: number,
+  countryCode: string,
+  buffer: Buffer,
+) {
   const workbook = XLSX.read(buffer, { type: "buffer" });
   const firstSheetName = workbook.SheetNames[0];
   const firstSheet = workbook.Sheets[firstSheetName];
@@ -221,6 +227,7 @@ export async function parseBuyerOrderExcel(supplierId: number, buffer: Buffer) {
       supplier_id: supplierId,
       product_code: { in: productCodeList },
       status: ProductStatus.APPROVED,
+      country_code: countryCode,
     },
   });
   const productCodeMap = new Map(products.map((product) => [product.product_code, product]));

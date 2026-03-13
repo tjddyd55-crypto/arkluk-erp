@@ -35,6 +35,38 @@ type SupplierOrderDetail = {
   };
 };
 
+type ShipmentRow = {
+  id: number;
+  shipment_no: string;
+  carrier: string | null;
+  tracking_number: string | null;
+  status: "CREATED" | "SHIPPED" | "IN_TRANSIT" | "DELIVERED" | "CANCELLED";
+  supplier_status: "CONFIRMED" | "PREPARING" | "PACKING" | "SHIPPED" | "DELIVERED" | "HOLD";
+  shipped_at: string | null;
+  delivered_at: string | null;
+  created_at: string;
+  items: Array<{
+    id: number;
+    quantity: string;
+    order_item: {
+      id: number;
+      product_code_snapshot: string;
+      product_name_snapshot: string;
+      unit_snapshot: string;
+      qty: string;
+    };
+  }>;
+  status_logs: Array<{
+    id: number;
+    status_message: string;
+    created_at: string;
+    creator: {
+      id: number;
+      name: string;
+    };
+  }>;
+};
+
 const statusLabelMap: Record<
   "WAITING" | "SENT" | "SUPPLIER_CONFIRMED" | "DELIVERING" | "COMPLETED" | "CANCELLED",
   string
@@ -46,6 +78,21 @@ const statusLabelMap: Record<
   COMPLETED: "납품 완료",
   CANCELLED: "취소",
 };
+
+const shipmentStatusLabelMap: Record<
+  "CREATED" | "SHIPPED" | "IN_TRANSIT" | "DELIVERED" | "CANCELLED",
+  string
+> = {
+  CREATED: "생성됨",
+  SHIPPED: "출고됨",
+  IN_TRANSIT: "배송중",
+  DELIVERED: "배송완료",
+  CANCELLED: "취소",
+};
+
+const supplierShipmentStatusOptions: Array<
+  "CONFIRMED" | "PREPARING" | "PACKING" | "SHIPPED" | "DELIVERED" | "HOLD"
+> = ["CONFIRMED", "PREPARING", "PACKING", "SHIPPED", "DELIVERED", "HOLD"];
 
 function getSupplierStatusLabel(status: SupplierOrderDetail["status"], orderStatus: string) {
   if (status === "WAITING" && orderStatus === "ASSIGNED") {
@@ -78,6 +125,17 @@ export default function SupplierOrderDetailPage() {
   const [confirmDate, setConfirmDate] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [supplierNote, setSupplierNote] = useState("");
+  const [shipments, setShipments] = useState<ShipmentRow[]>([]);
+  const [loadingShipments, setLoadingShipments] = useState(false);
+  const [creatingShipment, setCreatingShipment] = useState(false);
+  const [processingShipmentId, setProcessingShipmentId] = useState<number | null>(null);
+  const [shipmentCarrier, setShipmentCarrier] = useState("");
+  const [shipmentTrackingNumber, setShipmentTrackingNumber] = useState("");
+  const [shipmentQtyMap, setShipmentQtyMap] = useState<Record<number, string>>({});
+  const [shipmentStatusMessageMap, setShipmentStatusMessageMap] = useState<Record<number, string>>({});
+  const [shipmentWorkflowStatusMap, setShipmentWorkflowStatusMap] = useState<
+    Record<number, ShipmentRow["supplier_status"]>
+  >({});
 
   async function loadDetail() {
     setLoading(true);
@@ -100,12 +158,221 @@ export default function SupplierOrderDetailPage() {
     }
   }
 
+  async function loadShipments() {
+    setLoadingShipments(true);
+    try {
+      const response = await fetch(`/api/supplier/orders/${orderId}/shipments`);
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "출고 목록 조회 실패");
+      }
+      const rows = result.data as ShipmentRow[];
+      setShipments(rows);
+      setShipmentWorkflowStatusMap(
+        rows.reduce<Record<number, ShipmentRow["supplier_status"]>>((acc, row) => {
+          acc[row.id] = row.supplier_status;
+          return acc;
+        }, {}),
+      );
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "출고 목록 조회 실패");
+    } finally {
+      setLoadingShipments(false);
+    }
+  }
+
   useEffect(() => {
     if (!Number.isNaN(orderId)) {
       loadDetail();
+      loadShipments();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
+
+  async function handleCreateShipment() {
+    if (!detail) {
+      return;
+    }
+    setMessage(null);
+    setActionError(null);
+
+    const shipmentItems = detail.order.order_items
+      .map((item) => ({
+        orderItemId: item.id,
+        quantity: Number(shipmentQtyMap[item.id] ?? 0),
+      }))
+      .filter((row) => row.quantity > 0);
+    if (shipmentItems.length === 0) {
+      setActionError("출고할 품목 수량을 1개 이상 입력해 주세요.");
+      return;
+    }
+
+    setCreatingShipment(true);
+    try {
+      const createResponse = await fetch(`/api/supplier/orders/${orderId}/shipments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          carrier: shipmentCarrier || null,
+          trackingNumber: shipmentTrackingNumber || null,
+        }),
+      });
+      const createResult = await createResponse.json();
+      if (!createResponse.ok || !createResult.success) {
+        throw new Error(createResult.message ?? "출고 생성 실패");
+      }
+
+      const createdShipmentId = Number((createResult.data as { id: number }).id);
+      for (const item of shipmentItems) {
+        const addItemResponse = await fetch(
+          `/api/supplier/orders/${orderId}/shipments/${createdShipmentId}/items`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(item),
+          },
+        );
+        const addItemResult = await addItemResponse.json();
+        if (!addItemResponse.ok || !addItemResult.success) {
+          throw new Error(addItemResult.message ?? "출고 품목 추가 실패");
+        }
+      }
+
+      setMessage("Shipment가 생성되었습니다.");
+      setShipmentCarrier("");
+      setShipmentTrackingNumber("");
+      setShipmentQtyMap({});
+      setShipmentStatusMessageMap({});
+      await loadShipments();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Shipment 생성 실패");
+    } finally {
+      setCreatingShipment(false);
+    }
+  }
+
+  async function handleMarkShipmentShipped(shipmentId: number) {
+    setMessage(null);
+    setActionError(null);
+    setProcessingShipmentId(shipmentId);
+    try {
+      const response = await fetch(`/api/supplier/orders/${orderId}/shipments/${shipmentId}/ship`, {
+        method: "POST",
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "Shipment 출고 처리 실패");
+      }
+
+      setMessage("Shipment 상태를 SHIPPED로 변경했습니다.");
+      await loadShipments();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Shipment 출고 처리 실패");
+    } finally {
+      setProcessingShipmentId(null);
+    }
+  }
+
+  async function handleMarkShipmentDelivered(shipmentId: number) {
+    setMessage(null);
+    setActionError(null);
+    setProcessingShipmentId(shipmentId);
+    try {
+      const response = await fetch(
+        `/api/supplier/orders/${orderId}/shipments/${shipmentId}/deliver`,
+        {
+          method: "POST",
+        },
+      );
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "Shipment 배송 완료 처리 실패");
+      }
+
+      setMessage("Shipment 상태를 DELIVERED로 변경했습니다.");
+      await loadShipments();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Shipment 배송 완료 처리 실패");
+    } finally {
+      setProcessingShipmentId(null);
+    }
+  }
+
+  async function handleAddShipmentStatus(shipmentId: number) {
+    const message = (shipmentStatusMessageMap[shipmentId] ?? "").trim();
+    if (!message) {
+      setActionError("상태 메시지를 입력해 주세요.");
+      return;
+    }
+
+    setMessage(null);
+    setActionError(null);
+    setProcessingShipmentId(shipmentId);
+    try {
+      const response = await fetch(
+        `/api/supplier/orders/${orderId}/shipments/${shipmentId}/status`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            statusMessage: message,
+          }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "Shipment 상태 메시지 추가 실패");
+      }
+
+      setShipmentStatusMessageMap((prev) => ({
+        ...prev,
+        [shipmentId]: "",
+      }));
+      setMessage("Shipment 상태 메시지를 기록했습니다.");
+      await loadShipments();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Shipment 상태 메시지 추가 실패");
+    } finally {
+      setProcessingShipmentId(null);
+    }
+  }
+
+  async function handleUpdateShipmentWorkflowStatus(shipmentId: number) {
+    const status = shipmentWorkflowStatusMap[shipmentId];
+    if (!status) {
+      setActionError("변경할 배송 상태를 선택해 주세요.");
+      return;
+    }
+
+    setMessage(null);
+    setActionError(null);
+    setProcessingShipmentId(shipmentId);
+    try {
+      const response = await fetch(
+        `/api/supplier/orders/${orderId}/shipments/${shipmentId}/supplier-status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status,
+            statusMessage: shipmentStatusMessageMap[shipmentId] ?? null,
+          }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "Shipment 상태 변경 실패");
+      }
+
+      setMessage("Shipment 배송 상태가 변경되었습니다.");
+      setShipmentStatusMessageMap((prev) => ({ ...prev, [shipmentId]: "" }));
+      await loadShipments();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Shipment 상태 변경 실패");
+    } finally {
+      setProcessingShipmentId(null);
+    }
+  }
 
   async function handleConfirmOrder() {
     if (!detail) {
@@ -257,12 +524,11 @@ export default function SupplierOrderDetailPage() {
     return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error ?? "주문 없음"}</p>;
   }
 
-  const canConfirm =
-    detail.status === "SENT" || (detail.status === "WAITING" && detail.order.status === "ASSIGNED");
-  const canSetDelivery = detail.status === "SUPPLIER_CONFIRMED" || detail.status === "DELIVERING";
-  const canCancel = detail.status === "SENT" || detail.status === "SUPPLIER_CONFIRMED";
-  const canShip = detail.status === "SUPPLIER_CONFIRMED" || detail.status === "DELIVERING";
-  const canDeliver = detail.status === "SUPPLIER_CONFIRMED" || detail.status === "DELIVERING";
+  const canConfirm = false;
+  const canSetDelivery = false;
+  const canCancel = false;
+  const canShip = false;
+  const canDeliver = false;
 
   return (
     <div className="space-y-4">
@@ -284,6 +550,9 @@ export default function SupplierOrderDetailPage() {
 
       <section className="rounded border border-slate-200 bg-white p-4">
         <h2 className="text-lg font-semibold">공급사 처리</h2>
+        <p className="mt-1 text-xs text-amber-700">
+          정책 변경으로 Order 상태는 변경할 수 없습니다. Shipment 상태만 변경 가능합니다.
+        </p>
 
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <label className="text-sm text-slate-700">
@@ -396,6 +665,254 @@ export default function SupplierOrderDetailPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="rounded border border-slate-200 bg-white p-4">
+        <h2 className="text-lg font-semibold">Create Shipment</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          기존 주문 상태와 독립적으로, 부분 출고 및 송장 추적을 위한 Shipment를 생성합니다.
+        </p>
+
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <label className="text-sm text-slate-700">
+            Carrier
+            <input
+              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              placeholder="예: DHL, FedEx"
+              value={shipmentCarrier}
+              onChange={(event) => setShipmentCarrier(event.target.value)}
+              disabled={creatingShipment}
+            />
+          </label>
+          <label className="text-sm text-slate-700">
+            Tracking Number
+            <input
+              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              placeholder="운송장 번호"
+              value={shipmentTrackingNumber}
+              onChange={(event) => setShipmentTrackingNumber(event.target.value)}
+              disabled={creatingShipment}
+            />
+          </label>
+        </div>
+
+        <div className="mt-3 overflow-auto">
+          <table className="min-w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className="border border-slate-200 px-2 py-1 text-left">상품코드</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">제품명</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">주문수량</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">Shipment Items</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.order.order_items.map((item) => (
+                <tr key={item.id}>
+                  <td className="border border-slate-200 px-2 py-1">{item.product_code_snapshot}</td>
+                  <td className="border border-slate-200 px-2 py-1">{item.product_name_snapshot}</td>
+                  <td className="border border-slate-200 px-2 py-1">
+                    {item.qty} {item.unit_snapshot}
+                  </td>
+                  <td className="border border-slate-200 px-2 py-1">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.001"
+                      className="w-28 rounded border border-slate-300 px-2 py-1"
+                      value={shipmentQtyMap[item.id] ?? ""}
+                      onChange={(event) =>
+                        setShipmentQtyMap((prev) => ({
+                          ...prev,
+                          [item.id]: event.target.value,
+                        }))
+                      }
+                      disabled={creatingShipment}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-3">
+          <button
+            type="button"
+            className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
+            onClick={handleCreateShipment}
+            disabled={creatingShipment}
+          >
+            {creatingShipment ? "생성 중..." : "Create Shipment"}
+          </button>
+        </div>
+
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold text-slate-800">Shipment 목록</h3>
+          {loadingShipments ? (
+            <p className="mt-2 text-xs text-slate-500">출고 목록을 불러오는 중...</p>
+          ) : shipments.length === 0 ? (
+            <p className="mt-2 text-xs text-slate-500">생성된 Shipment가 없습니다.</p>
+          ) : (
+            <div className="mt-2 space-y-2">
+              {shipments.map((shipment) => (
+                <article key={shipment.id} className="rounded border border-slate-200 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {shipment.shipment_no} ({shipmentStatusLabelMap[shipment.status]} /{" "}
+                        {shipment.supplier_status})
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Carrier: {shipment.carrier ?? "-"} / Tracking: {shipment.tracking_number ?? "-"}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        생성일: {new Date(shipment.created_at).toLocaleString()} / 출고일:{" "}
+                        {shipment.shipped_at ? new Date(shipment.shipped_at).toLocaleString() : "-"} / 배송완료일:{" "}
+                        {shipment.delivered_at
+                          ? new Date(shipment.delivered_at).toLocaleString()
+                          : "-"}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <select
+                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                        value={shipmentWorkflowStatusMap[shipment.id] ?? shipment.supplier_status}
+                        onChange={(event) =>
+                          setShipmentWorkflowStatusMap((prev) => ({
+                            ...prev,
+                            [shipment.id]: event.target.value as ShipmentRow["supplier_status"],
+                          }))
+                        }
+                        disabled={processingShipmentId === shipment.id}
+                      >
+                        {supplierShipmentStatusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
+                        disabled={processingShipmentId === shipment.id}
+                        onClick={() => handleUpdateShipmentWorkflowStatus(shipment.id)}
+                      >
+                        {processingShipmentId === shipment.id ? "처리 중..." : "상태 반영"}
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded border border-indigo-300 px-2 py-1 text-xs text-indigo-700 disabled:opacity-60"
+                        disabled={
+                          processingShipmentId === shipment.id ||
+                          (shipment.status !== "CREATED" && shipment.status !== "IN_TRANSIT")
+                        }
+                        onClick={() => handleMarkShipmentShipped(shipment.id)}
+                      >
+                        {processingShipmentId === shipment.id ? "처리 중..." : "SHIPPED"}
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded border border-emerald-300 px-2 py-1 text-xs text-emerald-700 disabled:opacity-60"
+                        disabled={
+                          processingShipmentId === shipment.id ||
+                          (shipment.status !== "SHIPPED" && shipment.status !== "IN_TRANSIT")
+                        }
+                        onClick={() => handleMarkShipmentDelivered(shipment.id)}
+                      >
+                        {processingShipmentId === shipment.id ? "처리 중..." : "DELIVERED"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 overflow-auto">
+                    <table className="min-w-full border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-50">
+                          <th className="border border-slate-200 px-2 py-1 text-left">상품코드</th>
+                          <th className="border border-slate-200 px-2 py-1 text-left">제품명</th>
+                          <th className="border border-slate-200 px-2 py-1 text-left">출고수량</th>
+                          <th className="border border-slate-200 px-2 py-1 text-left">주문수량</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {shipment.items.map((item) => (
+                          <tr key={item.id}>
+                            <td className="border border-slate-200 px-2 py-1">
+                              {item.order_item.product_code_snapshot}
+                            </td>
+                            <td className="border border-slate-200 px-2 py-1">
+                              {item.order_item.product_name_snapshot}
+                            </td>
+                            <td className="border border-slate-200 px-2 py-1">
+                              {item.quantity} {item.order_item.unit_snapshot}
+                            </td>
+                            <td className="border border-slate-200 px-2 py-1">
+                              {item.order_item.qty} {item.order_item.unit_snapshot}
+                            </td>
+                          </tr>
+                        ))}
+                        {shipment.items.length === 0 ? (
+                          <tr>
+                            <td
+                              className="border border-slate-200 px-2 py-2 text-center text-slate-500"
+                              colSpan={4}
+                            >
+                              출고 품목이 없습니다.
+                            </td>
+                          </tr>
+                        ) : null}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-3 rounded border border-slate-200 p-2">
+                    <p className="text-xs font-semibold text-slate-700">Update Status</p>
+                    <div className="mt-2 flex gap-2">
+                      <input
+                        className="flex-1 rounded border border-slate-300 px-2 py-1 text-xs"
+                        placeholder="예: 상품 준비 중, 포장 완료, 발송 완료, 배송 중, 배송 완료"
+                        value={shipmentStatusMessageMap[shipment.id] ?? ""}
+                        onChange={(event) =>
+                          setShipmentStatusMessageMap((prev) => ({
+                            ...prev,
+                            [shipment.id]: event.target.value,
+                          }))
+                        }
+                        disabled={processingShipmentId === shipment.id}
+                      />
+                      <button
+                        type="button"
+                        className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
+                        disabled={processingShipmentId === shipment.id}
+                        onClick={() => handleAddShipmentStatus(shipment.id)}
+                      >
+                        {processingShipmentId === shipment.id ? "저장 중..." : "상태 추가"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 rounded border border-slate-200 p-2">
+                    <p className="text-xs font-semibold text-slate-700">Status Timeline</p>
+                    <ul className="mt-2 space-y-1 text-xs text-slate-600">
+                      {shipment.status_logs.map((log) => (
+                        <li key={log.id} className="rounded bg-slate-50 px-2 py-1">
+                          {new Date(log.created_at).toLocaleString()} - {log.status_message} (
+                          {log.creator.name})
+                        </li>
+                      ))}
+                      {shipment.status_logs.length === 0 ? (
+                        <li className="rounded bg-slate-50 px-2 py-1 text-slate-500">
+                          상태 메시지가 없습니다.
+                        </li>
+                      ) : null}
+                    </ul>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </section>
     </div>

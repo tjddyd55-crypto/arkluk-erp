@@ -15,7 +15,9 @@ export async function GET(request: NextRequest) {
       where: {
         status: OrderStatus.UNDER_REVIEW,
         buyer: {
-          role: Role.COUNTRY_ADMIN,
+          role: {
+            in: [Role.COUNTRY_ADMIN, Role.BUYER],
+          },
         },
       },
       include: {

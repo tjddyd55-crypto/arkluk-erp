@@ -8,7 +8,17 @@ import { toNumber } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request, ["BUYER"]);
+    const user = await requireAuth(request, ["BUYER"]);
+    if (!user.countryId) {
+      return ok({ categories: [], products: [] });
+    }
+    const country = await prisma.country.findUnique({
+      where: { id: user.countryId },
+      select: { country_code: true },
+    });
+    if (!country) {
+      return ok({ categories: [], products: [] });
+    }
     const supplierId = toNumber(request.nextUrl.searchParams.get("supplierId"));
     const categoryId = toNumber(request.nextUrl.searchParams.get("categoryId"));
     const keyword = request.nextUrl.searchParams.get("keyword")?.trim();
@@ -27,6 +37,7 @@ export async function GET(request: NextRequest) {
 
     const where: Prisma.ProductWhereInput = {
       supplier_id: supplierId,
+      country_code: country.country_code,
       is_active: true,
       status: ProductStatus.APPROVED,
       ...(categoryId ? { category_id: categoryId } : {}),

@@ -51,6 +51,13 @@ export async function PATCH(
         throw new HttpError(400, "해당 공급사에서 사용할 수 없는 카테고리입니다.");
       }
     }
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: user.supplierId },
+      select: { country_code: true },
+    });
+    if (!supplier) {
+      throw new HttpError(400, "공급사 정보를 찾을 수 없습니다.");
+    }
 
     if (parsed.data.sku && parsed.data.sku !== before.sku && parsed.data.sku !== before.product_code) {
       const duplicate = await prisma.product.findFirst({
@@ -69,6 +76,7 @@ export async function PATCH(
       where: { id: productId },
       data: {
         category_id: parsed.data.categoryId,
+        country_code: supplier.country_code,
         name: parsed.data.name,
         sku: parsed.data.sku,
         description: parsed.data.description,

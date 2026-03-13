@@ -14,7 +14,8 @@
     "prisma:bootstrap-admin": "tsx prisma/bootstrap-admin.ts",
     "prisma:seed": "tsx prisma/seed.ts",
     "invoice:cron": "tsx src/server/jobs/invoice-email-cron.ts",
-    "assignment:cron": "tsx src/server/jobs/order-assignment-cron.ts"
+    "assignment:cron": "tsx src/server/jobs/order-assignment-cron.ts",
+    "monitoring:cron": "tsx src/server/jobs/order-monitoring-job.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",

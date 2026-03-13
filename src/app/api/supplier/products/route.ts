@@ -38,6 +38,13 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       throw new HttpError(400, "상품 등록 값이 올바르지 않습니다.");
     }
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: user.supplierId },
+      select: { country_code: true },
+    });
+    if (!supplier) {
+      throw new HttpError(400, "공급사 정보를 찾을 수 없습니다.");
+    }
 
     const category = await prisma.category.findFirst({
       where: {
@@ -66,6 +73,7 @@ export async function POST(request: NextRequest) {
       data: {
         supplier_id: user.supplierId,
         category_id: parsed.data.categoryId,
+        country_code: supplier.country_code,
         name: parsed.data.name,
         sku: parsed.data.sku,
         description: parsed.data.description ?? null,
