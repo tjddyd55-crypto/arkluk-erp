@@ -98,6 +98,15 @@ export const productReviewSchema = z.object({
   }
 });
 
+export const bulkProductApproveSchema = z.object({
+  productIds: z.array(z.coerce.number().int().positive()).min(1),
+});
+
+export const bulkProductRejectSchema = z.object({
+  productIds: z.array(z.coerce.number().int().positive()).min(1),
+  rejectReason: z.string().trim().min(1).max(1000),
+});
+
 export const userUpsertSchema = z.object({
   loginId: z.string().min(3).max(50),
   password: z.string().min(6).max(120).optional(),
