@@ -3,7 +3,7 @@
 import { UserProfileSettings } from "@/components/portal/user-profile-settings";
 import { useTranslation } from "@/hooks/useTranslation";
 
-export default function BuyerProfilePage() {
+export default function AdminProfilePage() {
   const { t } = useTranslation();
 
   return (

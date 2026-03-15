@@ -70,6 +70,9 @@ export function SupplierProductManagement() {
   const [submitting, setSubmitting] = useState(false);
   const [submittingProductId, setSubmittingProductId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategorySortOrder, setNewCategorySortOrder] = useState("0");
+  const [creatingCategory, setCreatingCategory] = useState(false);
 
   async function loadData() {
     setLoading(true);
@@ -184,6 +187,41 @@ export function SupplierProductManagement() {
     }
   }
 
+  async function handleCreateCategory() {
+    setError(null);
+    setMessage(null);
+    const categoryName = newCategoryName.trim();
+    if (!categoryName) {
+      setError("카테고리명을 입력해 주세요.");
+      return;
+    }
+    setCreatingCategory(true);
+    try {
+      const response = await fetch("/api/supplier/products/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          categoryName,
+          sortOrder: Number(newCategorySortOrder || "0"),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "카테고리 생성 실패");
+      }
+      const created = result.data as Category;
+      setMessage("카테고리가 생성되었습니다.");
+      setNewCategoryName("");
+      setNewCategorySortOrder("0");
+      setForm((prev) => ({ ...prev, categoryId: String(created.id) }));
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "카테고리 생성 실패");
+    } finally {
+      setCreatingCategory(false);
+    }
+  }
+
   async function handleSubmitProduct(productId: number) {
     setError(null);
     setMessage(null);
@@ -228,6 +266,30 @@ export function SupplierProductManagement() {
           <h3 className="text-sm font-semibold text-slate-900">
             {editingId === null ? "상품 초안 등록" : "상품 초안 수정"}
           </h3>
+          <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-[1fr_120px_100px]">
+            <input
+              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              placeholder="카테고리명"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              disabled={creatingCategory}
+            />
+            <input
+              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              placeholder="정렬"
+              value={newCategorySortOrder}
+              onChange={(e) => setNewCategorySortOrder(e.target.value)}
+              disabled={creatingCategory}
+            />
+            <button
+              type="button"
+              className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
+              onClick={handleCreateCategory}
+              disabled={creatingCategory}
+            >
+              {creatingCategory ? "추가 중..." : "카테고리 추가"}
+            </button>
+          </div>
           <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
             <select
               className="rounded border border-slate-300 px-2 py-1 text-sm"

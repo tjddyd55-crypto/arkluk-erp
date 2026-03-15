@@ -18,6 +18,7 @@ const superAdminMenu: MenuItem[] = [
   { href: "/admin/suppliers", labelKey: "suppliers" },
   { href: "/admin/countries", labelKey: "countries" },
   { href: "/admin/users", labelKey: "users" },
+  { href: "/admin/profile", labelKey: "profile" },
   { href: "/admin/translations", labelKey: "translations" },
 ];
 
@@ -25,6 +26,7 @@ const koreaSupplyAdminMenu: MenuItem[] = [
   { href: "/admin/supply-dashboard", labelKey: "supply_dashboard" },
   { href: "/admin/orders", labelKey: "orders" },
   { href: "/admin/suppliers", labelKey: "suppliers" },
+  { href: "/admin/profile", labelKey: "profile" },
   { href: "/admin/translations", labelKey: "translations" },
 ];
 
@@ -38,6 +40,7 @@ const supplierMenu: MenuItem[] = [
   { href: "/supplier", labelKey: "dashboard" },
   { href: "/supplier/orders", labelKey: "my_orders" },
   { href: "/supplier/products", labelKey: "products" },
+  { href: "/supplier/profile", labelKey: "profile" },
 ];
 
 function getMenu(pathname: string, role: string | null) {
