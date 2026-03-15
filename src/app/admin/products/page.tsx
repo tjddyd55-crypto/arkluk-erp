@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 
-import { ApiTable } from "@/components/portal/api-table";
-import { AdminProductReview } from "@/components/portal/admin-product-review";
+import { AdminProductCatalog } from "@/components/portal/admin-product-catalog";
 import { useTranslation } from "@/hooks/useTranslation";
 
 export default function AdminProductsPage() {
@@ -20,8 +19,7 @@ export default function AdminProductsPage() {
           {t("products")} {t("download")}
         </Link>
       </div>
-      <AdminProductReview />
-      <ApiTable endpoint="/api/admin/products" title={t("products")} />
+      <AdminProductCatalog />
     </div>
   );
 }

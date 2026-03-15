@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 
 type PendingProduct = {
@@ -16,8 +16,14 @@ type PendingProduct = {
 };
 
 type SupplierOption = {
-  supplierId: number;
   supplierName: string;
+};
+
+type ApprovalHistoryEntry = {
+  timestamp: string;
+  action: "SUBMIT" | "APPROVE" | "REJECT";
+  user: string;
+  reason: string | null;
 };
 
 const STATUS_LABEL: Record<PendingProduct["status"], string> = {
@@ -34,6 +40,20 @@ const SOURCE_LANGUAGE_LABEL: Record<PendingProduct["source_language"], string> =
   ar: "العربية",
 };
 
+const APPROVAL_ACTION_LABEL: Record<ApprovalHistoryEntry["action"], string> = {
+  SUBMIT: "등록",
+  APPROVE: "승인",
+  REJECT: "반려",
+};
+
+function formatTimestamp(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleString("ko-KR", { hour12: false });
+}
+
 export function AdminProductReview() {
   const [rows, setRows] = useState<PendingProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +66,10 @@ export function AdminProductReview() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkRejectReason, setBulkRejectReason] = useState("");
   const [rejectReasonMap, setRejectReasonMap] = useState<Record<number, string>>({});
+  const [historyOpenId, setHistoryOpenId] = useState<number | null>(null);
+  const [historyLoadingId, setHistoryLoadingId] = useState<number | null>(null);
+  const [historyMap, setHistoryMap] = useState<Record<number, ApprovalHistoryEntry[]>>({});
+  const [historyErrorMap, setHistoryErrorMap] = useState<Record<number, string>>({});
 
   async function loadPendingProducts() {
     setLoading(true);
@@ -167,11 +191,43 @@ export function AdminProductReview() {
     }
   }
 
+  async function toggleHistory(productId: number) {
+    if (historyOpenId === productId) {
+      setHistoryOpenId(null);
+      return;
+    }
+    setHistoryOpenId(productId);
+
+    if (historyMap[productId] || historyLoadingId === productId) {
+      return;
+    }
+
+    setHistoryErrorMap((prev) => ({ ...prev, [productId]: "" }));
+    setHistoryLoadingId(productId);
+    try {
+      const response = await fetch(`/api/admin/products/${productId}/approval-history`);
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "승인 이력 조회 실패");
+      }
+      setHistoryMap((prev) => ({
+        ...prev,
+        [productId]: (result.data ?? []) as ApprovalHistoryEntry[],
+      }));
+    } catch (err) {
+      setHistoryErrorMap((prev) => ({
+        ...prev,
+        [productId]: err instanceof Error ? err.message : "승인 이력 조회 실패",
+      }));
+    } finally {
+      setHistoryLoadingId(null);
+    }
+  }
+
   const supplierOptions: SupplierOption[] = Array.from(
     rows.reduce((map, row) => {
       if (!map.has(row.supplier.supplier_name)) {
         map.set(row.supplier.supplier_name, {
-          supplierId: row.id,
           supplierName: row.supplier.company_name ?? row.supplier.supplier_name,
         });
       }
@@ -312,70 +368,107 @@ export function AdminProductReview() {
                   </thead>
                   <tbody>
                     {group.map((row) => (
-                      <tr key={row.id}>
-                        <td className="border border-slate-200 px-2 py-1">
-                          <input
-                            type="checkbox"
-                            checked={selectedSet.has(row.id)}
-                            onChange={(event) => {
-                              if (event.target.checked) {
-                                setSelectedIds((prev) => Array.from(new Set([...prev, row.id])));
-                              } else {
-                                setSelectedIds((prev) => prev.filter((id) => id !== row.id));
-                              }
-                            }}
-                          />
-                        </td>
-                        <td className="border border-slate-200 px-2 py-1">{supplierName}</td>
-                        <td className="border border-slate-200 px-2 py-1">{row.category.category_name}</td>
-                        <td className="border border-slate-200 px-2 py-1">{row.name_original || "-"}</td>
-                        <td className="border border-slate-200 px-2 py-1">{row.specification ?? "-"}</td>
-                        <td className="border border-slate-200 px-2 py-1">
-                          {Number(row.price).toLocaleString()} {row.currency}
-                        </td>
-                        <td className="border border-slate-200 px-2 py-1">
-                          {SOURCE_LANGUAGE_LABEL[row.source_language]}
-                        </td>
-                        <td className="border border-slate-200 px-2 py-1">{STATUS_LABEL[row.status]}</td>
-                        <td className="border border-slate-200 px-2 py-1">
-                          <div className="flex flex-wrap gap-2">
+                      <Fragment key={row.id}>
+                        <tr>
+                          <td className="border border-slate-200 px-2 py-1">
                             <input
-                              type="text"
-                              className="w-52 rounded border border-slate-300 px-2 py-1 text-xs"
-                              placeholder="반려 사유 입력"
-                              value={rejectReasonMap[row.id] ?? ""}
-                              onChange={(event) =>
-                                setRejectReasonMap((prev) => ({
-                                  ...prev,
-                                  [row.id]: event.target.value,
-                                }))
-                              }
+                              type="checkbox"
+                              checked={selectedSet.has(row.id)}
+                              onChange={(event) => {
+                                if (event.target.checked) {
+                                  setSelectedIds((prev) => Array.from(new Set([...prev, row.id])));
+                                } else {
+                                  setSelectedIds((prev) => prev.filter((id) => id !== row.id));
+                                }
+                              }}
                             />
-                            <Link
-                              href={`/admin/products/${row.id}`}
-                              className="rounded border border-slate-300 px-2 py-1 text-xs"
-                            >
-                              번역 수정
-                            </Link>
-                            <button
-                              type="button"
-                              className="rounded bg-emerald-600 px-2 py-1 text-xs text-white disabled:opacity-50"
-                              onClick={() => review(row.id, "APPROVED")}
-                              disabled={processingIds.includes(row.id)}
-                            >
-                              승인
-                            </button>
-                            <button
-                              type="button"
-                              className="rounded bg-red-600 px-2 py-1 text-xs text-white disabled:opacity-50"
-                              onClick={() => review(row.id, "REJECTED", rejectReasonMap[row.id])}
-                              disabled={processingIds.includes(row.id)}
-                            >
-                              반려
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                          </td>
+                          <td className="border border-slate-200 px-2 py-1">{supplierName}</td>
+                          <td className="border border-slate-200 px-2 py-1">{row.category.category_name}</td>
+                          <td className="border border-slate-200 px-2 py-1">{row.name_original || "-"}</td>
+                          <td className="border border-slate-200 px-2 py-1">{row.specification ?? "-"}</td>
+                          <td className="border border-slate-200 px-2 py-1">
+                            {Number(row.price).toLocaleString()} {row.currency}
+                          </td>
+                          <td className="border border-slate-200 px-2 py-1">
+                            {SOURCE_LANGUAGE_LABEL[row.source_language]}
+                          </td>
+                          <td className="border border-slate-200 px-2 py-1">{STATUS_LABEL[row.status]}</td>
+                          <td className="border border-slate-200 px-2 py-1">
+                            <div className="flex flex-wrap gap-2">
+                              <input
+                                type="text"
+                                className="w-52 rounded border border-slate-300 px-2 py-1 text-xs"
+                                placeholder="반려 사유 입력"
+                                value={rejectReasonMap[row.id] ?? ""}
+                                onChange={(event) =>
+                                  setRejectReasonMap((prev) => ({
+                                    ...prev,
+                                    [row.id]: event.target.value,
+                                  }))
+                                }
+                              />
+                              <button
+                                type="button"
+                                className="rounded border border-slate-300 px-2 py-1 text-xs"
+                                onClick={() => toggleHistory(row.id)}
+                              >
+                                {historyOpenId === row.id ? "이력 닫기" : "이력 보기"}
+                              </button>
+                              <Link
+                                href={`/admin/products/${row.id}`}
+                                className="rounded border border-slate-300 px-2 py-1 text-xs"
+                              >
+                                번역 수정
+                              </Link>
+                              <button
+                                type="button"
+                                className="rounded bg-emerald-600 px-2 py-1 text-xs text-white disabled:opacity-50"
+                                onClick={() => review(row.id, "APPROVED")}
+                                disabled={processingIds.includes(row.id)}
+                              >
+                                승인
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded bg-red-600 px-2 py-1 text-xs text-white disabled:opacity-50"
+                                onClick={() => review(row.id, "REJECTED", rejectReasonMap[row.id])}
+                                disabled={processingIds.includes(row.id)}
+                              >
+                                반려
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {historyOpenId === row.id ? (
+                          <tr>
+                            <td className="border border-slate-200 px-3 py-2" colSpan={9}>
+                              <div className="rounded bg-slate-50 p-3">
+                                <p className="mb-2 text-sm font-semibold text-slate-900">승인 이력 타임라인</p>
+                                {historyLoadingId === row.id ? (
+                                  <p className="text-sm text-slate-500">이력을 불러오는 중...</p>
+                                ) : historyErrorMap[row.id] ? (
+                                  <p className="text-sm text-red-600">{historyErrorMap[row.id]}</p>
+                                ) : (historyMap[row.id] ?? []).length === 0 ? (
+                                  <p className="text-sm text-slate-500">등록된 이력이 없습니다.</p>
+                                ) : (
+                                  <ul className="space-y-1 text-sm text-slate-700">
+                                    {(historyMap[row.id] ?? []).map((entry, index) => (
+                                      <li key={`${row.id}-${index}`}>
+                                        {formatTimestamp(entry.timestamp)} -{" "}
+                                        {APPROVAL_ACTION_LABEL[entry.action] ?? entry.action}
+                                        {" · "}
+                                        {entry.user}
+                                        {entry.reason ? ` · 사유: ${entry.reason}` : ""}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
