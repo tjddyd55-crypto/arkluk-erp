@@ -43,11 +43,16 @@ const dictionaries: Record<SupportedLanguage, Dictionary> = {
   ar: mergeDictionary(arCommon, arDashboard, arOrders, arProducts, arSuppliers, arProfile),
 };
 
-const STORAGE_KEY = "arklux-ui-language";
+const STORAGE_KEY = "language";
+const LEGACY_STORAGE_KEY = "arklux-ui-language";
 
 let currentLanguage: SupportedLanguage = "en";
 const subscribers = new Set<() => void>();
 const warnedMissingKeys = new Set<string>();
+
+type LanguageLoadOptions = {
+  persist?: boolean;
+};
 
 function notify() {
   for (const callback of subscribers) {
@@ -63,10 +68,40 @@ function applyDocumentDirection(lang: SupportedLanguage) {
   document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
 }
 
-export function loadLanguage(lang?: string | null) {
+export function loadLanguage(
+  lang?: string | null,
+  options: LanguageLoadOptions = {},
+) {
+  return loadLanguageWithOptions(lang, options);
+}
+
+function readStoredLanguage(): SupportedLanguage | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  if (isSupportedLanguage(stored)) {
+    return stored;
+  }
+
+  const legacyStored = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (isSupportedLanguage(legacyStored)) {
+    window.localStorage.setItem(STORAGE_KEY, legacyStored);
+    return legacyStored;
+  }
+
+  return null;
+}
+
+function loadLanguageWithOptions(
+  lang?: string | null,
+  options: LanguageLoadOptions = {},
+) {
+  const shouldPersist = options.persist ?? true;
   const nextLanguage = isSupportedLanguage(lang) ? lang : getCurrentLanguage();
   currentLanguage = nextLanguage;
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && shouldPersist) {
     window.localStorage.setItem(STORAGE_KEY, nextLanguage);
   }
   applyDocumentDirection(nextLanguage);
@@ -102,14 +137,14 @@ export function translate(key: string) {
   return key;
 }
 
-export function setLanguage(lang: SupportedLanguage) {
-  loadLanguage(lang);
+export function setLanguage(lang: SupportedLanguage, options: LanguageLoadOptions = {}) {
+  loadLanguageWithOptions(lang, options);
 }
 
 export function getCurrentLanguage() {
   if (typeof window !== "undefined") {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (isSupportedLanguage(stored)) {
+    const stored = readStoredLanguage();
+    if (stored) {
       currentLanguage = stored;
       return currentLanguage;
     }

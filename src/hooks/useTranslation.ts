@@ -17,15 +17,18 @@ export function useTranslation() {
     const unsubscribe = subscribeLanguage(() => {
       setLanguageState(getCurrentLanguage());
     });
-    setUiLanguage(getCurrentLanguage());
+    setUiLanguage(getCurrentLanguage(), { persist: false });
     return unsubscribe;
   }, []);
 
   const t = useCallback((key: string) => translate(key), []);
 
-  const setLanguage = useCallback((lang: SupportedLanguage) => {
-    setUiLanguage(lang);
-  }, []);
+  const setLanguage = useCallback(
+    (lang: SupportedLanguage, options?: { persist?: boolean }) => {
+      setUiLanguage(lang, options);
+    },
+    [],
+  );
 
   return useMemo(
     () => ({

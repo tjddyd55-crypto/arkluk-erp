@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { PublicLanguageSwitcher } from "@/components/public-language-switcher";
 import { useTranslation } from "@/hooks/useTranslation";
 
 export default function Home() {
   const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-slate-100 p-10">
+      <div className="mx-auto mb-3 flex max-w-5xl justify-end">
+        <PublicLanguageSwitcher />
+      </div>
       <main className="mx-auto max-w-5xl rounded-lg bg-white p-10 shadow-sm">
         <h1 className="text-3xl font-bold text-slate-900">{t("app_name")}</h1>
         <p className="mt-2 text-slate-600">

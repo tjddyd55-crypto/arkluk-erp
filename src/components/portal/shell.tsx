@@ -69,7 +69,9 @@ export function PortalShell({ children }: { children: ReactNode }) {
         const result = await response.json();
         if (response.ok && result.success && result.data?.role) {
           setRole(result.data.role as string);
-          loadLanguage((result.data.language as SupportedLanguage | undefined) ?? "en");
+          loadLanguage((result.data.language as SupportedLanguage | undefined) ?? "en", {
+            persist: false,
+          });
         }
       } catch {
         // no-op
@@ -85,7 +87,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
   }
 
   async function onChangeLanguage(nextLanguage: SupportedLanguage) {
-    setLanguage(nextLanguage);
+    setLanguage(nextLanguage, { persist: false });
     try {
       await fetch("/api/auth/language", {
         method: "PATCH",

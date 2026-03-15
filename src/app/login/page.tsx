@@ -2,8 +2,9 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PublicLanguageSwitcher } from "@/components/public-language-switcher";
 import { useTranslation } from "@/hooks/useTranslation";
-import { setLanguage, type SupportedLanguage } from "@/lib/i18n";
+import type { SupportedLanguage } from "@/lib/i18n";
 
 type LoginResponse = {
   success: boolean;
@@ -40,7 +41,7 @@ function routeByRole(
 
 export default function LoginPage() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, setLanguage } = useTranslation();
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +64,7 @@ export default function LoginPage() {
         setError(result.message ?? t("login_failed"));
         return;
       }
-      setLanguage(result.data.language ?? "en");
+      setLanguage(result.data.language ?? "en", { persist: false });
       router.push(routeByRole(result.data.role));
       router.refresh();
     } catch (err) {
@@ -74,7 +75,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+    <div className="relative flex min-h-screen items-center justify-center bg-slate-100 p-6">
+      <div className="absolute right-6 top-6">
+        <PublicLanguageSwitcher />
+      </div>
       <form
         onSubmit={onSubmit}
         className="w-full max-w-md rounded-lg bg-white p-8 shadow-sm"

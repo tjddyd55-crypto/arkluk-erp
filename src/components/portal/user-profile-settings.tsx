@@ -69,7 +69,7 @@ export function UserProfileSettings() {
       if (!response.ok || !result.success) {
         throw new Error(result.message ?? t("error"));
       }
-      setLanguage(selectedLanguage);
+      setLanguage(selectedLanguage, { persist: false });
       setMessage(t("success"));
       setProfile((prev) =>
         prev
