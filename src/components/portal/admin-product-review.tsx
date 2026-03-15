@@ -11,11 +11,12 @@ type PendingProduct = {
   price: string;
   currency: string;
   status: "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
-  supplier: { supplier_name: string; company_name: string | null };
+  supplier: { id: number; supplier_name: string; company_name: string | null };
   category: { category_name: string };
 };
 
 type SupplierOption = {
+  supplierId: number;
   supplierName: string;
 };
 
@@ -80,7 +81,7 @@ export function AdminProductReview() {
       if (!response.ok || !result.success) {
         throw new Error(result.message ?? "승인 대기 상품 조회 실패");
       }
-      setRows(result.data as PendingProduct[]);
+      setRows(Array.isArray(result.data) ? (result.data as PendingProduct[]) : []);
       setSelectedIds([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "데이터 조회 실패");
@@ -226,19 +227,20 @@ export function AdminProductReview() {
 
   const supplierOptions: SupplierOption[] = Array.from(
     rows.reduce((map, row) => {
-      if (!map.has(row.supplier.supplier_name)) {
-        map.set(row.supplier.supplier_name, {
+      if (!map.has(row.supplier.id)) {
+        map.set(row.supplier.id, {
+          supplierId: row.supplier.id,
           supplierName: row.supplier.company_name ?? row.supplier.supplier_name,
         });
       }
       return map;
-    }, new Map<string, SupplierOption>()),
+    }, new Map<number, SupplierOption>()),
   ).map((entry) => entry[1]);
 
   const filteredRows = rows.filter((row) => {
     const supplierName = row.supplier.company_name ?? row.supplier.supplier_name;
     const passSupplier =
-      supplierFilter === "all" || supplierName === supplierFilter;
+      supplierFilter === "all" || String(row.supplier.id) === supplierFilter;
     const keyword = search.trim().toLowerCase();
     if (!keyword) {
       return passSupplier;
@@ -251,14 +253,15 @@ export function AdminProductReview() {
 
   const groupedRows = filteredRows.reduce(
     (acc, row) => {
+      const supplierId = String(row.supplier.id);
       const supplierName = row.supplier.company_name ?? row.supplier.supplier_name;
-      if (!acc[supplierName]) {
-        acc[supplierName] = [];
+      if (!acc[supplierId]) {
+        acc[supplierId] = { supplierName, rows: [] };
       }
-      acc[supplierName].push(row);
+      acc[supplierId].rows.push(row);
       return acc;
     },
-    {} as Record<string, PendingProduct[]>,
+    {} as Record<string, { supplierName: string; rows: PendingProduct[] }>,
   );
 
   const selectedSet = new Set(selectedIds);
@@ -288,7 +291,7 @@ export function AdminProductReview() {
         >
           <option value="all">전체 공급사</option>
           {supplierOptions.map((option) => (
-            <option key={option.supplierName} value={option.supplierName}>
+            <option key={option.supplierId} value={String(option.supplierId)}>
               {option.supplierName}
             </option>
           ))}
@@ -332,13 +335,13 @@ export function AdminProductReview() {
         <p className="text-sm text-slate-500">승인 대기 상품을 불러오는 중...</p>
       ) : (
         <>
-          {Object.entries(groupedRows).map(([supplierName, group]) => {
-            const groupIds = group.map((row) => row.id);
+          {Object.entries(groupedRows).map(([supplierId, groupData]) => {
+            const groupIds = groupData.rows.map((row) => row.id);
             const groupAllSelected = groupIds.length > 0 && groupIds.every((id) => selectedSet.has(id));
             return (
-              <div key={supplierName} className="mb-4 overflow-auto rounded border border-slate-200">
+              <div key={supplierId} className="mb-4 overflow-auto rounded border border-slate-200">
                 <div className="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900">
-                  {supplierName}
+                  {groupData.supplierName}
                 </div>
                 <table className="min-w-full border-collapse text-sm">
                   <thead>
@@ -367,7 +370,7 @@ export function AdminProductReview() {
                     </tr>
                   </thead>
                   <tbody>
-                    {group.map((row) => (
+                    {groupData.rows.map((row) => (
                       <Fragment key={row.id}>
                         <tr>
                           <td className="border border-slate-200 px-2 py-1">
@@ -383,7 +386,7 @@ export function AdminProductReview() {
                               }}
                             />
                           </td>
-                          <td className="border border-slate-200 px-2 py-1">{supplierName}</td>
+                          <td className="border border-slate-200 px-2 py-1">{groupData.supplierName}</td>
                           <td className="border border-slate-200 px-2 py-1">{row.category.category_name}</td>
                           <td className="border border-slate-200 px-2 py-1">{row.name_original || "-"}</td>
                           <td className="border border-slate-200 px-2 py-1">{row.specification ?? "-"}</td>
@@ -453,8 +456,8 @@ export function AdminProductReview() {
                                   <p className="text-sm text-slate-500">등록된 이력이 없습니다.</p>
                                 ) : (
                                   <ul className="space-y-1 text-sm text-slate-700">
-                                    {(historyMap[row.id] ?? []).map((entry, index) => (
-                                      <li key={`${row.id}-${index}`}>
+                                    {(historyMap[row.id] ?? []).map((entry) => (
+                                      <li key={`${row.id}-${entry.timestamp}-${entry.action}-${entry.user}`}>
                                         {formatTimestamp(entry.timestamp)} -{" "}
                                         {APPROVAL_ACTION_LABEL[entry.action] ?? entry.action}
                                         {" · "}

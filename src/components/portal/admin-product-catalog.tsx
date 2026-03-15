@@ -12,6 +12,7 @@ type ProductRow = {
   price: string;
   currency: string;
   supplier: {
+    id: number;
     supplier_name: string;
     company_name: string | null;
   };
@@ -46,7 +47,7 @@ export function AdminProductCatalog() {
       if (!response.ok || !result.success) {
         throw new Error(result.message ?? "상품 목록 조회 실패");
       }
-      setRows((result.data ?? []) as ProductRow[]);
+      setRows(Array.isArray(result.data) ? (result.data as ProductRow[]) : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "상품 목록 조회 실패");
     } finally {
@@ -58,20 +59,24 @@ export function AdminProductCatalog() {
     loadProducts();
   }, []);
 
-  const supplierOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(rows.map((row) => row.supplier.company_name ?? row.supplier.supplier_name).filter(Boolean)),
-      ).sort((a, b) => a.localeCompare(b)),
-    [rows],
-  );
+  const supplierOptions = useMemo(() => {
+    const bySupplierId = new Map<number, { id: number; name: string }>();
+    for (const row of rows) {
+      if (!row?.supplier) {
+        continue;
+      }
+      const supplierName = row.supplier.company_name ?? row.supplier.supplier_name;
+      bySupplierId.set(row.supplier.id, { id: row.supplier.id, name: supplierName });
+    }
+    return Array.from(bySupplierId.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [rows]);
 
   const filteredRows = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return rows.filter((row) => {
       const supplierName = row.supplier.company_name ?? row.supplier.supplier_name;
       const productName = row.name_original || row.product_name;
-      const passSupplier = supplierFilter === "all" || supplierName === supplierFilter;
+      const passSupplier = supplierFilter === "all" || String(row.supplier.id) === supplierFilter;
       if (!keyword) {
         return passSupplier;
       }
@@ -82,21 +87,20 @@ export function AdminProductCatalog() {
     });
   }, [rows, search, supplierFilter]);
 
-  const groupedRows = useMemo(
-    () =>
-      filteredRows.reduce(
-        (acc, row) => {
-          const supplierName = row.supplier.company_name ?? row.supplier.supplier_name;
-          if (!acc[supplierName]) {
-            acc[supplierName] = [];
-          }
-          acc[supplierName].push(row);
-          return acc;
-        },
-        {} as Record<string, ProductRow[]>,
-      ),
-    [filteredRows],
-  );
+  const groupedRows = useMemo(() => {
+    return filteredRows.reduce(
+      (acc, row) => {
+        const supplierId = String(row.supplier.id);
+        const supplierName = row.supplier.company_name ?? row.supplier.supplier_name;
+        if (!acc[supplierId]) {
+          acc[supplierId] = { supplierName, rows: [] };
+        }
+        acc[supplierId].rows.push(row);
+        return acc;
+      },
+      {} as Record<string, { supplierName: string; rows: ProductRow[] }>,
+    );
+  }, [filteredRows]);
 
   return (
     <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
@@ -118,9 +122,9 @@ export function AdminProductCatalog() {
           onChange={(event) => setSupplierFilter(event.target.value)}
         >
           <option value="all">전체 공급사</option>
-          {supplierOptions.map((supplierName) => (
-            <option key={supplierName} value={supplierName}>
-              {supplierName}
+          {supplierOptions.map((supplier) => (
+            <option key={supplier.id} value={String(supplier.id)}>
+              {supplier.name}
             </option>
           ))}
         </select>
@@ -137,10 +141,10 @@ export function AdminProductCatalog() {
 
       {!loading && !error ? (
         <>
-          {Object.entries(groupedRows).map(([supplierName, group]) => (
-            <div key={supplierName} className="mb-4 overflow-auto rounded border border-slate-200">
+          {Object.entries(groupedRows).map(([supplierId, groupData]) => (
+            <div key={supplierId} className="mb-4 overflow-auto rounded border border-slate-200">
               <div className="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900">
-                {supplierName}
+                {groupData.supplierName}
               </div>
               <table className="min-w-full border-collapse text-sm">
                 <thead>
@@ -155,13 +159,13 @@ export function AdminProductCatalog() {
                   </tr>
                 </thead>
                 <tbody>
-                  {group.map((row) => {
+                  {groupData.rows.map((row) => {
                     const productName = row.name_original || row.product_name || "-";
                     const productDescription =
                       row.description_original ?? row.description ?? row.memo ?? "-";
                     return (
                       <tr key={row.id}>
-                        <td className="border border-slate-200 px-2 py-1">{supplierName}</td>
+                        <td className="border border-slate-200 px-2 py-1">{groupData.supplierName}</td>
                         <td className="border border-slate-200 px-2 py-1">{row.category.category_name}</td>
                         <td className="border border-slate-200 px-2 py-1">{productName}</td>
                         <td className="border border-slate-200 px-2 py-1">

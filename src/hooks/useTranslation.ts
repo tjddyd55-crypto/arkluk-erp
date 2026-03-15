@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
 import {
   getCurrentLanguage,
@@ -11,14 +11,15 @@ import {
 } from "@/lib/i18n";
 
 export function useTranslation() {
-  const [language, setLanguageState] = useState<SupportedLanguage>(getCurrentLanguage());
+  const language = useSyncExternalStore<SupportedLanguage>(
+    subscribeLanguage,
+    getCurrentLanguage,
+    () => "en",
+  );
 
   useEffect(() => {
-    const unsubscribe = subscribeLanguage(() => {
-      setLanguageState(getCurrentLanguage());
-    });
     setUiLanguage(getCurrentLanguage(), { persist: false });
-    return unsubscribe;
+    return undefined;
   }, []);
 
   const t = useCallback((key: string) => translate(key), []);
