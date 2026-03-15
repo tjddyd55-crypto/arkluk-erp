@@ -55,6 +55,7 @@ export async function POST(request: Request) {
         loginId: user.login_id,
         name: user.name,
         role: user.role,
+        language: user.language,
       },
     });
     response.cookies.set(AUTH_COOKIE_NAME, token, {

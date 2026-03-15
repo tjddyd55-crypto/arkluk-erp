@@ -1,0 +1,15 @@
+{
+  "orders": "Захиалга",
+  "order": "Захиалга",
+  "create_order": "Захиалга үүсгэх",
+  "my_orders": "Миний захиалга",
+  "order_status": "Захиалгын төлөв",
+  "payment_status": "Төлбөрийн төлөв",
+  "order_number": "Захиалгын дугаар",
+  "order_date": "Захиалгын огноо",
+  "order_summary": "Захиалгын хураангуй",
+  "order_created": "Захиалга үүссэн",
+  "order_failed": "Захиалга амжилтгүй",
+  "buyer": "Худалдан авагч",
+  "country": "Улс"
+}

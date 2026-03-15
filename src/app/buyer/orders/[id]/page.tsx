@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslation } from "@/hooks/useTranslation";
 
 type BuyerOrderDetail = {
   id: number;
@@ -54,6 +55,7 @@ type TimelineRow = {
 };
 
 export default function BuyerOrderDetailPage() {
+  const { t } = useTranslation();
   const params = useParams<{ id: string }>();
   const orderId = Number(params.id);
   const [detail, setDetail] = useState<BuyerOrderDetail | null>(null);
@@ -68,11 +70,11 @@ export default function BuyerOrderDetailPage() {
         const response = await fetch(`/api/buyer/orders/${orderId}`);
         const result = await response.json();
         if (!response.ok || !result.success) {
-          throw new Error(result.message ?? "주문 상세 조회 실패");
+          throw new Error(result.message ?? t("error"));
         }
         setDetail(result.data as BuyerOrderDetail);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "주문 상세 조회 실패");
+        setError(err instanceof Error ? err.message : t("error"));
       } finally {
         setLoading(false);
       }
@@ -81,7 +83,7 @@ export default function BuyerOrderDetailPage() {
     if (!Number.isNaN(orderId)) {
       load();
     }
-  }, [orderId]);
+  }, [orderId, t]);
 
   const timeline = useMemo(() => {
     if (!detail) {
@@ -108,10 +110,10 @@ export default function BuyerOrderDetailPage() {
   }, [detail]);
 
   if (loading) {
-    return <p className="text-sm text-slate-500">주문 상세를 불러오는 중...</p>;
+    return <p className="text-sm text-slate-500">{t("loading")}</p>;
   }
   if (error || !detail) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error ?? "주문 없음"}</p>;
+    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error ?? t("not_found")}</p>;
   }
 
   return (
@@ -122,43 +124,43 @@ export default function BuyerOrderDetailPage() {
           href="/buyer/orders"
           className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-700"
         >
-          목록으로
+          {t("orders")}
         </Link>
       </div>
       <p className="text-sm text-slate-600">
-        상태: {detail.status} / 결제 상태: {detail.buyer_status} / 바이어: {detail.buyer.name} / 국가:{" "}
+        {t("status")}: {detail.status} / {t("payment_status")}: {detail.buyer_status} / {t("buyer")}: {detail.buyer.name} / {t("country")}:{" "}
         {detail.country.country_name} ({detail.country.country_code})
       </p>
 
       <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">Order Summary</h2>
+        <h2 className="text-lg font-semibold">{t("order_summary")}</h2>
         <div className="mt-2 grid grid-cols-2 gap-2 text-sm lg:grid-cols-4">
           <div className="rounded bg-slate-50 p-2">
-            <p className="text-xs text-slate-500">주문번호</p>
+            <p className="text-xs text-slate-500">{t("order_number")}</p>
             <p className="font-semibold text-slate-900">{detail.order_no}</p>
           </div>
           <div className="rounded bg-slate-50 p-2">
-            <p className="text-xs text-slate-500">주문일</p>
+            <p className="text-xs text-slate-500">{t("order_date")}</p>
             <p className="font-semibold text-slate-900">{new Date(detail.created_at).toLocaleString()}</p>
           </div>
           <div className="rounded bg-slate-50 p-2">
-            <p className="text-xs text-slate-500">주문 상태</p>
+            <p className="text-xs text-slate-500">{t("order_status")}</p>
             <p className="font-semibold text-slate-900">{detail.status}</p>
           </div>
           <div className="rounded bg-slate-50 p-2">
-            <p className="text-xs text-slate-500">결제 상태</p>
+            <p className="text-xs text-slate-500">{t("payment_status")}</p>
             <p className="font-semibold text-slate-900">{detail.buyer_status}</p>
           </div>
         </div>
 
-        <h3 className="mt-4 text-sm font-semibold text-slate-900">주문 품목</h3>
+        <h3 className="mt-4 text-sm font-semibold text-slate-900">{t("products")}</h3>
         <div className="mt-2 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
               <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">상품코드</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">제품명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">수량</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">Code</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">{t("product")}</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">{t("total")}</th>
               </tr>
             </thead>
             <tbody>
@@ -177,15 +179,15 @@ export default function BuyerOrderDetailPage() {
       </section>
 
       <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">Supplier Shipments</h2>
+        <h2 className="text-lg font-semibold">{t("supplier_shipments")}</h2>
         <div className="mt-2 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
               <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">공급사</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">Shipment 번호</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">배송 상태</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">공급사 상태</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">{t("supplier")}</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">{t("shipment")}</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">{t("shipment_status")}</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">{t("status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -204,7 +206,7 @@ export default function BuyerOrderDetailPage() {
               {detail.suppliers.every((supplierRow) => supplierRow.shipments.length === 0) ? (
                 <tr>
                   <td className="border border-slate-200 px-2 py-3 text-center text-slate-500" colSpan={4}>
-                    등록된 Shipment가 없습니다.
+                    {t("no_data")}
                   </td>
                 </tr>
               ) : null}
@@ -214,9 +216,9 @@ export default function BuyerOrderDetailPage() {
       </section>
 
       <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">Shipment Status Timeline</h2>
+        <h2 className="text-lg font-semibold">{t("shipment_timeline")}</h2>
         {timeline.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">배송 상태 로그가 없습니다.</p>
+          <p className="mt-2 text-sm text-slate-500">{t("no_data")}</p>
         ) : (
           <ul className="mt-2 space-y-1 text-sm">
             {timeline.map((row) => (

@@ -1,13 +1,15 @@
+"use client";
+
 import { SupplierManagement } from "@/components/portal/supplier-management";
 import { SupplierInvoiceSettings } from "@/components/portal/supplier-invoice-settings";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function AdminSuppliersPage() {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">공급사 관리</h1>
-      <p className="text-sm text-slate-600">
-        공급사 추가/수정/활성화/정지와 발신 이메일 설정을 운영합니다.
-      </p>
+      <h1 className="text-2xl font-bold text-slate-900">{t("suppliers")}</h1>
+      <p className="text-sm text-slate-600">{t("supplier")}</p>
       <SupplierManagement />
       <SupplierInvoiceSettings />
     </div>

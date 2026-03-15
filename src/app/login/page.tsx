@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/hooks/useTranslation";
+import { setLanguage, type SupportedLanguage } from "@/lib/i18n";
 
 type LoginResponse = {
   success: boolean;
@@ -13,6 +15,7 @@ type LoginResponse = {
       | "ADMIN"
       | "BUYER"
       | "SUPPLIER";
+    language: SupportedLanguage;
   };
   message?: string;
 };
@@ -37,6 +40,7 @@ function routeByRole(
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -56,13 +60,14 @@ export default function LoginPage() {
       });
       const result = (await response.json()) as LoginResponse;
       if (!response.ok || !result.success || !result.data) {
-        setError(result.message ?? "로그인 실패");
+        setError(result.message ?? t("login_failed"));
         return;
       }
+      setLanguage(result.data.language ?? "en");
       router.push(routeByRole(result.data.role));
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "로그인 실패");
+      setError(err instanceof Error ? err.message : t("login_failed"));
     } finally {
       setPending(false);
     }
@@ -74,14 +79,14 @@ export default function LoginPage() {
         onSubmit={onSubmit}
         className="w-full max-w-md rounded-lg bg-white p-8 shadow-sm"
       >
-        <h1 className="text-2xl font-bold text-slate-900">로그인</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("login")}</h1>
         <p className="mt-2 text-sm text-slate-600">
-          역할별 포털 접근을 위해 계정으로 로그인하세요.
+          {t("login_description")}
         </p>
 
         <div className="mt-6 space-y-4">
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">Login ID</span>
+            <span className="mb-1 block text-sm font-medium text-slate-700">{t("login_id")}</span>
             <input
               value={loginId}
               onChange={(e) => setLoginId(e.target.value)}
@@ -90,7 +95,7 @@ export default function LoginPage() {
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">Password</span>
+            <span className="mb-1 block text-sm font-medium text-slate-700">{t("password")}</span>
             <input
               type="password"
               value={password}
@@ -107,7 +112,7 @@ export default function LoginPage() {
           disabled={pending}
           className="mt-6 w-full rounded bg-slate-900 py-2 text-white disabled:opacity-60"
         >
-          {pending ? "로그인 중..." : "로그인"}
+          {pending ? t("logging_in") : t("login")}
         </button>
       </form>
     </div>

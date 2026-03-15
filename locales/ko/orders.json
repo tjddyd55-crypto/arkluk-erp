@@ -1,0 +1,15 @@
+{
+  "orders": "주문",
+  "order": "주문",
+  "create_order": "주문 생성",
+  "my_orders": "내 주문",
+  "order_status": "주문 상태",
+  "payment_status": "결제 상태",
+  "order_number": "주문번호",
+  "order_date": "주문일",
+  "order_summary": "주문 요약",
+  "order_created": "주문 생성 완료",
+  "order_failed": "주문 처리 실패",
+  "buyer": "바이어",
+  "country": "국가"
+}

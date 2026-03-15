@@ -1,12 +1,14 @@
+"use client";
+
 import { SuperAdminDashboard } from "@/components/portal/super-admin-dashboard";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function SuperAdminDashboardPage() {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">SUPER_ADMIN Dashboard</h1>
-      <p className="text-sm text-slate-600">
-        전체 주문/배송 운영 현황을 조회합니다. 관리자 계정은 상태 변경이 불가합니다.
-      </p>
+      <h1 className="text-2xl font-bold text-slate-900">{t("role_super_admin_dashboard")}</h1>
+      <p className="text-sm text-slate-600">{t("view_only_policy")}</p>
       <SuperAdminDashboard />
     </div>
   );

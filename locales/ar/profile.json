@@ -1,0 +1,20 @@
+{
+  "profile": "الملف الشخصي",
+  "language": "اللغة",
+  "password": "كلمة المرور",
+  "settings": "الإعدادات",
+  "login": "تسجيل الدخول",
+  "login_id": "معرف الدخول",
+  "login_failed": "فشل تسجيل الدخول",
+  "login_description": "سجّل الدخول بحسابك للوصول إلى صفحات البوابة حسب الدور.",
+  "logging_in": "جارٍ تسجيل الدخول...",
+  "my_products": "منتجاتي",
+  "my_quotes": "عروضي",
+  "quotes": "عروض الأسعار",
+  "projects": "المشاريع",
+  "logs": "السجلات",
+  "tax_invoices": "الفواتير الضريبية",
+  "purchase_order_templates": "قوالب أوامر الشراء",
+  "users": "المستخدمون",
+  "countries": "الدول"
+}

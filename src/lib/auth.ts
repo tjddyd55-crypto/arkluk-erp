@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { Role } from "@prisma/client";
+import { Language, Role } from "@prisma/client";
 
 import { AUTH_COOKIE_NAME } from "@/lib/constants";
 import { HttpError } from "@/lib/http";
@@ -10,6 +10,7 @@ export type AuthUser = {
   id: number;
   loginId: string;
   role: Role;
+  language: Language;
   name: string;
   countryId: number | null;
   supplierId: number | null;
@@ -53,6 +54,7 @@ export async function getAuthUser(req: NextRequest): Promise<AuthUser | null> {
         id: true,
         login_id: true,
         role: true,
+        language: true,
         name: true,
         country_id: true,
         supplier_id: true,
@@ -68,6 +70,7 @@ export async function getAuthUser(req: NextRequest): Promise<AuthUser | null> {
       id: user.id,
       loginId: user.login_id,
       role: user.role,
+      language: user.language,
       name: user.name,
       countryId: user.country_id,
       supplierId: user.supplier_id,

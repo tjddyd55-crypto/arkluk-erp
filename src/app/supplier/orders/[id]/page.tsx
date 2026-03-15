@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslation } from "@/hooks/useTranslation";
 
 type SupplierOrderDetail = {
   order_id: number;
@@ -109,6 +110,7 @@ function toDateInputValue(value: string | null) {
 }
 
 export default function SupplierOrderDetailPage() {
+  const { t } = useTranslation();
   const params = useParams<{ id: string }>();
   const orderId = Number(params.id);
 
@@ -144,7 +146,7 @@ export default function SupplierOrderDetailPage() {
       const response = await fetch(`/api/supplier/orders/${orderId}`);
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "주문 상세 조회 실패");
+        throw new Error(result.message ?? t("error"));
       }
       const payload = result.data as SupplierOrderDetail;
       setDetail(payload);
@@ -152,7 +154,7 @@ export default function SupplierOrderDetailPage() {
       setDeliveryDate(toDateInputValue(payload.expected_delivery_date));
       setSupplierNote(payload.supplier_note ?? "");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "주문 상세 조회 실패");
+      setError(err instanceof Error ? err.message : t("error"));
     } finally {
       setLoading(false);
     }
@@ -164,7 +166,7 @@ export default function SupplierOrderDetailPage() {
       const response = await fetch(`/api/supplier/orders/${orderId}/shipments`);
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "출고 목록 조회 실패");
+        throw new Error(result.message ?? t("error"));
       }
       const rows = result.data as ShipmentRow[];
       setShipments(rows);
@@ -175,7 +177,7 @@ export default function SupplierOrderDetailPage() {
         }, {}),
       );
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "출고 목록 조회 실패");
+      setActionError(err instanceof Error ? err.message : t("error"));
     } finally {
       setLoadingShipments(false);
     }
@@ -518,10 +520,10 @@ export default function SupplierOrderDetailPage() {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">주문 상세를 불러오는 중...</p>;
+    return <p className="text-sm text-slate-500">{t("loading")}</p>;
   }
   if (error || !detail) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error ?? "주문 없음"}</p>;
+    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error ?? t("not_found")}</p>;
   }
 
   const canConfirm = false;
@@ -535,10 +537,10 @@ export default function SupplierOrderDetailPage() {
       <header className="rounded border border-slate-200 bg-white p-4">
         <h1 className="text-2xl font-bold text-slate-900">{detail.order.order_no}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          바이어: {detail.order.buyer.name} / 국가: {detail.order.country.country_name}
+          {t("buyer")}: {detail.order.buyer.name} / {t("country")}: {detail.order.country.country_name}
         </p>
         <p className="mt-1 text-sm text-slate-600">
-          발주 상태: {getSupplierStatusLabel(detail.status, detail.order.status)}
+          {t("order_status")}: {getSupplierStatusLabel(detail.status, detail.order.status)}
         </p>
         <p className="mt-1 text-xs text-slate-500">
           발송일: {detail.sent_at ? new Date(detail.sent_at).toLocaleString() : "-"} / 확인일:{" "}
@@ -549,9 +551,9 @@ export default function SupplierOrderDetailPage() {
       </header>
 
       <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">공급사 처리</h2>
+        <h2 className="text-lg font-semibold">{t("supplier")} {t("actions")}</h2>
         <p className="mt-1 text-xs text-amber-700">
-          정책 변경으로 Order 상태는 변경할 수 없습니다. Shipment 상태만 변경 가능합니다.
+          {t("view_only_policy")}
         </p>
 
         <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -637,7 +639,7 @@ export default function SupplierOrderDetailPage() {
       </section>
 
       <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">품목</h2>
+        <h2 className="text-lg font-semibold">{t("products")}</h2>
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
@@ -669,7 +671,7 @@ export default function SupplierOrderDetailPage() {
       </section>
 
       <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">Create Shipment</h2>
+        <h2 className="text-lg font-semibold">{t("shipment")}</h2>
         <p className="mt-1 text-xs text-slate-500">
           기존 주문 상태와 독립적으로, 부분 출고 및 송장 추적을 위한 Shipment를 생성합니다.
         </p>
@@ -868,7 +870,7 @@ export default function SupplierOrderDetailPage() {
                   </div>
 
                   <div className="mt-3 rounded border border-slate-200 p-2">
-                    <p className="text-xs font-semibold text-slate-700">Update Status</p>
+                    <p className="text-xs font-semibold text-slate-700">{t("update_status")}</p>
                     <div className="mt-2 flex gap-2">
                       <input
                         className="flex-1 rounded border border-slate-300 px-2 py-1 text-xs"
@@ -894,7 +896,7 @@ export default function SupplierOrderDetailPage() {
                   </div>
 
                   <div className="mt-3 rounded border border-slate-200 p-2">
-                    <p className="text-xs font-semibold text-slate-700">Status Timeline</p>
+                    <p className="text-xs font-semibold text-slate-700">{t("shipment_timeline")}</p>
                     <ul className="mt-2 space-y-1 text-xs text-slate-600">
                       {shipment.status_logs.map((log) => (
                         <li key={log.id} className="rounded bg-slate-50 px-2 py-1">

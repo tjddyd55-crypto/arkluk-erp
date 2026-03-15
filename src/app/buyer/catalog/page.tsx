@@ -1,12 +1,14 @@
+"use client";
+
 import { BuyerProductCatalog } from "@/components/portal/buyer-product-catalog";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function BuyerCatalogPage() {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">상품 카탈로그</h1>
-      <p className="text-sm text-slate-600">
-        BUYER는 본인 국가(`country_code`)에 매핑된 승인 상품만 조회할 수 있습니다.
-      </p>
+      <h1 className="text-2xl font-bold text-slate-900">{t("products")}</h1>
+      <p className="text-sm text-slate-600">{t("country")}</p>
       <BuyerProductCatalog />
     </div>
   );

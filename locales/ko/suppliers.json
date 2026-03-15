@@ -1,0 +1,11 @@
+{
+  "suppliers": "공급사",
+  "supplier": "공급사",
+  "supplier_orders": "공급사 주문",
+  "shipment": "배송",
+  "shipments": "배송 목록",
+  "shipment_status": "배송 상태",
+  "shipment_timeline": "배송 상태 타임라인",
+  "supplier_shipments": "공급사 배송",
+  "shipment_updated": "배송 상태가 업데이트되었습니다"
+}

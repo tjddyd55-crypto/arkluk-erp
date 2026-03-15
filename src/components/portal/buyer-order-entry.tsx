@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "@/hooks/useTranslation";
 
 type Supplier = {
   id: number;
@@ -34,6 +35,7 @@ type AuthMeResponse = {
 };
 
 export function BuyerOrderEntry() {
+  const { t } = useTranslation();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierId, setSupplierId] = useState<number | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -111,13 +113,13 @@ export function BuyerOrderEntry() {
     setMessage(null);
 
     if (!selectedItems.length) {
-      setError("수량이 0보다 큰 상품을 최소 1개 선택하세요.");
+      setError(t("error"));
       return;
     }
 
     if (isCountryAdmin) {
       if (!draftOrderId) {
-        setError("먼저 국가 주문 초안을 생성해 주세요.");
+        setError(t("error"));
         return;
       }
 
@@ -134,14 +136,14 @@ export function BuyerOrderEntry() {
         });
         const result = await response.json();
         if (!response.ok || !result.success) {
-          throw new Error(result.message ?? "주문 품목 추가 실패");
+          throw new Error(result.message ?? t("error"));
         }
 
         setMessage(`초안 주문에 ${selectedItems.length}개 품목을 추가했습니다. (${draftOrderNo ?? ""})`);
         setQtyMap({});
         return;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "주문 품목 추가 실패");
+        setError(err instanceof Error ? err.message : t("error"));
         return;
       } finally {
         setDraftAdding(false);
@@ -159,7 +161,7 @@ export function BuyerOrderEntry() {
     });
     const result = await response.json();
     if (!response.ok || !result.success) {
-      setError(result.message ?? "주문 생성 실패");
+      setError(result.message ?? t("error"));
       return;
     }
 
@@ -181,14 +183,14 @@ export function BuyerOrderEntry() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "주문 초안 생성 실패");
+        throw new Error(result.message ?? t("error"));
       }
 
       setDraftOrderId(result.data.id as number);
       setDraftOrderNo(result.data.order_no as string);
       setMessage(`국가 주문 초안을 생성했습니다: ${result.data.order_no as string}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "주문 초안 생성 실패");
+      setError(err instanceof Error ? err.message : t("error"));
     } finally {
       setDraftCreating(false);
     }
@@ -198,7 +200,7 @@ export function BuyerOrderEntry() {
     setError(null);
     setMessage(null);
     if (!draftOrderId) {
-      setError("제출할 국가 주문 초안이 없습니다.");
+      setError(t("error"));
       return;
     }
     setDraftSubmitting(true);
@@ -208,7 +210,7 @@ export function BuyerOrderEntry() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "주문 제출 실패");
+        throw new Error(result.message ?? t("error"));
       }
 
       const orderNo = (result.data.order_no as string) ?? draftOrderNo ?? String(draftOrderId);
@@ -217,7 +219,7 @@ export function BuyerOrderEntry() {
       setDraftOrderNo(null);
       setQtyMap({});
     } catch (err) {
-      setError(err instanceof Error ? err.message : "주문 제출 실패");
+      setError(err instanceof Error ? err.message : t("error"));
     } finally {
       setDraftSubmitting(false);
     }
@@ -228,7 +230,7 @@ export function BuyerOrderEntry() {
     setError(null);
     setMessage(null);
     if (!supplierId) {
-      setError("공급사를 먼저 선택하세요.");
+      setError(t("error"));
       return;
     }
 
@@ -236,7 +238,7 @@ export function BuyerOrderEntry() {
     const fileInput = form.elements.namedItem("file") as HTMLInputElement | null;
     const file = fileInput?.files?.[0];
     if (!file) {
-      setError("엑셀 파일을 선택하세요.");
+      setError(t("error"));
       return;
     }
 
@@ -251,7 +253,7 @@ export function BuyerOrderEntry() {
     });
     const result = await response.json();
     if (!response.ok || !result.success) {
-      setError(result.message ?? "엑셀 주문 실패");
+      setError(result.message ?? t("error"));
       return;
     }
     setMessage(`엑셀 주문 생성 완료: ${result.data.order.order_no}`);
@@ -261,14 +263,14 @@ export function BuyerOrderEntry() {
   return (
     <div className="space-y-4">
       <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-900">회사 선택 주문</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{t("create_order")}</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           <select
             className="rounded border border-slate-300 px-2 py-1 text-sm"
             value={supplierId ?? ""}
             onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : null)}
           >
-            <option value="">공급사 선택</option>
+            <option value="">{t("supplier")}</option>
             {suppliers.map((supplier) => (
               <option key={supplier.id} value={supplier.id}>
                 {supplier.supplier_name}
@@ -277,7 +279,7 @@ export function BuyerOrderEntry() {
           </select>
           <input
             className="rounded border border-slate-300 px-2 py-1 text-sm"
-            placeholder="상품코드/상품명/규격 검색"
+            placeholder={t("search")}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
           />
@@ -286,7 +288,7 @@ export function BuyerOrderEntry() {
               className="rounded border border-slate-300 px-2 py-1 text-sm"
               href={`/api/buyer/orders/excel-template?supplierId=${supplierId}`}
             >
-              엑셀 템플릿 다운로드
+              {t("download")}
             </a>
           ) : null}
         </div>
@@ -294,7 +296,7 @@ export function BuyerOrderEntry() {
 
       {isCountryAdmin ? (
         <section className="rounded border border-slate-200 bg-white p-4">
-          <h3 className="text-sm font-semibold text-slate-900">국가 운영 주문 흐름</h3>
+          <h3 className="text-sm font-semibold text-slate-900">{t("orders")}</h3>
           <p className="mt-1 text-sm text-slate-600">
             1) 주문 초안 생성 → 2) 품목 추가 → 3) 주문 제출(UNDER_REVIEW)
           </p>
@@ -305,7 +307,7 @@ export function BuyerOrderEntry() {
               disabled={draftCreating || !!draftOrderId}
               className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
             >
-              {draftCreating ? "초안 생성 중..." : "주문 초안 생성"}
+              {draftCreating ? t("loading") : t("create")}
             </button>
             <button
               type="button"
@@ -313,27 +315,27 @@ export function BuyerOrderEntry() {
               disabled={draftSubmitting || !draftOrderId}
               className="rounded bg-slate-900 px-3 py-1 text-sm text-white disabled:opacity-60"
             >
-              {draftSubmitting ? "주문 제출 중..." : "주문 제출"}
+              {draftSubmitting ? t("loading") : t("submit")}
             </button>
             <span className="text-sm text-slate-700">
-              현재 초안: {draftOrderNo ?? "-"}
+              {t("status")}: {draftOrderNo ?? "-"}
             </span>
           </div>
         </section>
       ) : null}
 
       <section className="rounded border border-slate-200 bg-white p-4">
-        <h3 className="text-sm font-semibold text-slate-900">상품 목록</h3>
+          <h3 className="text-sm font-semibold text-slate-900">{t("products")}</h3>
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
               <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">코드</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상품명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">규격</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">단위</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">단가</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">수량</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">Code</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">{t("product")}</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">Spec</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">Unit</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">Price</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">{t("total")}</th>
               </tr>
             </thead>
             <tbody>
@@ -362,7 +364,7 @@ export function BuyerOrderEntry() {
         </div>
 
         <div className="mt-3 flex items-center justify-between">
-          <p className="text-sm text-slate-600">선택 상품 수: {selectedItems.length}</p>
+          <p className="text-sm text-slate-600">{t("product_count")}: {selectedItems.length}</p>
           <button
             type="button"
             onClick={submitOrder}
@@ -371,20 +373,20 @@ export function BuyerOrderEntry() {
           >
             {isCountryAdmin
               ? draftAdding
-                ? "품목 추가 중..."
-                : "초안에 품목 추가"
-              : "주문 제출"}
+                ? t("loading")
+                : t("apply")
+              : t("submit")}
           </button>
         </div>
       </section>
 
       {!isCountryAdmin ? (
         <section className="rounded border border-slate-200 bg-white p-4">
-          <h3 className="text-sm font-semibold text-slate-900">공급사 엑셀 주문 업로드</h3>
+          <h3 className="text-sm font-semibold text-slate-900">{t("orders")} Excel</h3>
           <form className="mt-3 flex items-center gap-2" onSubmit={onExcelUpload}>
             <input name="file" type="file" accept=".xlsx,.xls" />
             <button className="rounded border border-slate-300 px-3 py-1 text-sm" type="submit">
-              엑셀 업로드 주문 생성
+              {t("upload")}
             </button>
           </form>
         </section>

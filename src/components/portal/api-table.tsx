@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "@/hooks/useTranslation";
 
 type ApiResponse = {
   success: boolean;
@@ -9,6 +10,7 @@ type ApiResponse = {
 };
 
 export function ApiTable({ endpoint, title }: { endpoint: string; title: string }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(true);
@@ -23,7 +25,7 @@ export function ApiTable({ endpoint, title }: { endpoint: string; title: string 
         const response = await fetch(endpoint);
         const result = (await response.json()) as ApiResponse;
         if (!response.ok || !result.success) {
-          throw new Error(result.message ?? "조회 실패");
+          throw new Error(result.message ?? t("error"));
         }
         const payload = result.data;
         if (Array.isArray(payload)) {
@@ -36,7 +38,7 @@ export function ApiTable({ endpoint, title }: { endpoint: string; title: string 
         }
         if (!ignore) setRows([]);
       } catch (err) {
-        if (!ignore) setError(err instanceof Error ? err.message : "조회 실패");
+        if (!ignore) setError(err instanceof Error ? err.message : t("error"));
       } finally {
         if (!ignore) setPending(false);
       }
@@ -46,7 +48,7 @@ export function ApiTable({ endpoint, title }: { endpoint: string; title: string 
     return () => {
       ignore = true;
     };
-  }, [endpoint]);
+  }, [endpoint, t]);
 
   const columns = useMemo(() => {
     const first = rows[0];
@@ -62,14 +64,14 @@ export function ApiTable({ endpoint, title }: { endpoint: string; title: string 
           onClick={() => window.location.reload()}
           className="rounded border border-slate-300 px-2 py-1 text-xs"
         >
-          새로고침
+          {t("search")}
         </button>
       </div>
 
-      {pending ? <p className="text-sm text-slate-500">로딩 중...</p> : null}
+      {pending ? <p className="text-sm text-slate-500">{t("loading")}</p> : null}
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {!pending && !error && rows.length === 0 ? (
-        <p className="text-sm text-slate-500">데이터가 없습니다.</p>
+        <p className="text-sm text-slate-500">{t("no_data")}</p>
       ) : null}
 
       {!pending && !error && rows.length > 0 ? (

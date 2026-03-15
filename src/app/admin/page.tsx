@@ -2,9 +2,11 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   useEffect(() => {
     async function routeByRole() {
@@ -24,5 +26,5 @@ export default function AdminDashboardPage() {
     routeByRole();
   }, [router]);
 
-  return <p className="text-sm text-slate-500">대시보드로 이동 중...</p>;
+  return <p className="text-sm text-slate-500">{t("loading")}</p>;
 }

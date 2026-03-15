@@ -1,0 +1,20 @@
+{
+  "profile": "프로필",
+  "language": "언어",
+  "password": "비밀번호",
+  "settings": "설정",
+  "login": "로그인",
+  "login_id": "로그인 ID",
+  "login_failed": "로그인 실패",
+  "login_description": "역할별 포털 접근을 위해 계정으로 로그인하세요.",
+  "logging_in": "로그인 중...",
+  "my_products": "내 상품",
+  "my_quotes": "내 견적",
+  "quotes": "견적",
+  "projects": "프로젝트",
+  "logs": "로그",
+  "tax_invoices": "세금계산서",
+  "purchase_order_templates": "발주 템플릿",
+  "users": "사용자",
+  "countries": "국가"
+}

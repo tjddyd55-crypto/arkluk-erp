@@ -1,0 +1,15 @@
+{
+  "orders": "Orders",
+  "order": "Order",
+  "create_order": "Create Order",
+  "my_orders": "My Orders",
+  "order_status": "Order Status",
+  "payment_status": "Payment Status",
+  "order_number": "Order Number",
+  "order_date": "Order Date",
+  "order_summary": "Order Summary",
+  "order_created": "Order created",
+  "order_failed": "Order failed",
+  "buyer": "Buyer",
+  "country": "Country"
+}

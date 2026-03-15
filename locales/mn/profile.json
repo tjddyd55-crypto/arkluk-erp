@@ -1,0 +1,20 @@
+{
+  "profile": "Профайл",
+  "language": "Хэл",
+  "password": "Нууц үг",
+  "settings": "Тохиргоо",
+  "login": "Нэвтрэх",
+  "login_id": "Нэвтрэх ID",
+  "login_failed": "Нэвтрэлт амжилтгүй",
+  "login_description": "Үүрэгт тохирсон портал руу нэвтрэхийн тулд акаунтаараа нэвтэрнэ үү.",
+  "logging_in": "Нэвтэрч байна...",
+  "my_products": "Миний бараа",
+  "my_quotes": "Миний санал",
+  "quotes": "Үнийн санал",
+  "projects": "Төсөл",
+  "logs": "Лог",
+  "tax_invoices": "Татварын нэхэмжлэх",
+  "purchase_order_templates": "Захиалгын загвар",
+  "users": "Хэрэглэгчид",
+  "countries": "Улс"
+}

@@ -16,6 +16,13 @@ enum Role {
   SUPPLIER
 }
 
+enum Language {
+  ko
+  en
+  mn
+  ar
+}
+
 enum OrderStatus {
   CREATED
   UNDER_REVIEW
@@ -296,6 +303,7 @@ model User {
   name                  String
   email                 String?
   role                  Role
+  language              Language         @default(en)
   country_id            Int?
   supplier_id           Int?
   is_active             Boolean          @default(true)

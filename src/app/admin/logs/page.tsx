@@ -1,15 +1,17 @@
+"use client";
+
 import { ApiTable } from "@/components/portal/api-table";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function AdminLogsPage() {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">로그 관리</h1>
-      <p className="text-sm text-slate-600">
-        감사 로그, 이메일 발송 로그, 주문 변경 이력을 조회합니다.
-      </p>
-      <ApiTable endpoint="/api/admin/logs?type=audit" title="감사 로그" />
-      <ApiTable endpoint="/api/admin/logs?type=email" title="이메일 로그" />
-      <ApiTable endpoint="/api/admin/logs?type=order-change" title="주문 변경 로그" />
+      <h1 className="text-2xl font-bold text-slate-900">{t("logs")}</h1>
+      <p className="text-sm text-slate-600">{t("logs")}</p>
+      <ApiTable endpoint="/api/admin/logs?type=audit" title={t("logs")} />
+      <ApiTable endpoint="/api/admin/logs?type=email" title={t("logs")} />
+      <ApiTable endpoint="/api/admin/logs?type=order-change" title={t("orders")} />
     </div>
   );
 }

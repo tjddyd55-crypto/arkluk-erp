@@ -4,36 +4,40 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import { NotificationBell } from "@/components/portal/notification-bell";
+import { useTranslation } from "@/hooks/useTranslation";
+import { loadLanguage, type SupportedLanguage } from "@/lib/i18n";
 
 type MenuItem = {
   href: string;
-  label: string;
+  labelKey: string;
 };
 
 const superAdminMenu: MenuItem[] = [
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/orders", label: "Orders" },
-  { href: "/admin/suppliers", label: "Suppliers" },
-  { href: "/admin/countries", label: "Countries" },
-  { href: "/admin/users", label: "Users" },
+  { href: "/admin/dashboard", labelKey: "dashboard" },
+  { href: "/admin/orders", labelKey: "orders" },
+  { href: "/admin/suppliers", labelKey: "suppliers" },
+  { href: "/admin/countries", labelKey: "countries" },
+  { href: "/admin/users", labelKey: "users" },
+  { href: "/admin/translations", labelKey: "translations" },
 ];
 
 const koreaSupplyAdminMenu: MenuItem[] = [
-  { href: "/admin/supply-dashboard", label: "Supply Dashboard" },
-  { href: "/admin/orders", label: "Orders" },
-  { href: "/admin/suppliers", label: "Suppliers" },
+  { href: "/admin/supply-dashboard", labelKey: "supply_dashboard" },
+  { href: "/admin/orders", labelKey: "orders" },
+  { href: "/admin/suppliers", labelKey: "suppliers" },
+  { href: "/admin/translations", labelKey: "translations" },
 ];
 
 const buyerMenu: MenuItem[] = [
-  { href: "/buyer", label: "Dashboard" },
-  { href: "/buyer/orders", label: "My Orders" },
-  { href: "/buyer/profile", label: "Profile" },
+  { href: "/buyer", labelKey: "dashboard" },
+  { href: "/buyer/orders", labelKey: "my_orders" },
+  { href: "/buyer/profile", labelKey: "profile" },
 ];
 
 const supplierMenu: MenuItem[] = [
-  { href: "/supplier", label: "Dashboard" },
-  { href: "/supplier/orders", label: "My Orders" },
-  { href: "/supplier/products", label: "Products" },
+  { href: "/supplier", labelKey: "dashboard" },
+  { href: "/supplier/orders", labelKey: "my_orders" },
+  { href: "/supplier/products", labelKey: "products" },
 ];
 
 function getMenu(pathname: string, role: string | null) {
@@ -52,6 +56,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
+  const { t, language, setLanguage, isRTL } = useTranslation();
   const menu = getMenu(pathname, role);
 
   useEffect(() => {
@@ -61,6 +66,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
         const result = await response.json();
         if (response.ok && result.success && result.data?.role) {
           setRole(result.data.role as string);
+          loadLanguage((result.data.language as SupportedLanguage | undefined) ?? "en");
         }
       } catch {
         // no-op
@@ -75,10 +81,23 @@ export function PortalShell({ children }: { children: ReactNode }) {
     router.refresh();
   }
 
+  async function onChangeLanguage(nextLanguage: SupportedLanguage) {
+    setLanguage(nextLanguage);
+    try {
+      await fetch("/api/auth/language", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: nextLanguage }),
+      });
+    } catch {
+      // no-op
+    }
+  }
+
   return (
-    <div className="flex min-h-screen bg-slate-100">
-      <aside className="w-60 border-r border-slate-200 bg-white p-4">
-        <h1 className="text-lg font-bold">ARKLUX ERP</h1>
+    <div className={`flex min-h-screen bg-slate-100 ${isRTL ? "flex-row-reverse" : ""}`}>
+      <aside className={`w-60 border-slate-200 bg-white p-4 ${isRTL ? "border-l" : "border-r"}`}>
+        <h1 className="text-lg font-bold">{t("app_name")}</h1>
         <nav className="mt-4 space-y-1">
           {menu.map((item) => (
             <Link
@@ -90,7 +109,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
                   : "text-slate-700 hover:bg-slate-100"
               }`}
             >
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           ))}
         </nav>
@@ -98,11 +117,24 @@ export function PortalShell({ children }: { children: ReactNode }) {
           onClick={onLogout}
           className="mt-6 w-full rounded border border-slate-300 px-3 py-2 text-sm"
         >
-          로그아웃
+          {t("logout")}
         </button>
       </aside>
       <main className="flex-1 p-6">
-        <div className="mb-4 flex justify-end">
+        <div className={`mb-4 flex items-center gap-3 ${isRTL ? "justify-start" : "justify-end"}`}>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <span>{t("language")}</span>
+            <select
+              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              value={language}
+              onChange={(event) => onChangeLanguage(event.target.value as SupportedLanguage)}
+            >
+              <option value="ko">한국어</option>
+              <option value="en">English</option>
+              <option value="mn">Монгол</option>
+              <option value="ar">العربية</option>
+            </select>
+          </label>
           <NotificationBell />
         </div>
         {children}

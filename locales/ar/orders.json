@@ -1,0 +1,15 @@
+{
+  "orders": "الطلبات",
+  "order": "طلب",
+  "create_order": "إنشاء طلب",
+  "my_orders": "طلباتي",
+  "order_status": "حالة الطلب",
+  "payment_status": "حالة الدفع",
+  "order_number": "رقم الطلب",
+  "order_date": "تاريخ الطلب",
+  "order_summary": "ملخص الطلب",
+  "order_created": "تم إنشاء الطلب",
+  "order_failed": "فشل الطلب",
+  "buyer": "المشتري",
+  "country": "الدولة"
+}

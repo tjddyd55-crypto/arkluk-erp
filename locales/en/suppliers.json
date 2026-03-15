@@ -1,0 +1,11 @@
+{
+  "suppliers": "Suppliers",
+  "supplier": "Supplier",
+  "supplier_orders": "Supplier Orders",
+  "shipment": "Shipment",
+  "shipments": "Shipments",
+  "shipment_status": "Shipment Status",
+  "shipment_timeline": "Shipment Status Timeline",
+  "supplier_shipments": "Supplier Shipments",
+  "shipment_updated": "Shipment updated"
+}

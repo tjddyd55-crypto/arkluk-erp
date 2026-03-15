@@ -1,12 +1,14 @@
+"use client";
+
 import { TaxInvoiceMailbox } from "@/components/portal/tax-invoice-mailbox";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function AdminTaxInvoicesPage() {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">세금계산서 메일함</h1>
-      <p className="text-sm text-slate-600">
-        단일 수신 메일함에서 수집한 세금계산서를 발신 이메일 기준으로 공급사별 자동 분류합니다.
-      </p>
+      <h1 className="text-2xl font-bold text-slate-900">{t("tax_invoices")}</h1>
+      <p className="text-sm text-slate-600">{t("tax_invoices")}</p>
       <TaxInvoiceMailbox />
     </div>
   );

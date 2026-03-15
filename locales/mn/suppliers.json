@@ -1,0 +1,11 @@
+{
+  "suppliers": "Нийлүүлэгчид",
+  "supplier": "Нийлүүлэгч",
+  "supplier_orders": "Нийлүүлэгчийн захиалга",
+  "shipment": "Хүргэлт",
+  "shipments": "Хүргэлтүүд",
+  "shipment_status": "Хүргэлтийн төлөв",
+  "shipment_timeline": "Хүргэлтийн цагийн шугам",
+  "supplier_shipments": "Нийлүүлэгчийн хүргэлт",
+  "shipment_updated": "Хүргэлтийн төлөв шинэчлэгдлээ"
+}

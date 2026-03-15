@@ -1,0 +1,11 @@
+{
+  "suppliers": "الموردون",
+  "supplier": "المورد",
+  "supplier_orders": "طلبات المورد",
+  "shipment": "الشحنة",
+  "shipments": "الشحنات",
+  "shipment_status": "حالة الشحن",
+  "shipment_timeline": "الخط الزمني للشحن",
+  "supplier_shipments": "شحنات المورد",
+  "shipment_updated": "تم تحديث حالة الشحن"
+}

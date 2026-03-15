@@ -1,0 +1,20 @@
+{
+  "profile": "Profile",
+  "language": "Language",
+  "password": "Password",
+  "settings": "Settings",
+  "login": "Login",
+  "login_id": "Login ID",
+  "login_failed": "Login failed",
+  "login_description": "Sign in with your account to access role-based portal pages.",
+  "logging_in": "Signing in...",
+  "my_products": "My Products",
+  "my_quotes": "My Quotes",
+  "quotes": "Quotes",
+  "projects": "Projects",
+  "logs": "Logs",
+  "tax_invoices": "Tax Invoices",
+  "purchase_order_templates": "Purchase Order Templates",
+  "users": "Users",
+  "countries": "Countries"
+}

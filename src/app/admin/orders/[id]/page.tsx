@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslation } from "@/hooks/useTranslation";
 
 type OrderDetail = {
   id: number;
@@ -56,6 +57,7 @@ type SupplierOption = {
 };
 
 export default function AdminOrderDetailPage() {
+  const { t } = useTranslation();
   const params = useParams<{ id: string }>();
   const orderId = Number(params.id);
   const [order, setOrder] = useState<OrderDetail | null>(null);
@@ -78,7 +80,7 @@ export default function AdminOrderDetailPage() {
       const response = await fetch(`/api/admin/orders/${orderId}`);
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "주문 상세 조회 실패");
+        throw new Error(result.message ?? t("error"));
       }
       const detail = result.data as OrderDetail;
       setOrder(detail);
@@ -89,7 +91,7 @@ export default function AdminOrderDetailPage() {
         }, {}),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "주문 상세 조회 실패");
+      setError(err instanceof Error ? err.message : t("error"));
     } finally {
       setLoading(false);
     }
@@ -100,13 +102,13 @@ export default function AdminOrderDetailPage() {
       const response = await fetch("/api/admin/suppliers");
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "공급사 목록 조회 실패");
+        throw new Error(result.message ?? t("error"));
       }
       setSupplierOptions(
         (result.data as SupplierOption[]).filter((supplier) => supplier.is_active),
       );
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "공급사 목록 조회 실패");
+      setActionError(err instanceof Error ? err.message : t("error"));
     }
   }
 
@@ -129,12 +131,12 @@ export default function AdminOrderDetailPage() {
       );
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "공급사 발주 실패");
+        throw new Error(result.message ?? t("error"));
       }
-      setActionMessage("공급사 발주 및 메일 발송 완료");
+      setActionMessage(t("success"));
       await loadOrderDetail();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "공급사 발주 실패");
+      setActionError(err instanceof Error ? err.message : t("error"));
     } finally {
       setSendingSupplierId(null);
     }
@@ -150,12 +152,12 @@ export default function AdminOrderDetailPage() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "전체 발주 실패");
+        throw new Error(result.message ?? t("error"));
       }
-      setActionMessage("전체 공급사 발주 및 메일 발송 완료");
+      setActionMessage(t("success"));
       await loadOrderDetail();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "전체 발주 실패");
+      setActionError(err instanceof Error ? err.message : t("error"));
     } finally {
       setSendingAll(false);
     }
@@ -176,12 +178,12 @@ export default function AdminOrderDetailPage() {
       );
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "공급사 발주 취소 실패");
+        throw new Error(result.message ?? t("error"));
       }
-      setActionMessage("공급사 발주 취소 처리 완료");
+      setActionMessage(t("success"));
       await loadOrderDetail();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "공급사 발주 취소 실패");
+      setActionError(err instanceof Error ? err.message : t("error"));
     } finally {
       setCancellingSupplierId(null);
     }
@@ -190,7 +192,7 @@ export default function AdminOrderDetailPage() {
   async function assignOrderItem(orderItemId: number) {
     const supplierId = selectedSupplierMap[orderItemId];
     if (!supplierId) {
-      setActionError("배정할 공급사를 선택해 주세요.");
+      setActionError(t("error"));
       return;
     }
     setActionMessage(null);
@@ -204,12 +206,12 @@ export default function AdminOrderDetailPage() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "품목 공급사 배정 실패");
+        throw new Error(result.message ?? t("error"));
       }
-      setActionMessage("품목 공급사 배정이 반영되었습니다.");
+      setActionMessage(t("success"));
       await loadOrderDetail();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "품목 공급사 배정 실패");
+      setActionError(err instanceof Error ? err.message : t("error"));
     } finally {
       setAssigningItemId(null);
     }
@@ -227,27 +229,27 @@ export default function AdminOrderDetailPage() {
       const response = await fetch(endpoint, { method: "POST" });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "자동 배정 처리 실패");
+        throw new Error(result.message ?? t("error"));
       }
       setActionMessage(
         mode === "AUTO"
-          ? "상품 기준 자동 배정이 완료되었습니다."
-          : "타임아웃 자동 배정이 완료되었습니다.",
+          ? t("success")
+          : t("success"),
       );
       await loadOrderDetail();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "자동 배정 처리 실패");
+      setActionError(err instanceof Error ? err.message : t("error"));
     } finally {
       setAssigningOrderMode(null);
     }
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">주문 상세를 불러오는 중...</p>;
+    return <p className="text-sm text-slate-500">{t("loading")}</p>;
   }
 
   if (error || !order) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error ?? "주문 없음"}</p>;
+    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error ?? t("not_found")}</p>;
   }
 
   const groupedInvoices = order.tax_invoices.reduce<
@@ -261,7 +263,7 @@ export default function AdminOrderDetailPage() {
       }>
     >
   >((acc, invoice) => {
-    const key = invoice.supplier?.supplier_name ?? "미분류";
+    const key = invoice.supplier?.supplier_name ?? "Unclassified";
     acc[key] = acc[key] ?? [];
     acc[key].push(invoice);
     return acc;
@@ -310,12 +312,12 @@ export default function AdminOrderDetailPage() {
     "WAITING" | "SENT" | "SUPPLIER_CONFIRMED" | "DELIVERING" | "COMPLETED" | "CANCELLED",
     string
   > = {
-    WAITING: "발송 대기",
-    SENT: "발송 완료",
-    SUPPLIER_CONFIRMED: "공급사 확인",
-    DELIVERING: "출고 완료",
-    COMPLETED: "납품 완료",
-    CANCELLED: "취소",
+    WAITING: "WAITING",
+    SENT: "SENT",
+    SUPPLIER_CONFIRMED: "SUPPLIER_CONFIRMED",
+    DELIVERING: "DELIVERING",
+    COMPLETED: "COMPLETED",
+    CANCELLED: "CANCELLED",
   };
 
   return (
@@ -323,13 +325,13 @@ export default function AdminOrderDetailPage() {
       <header className="rounded border border-slate-200 bg-white p-4">
         <h1 className="text-2xl font-bold text-slate-900">{order.order_no}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          바이어: {order.buyer.name} / 국가: {order.country.country_name} / 상태: {order.status}
+          {t("buyer")}: {order.buyer.name} / {t("country")}: {order.country.country_name} / {t("status")}: {order.status}
         </p>
       </header>
 
       <section className="rounded border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">공급사별 발주 (조회 전용)</h2>
+          <h2 className="text-lg font-semibold">{t("suppliers")} {t("orders")} ({t("view_only_policy")})</h2>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -337,7 +339,7 @@ export default function AdminOrderDetailPage() {
               disabled={statusChangeDisabled || assigningOrderMode !== null}
               onClick={() => runAutoAssignment("AUTO")}
             >
-              {assigningOrderMode === "AUTO" ? "처리 중..." : "상품 기준 자동 배정"}
+              {assigningOrderMode === "AUTO" ? t("loading") : t("confirm")}
             </button>
             <button
               type="button"
@@ -345,7 +347,7 @@ export default function AdminOrderDetailPage() {
               disabled={statusChangeDisabled || assigningOrderMode !== null}
               onClick={() => runAutoAssignment("TIMEOUT")}
             >
-              {assigningOrderMode === "TIMEOUT" ? "처리 중..." : "타임아웃 자동 배정"}
+              {assigningOrderMode === "TIMEOUT" ? t("loading") : t("confirm")}
             </button>
             <button
               type="button"
@@ -353,7 +355,7 @@ export default function AdminOrderDetailPage() {
               disabled={statusChangeDisabled || sendingAll}
               onClick={sendPurchaseOrderToAll}
             >
-              {sendingAll ? "전체 발주 처리 중..." : "전체 발주"}
+              {sendingAll ? t("loading") : t("orders")}
             </button>
           </div>
         </div>
@@ -364,7 +366,7 @@ export default function AdminOrderDetailPage() {
           <p className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700">{actionError}</p>
         ) : null}
         <p className="mt-2 text-xs text-amber-700">
-          정책 변경으로 관리자 계정은 주문/배송 상태를 변경할 수 없으며 조회만 가능합니다.
+          {t("view_only_policy")}
         </p>
 
         <div className="mt-3 space-y-4">
@@ -383,19 +385,19 @@ export default function AdminOrderDetailPage() {
                       {supplierRow.supplier.supplier_name}
                     </p>
                     <p className="text-xs text-slate-500">
-                      상태: {statusLabelMap[supplierRow.status]}
+                      {t("status")}: {statusLabelMap[supplierRow.status]}
                       {supplierRow.sent_at
-                        ? ` / 발주일시: ${new Date(supplierRow.sent_at).toLocaleString()}`
+                        ? ` / ${t("created_at")}: ${new Date(supplierRow.sent_at).toLocaleString()}`
                         : ""}
                       {supplierRow.supplier_confirmed_at
-                        ? ` / 공급사확인: ${new Date(supplierRow.supplier_confirmed_at).toLocaleString()}`
+                        ? ` / ${t("confirm")}: ${new Date(supplierRow.supplier_confirmed_at).toLocaleString()}`
                         : ""}
                       {supplierRow.expected_delivery_date
-                        ? ` / 납기예정: ${new Date(supplierRow.expected_delivery_date).toLocaleDateString()}`
+                        ? ` / ETA: ${new Date(supplierRow.expected_delivery_date).toLocaleDateString()}`
                         : ""}
                     </p>
                     {supplierRow.supplier_note ? (
-                      <p className="mt-1 text-xs text-slate-600">공급사 메모: {supplierRow.supplier_note}</p>
+                      <p className="mt-1 text-xs text-slate-600">{t("message")}: {supplierRow.supplier_note}</p>
                     ) : null}
                   </div>
                   <div className="flex items-center gap-2">
@@ -410,8 +412,8 @@ export default function AdminOrderDetailPage() {
                       onClick={() => sendPurchaseOrderToSupplier(supplierRow.supplier_id)}
                     >
                       {sendingSupplierId === supplierRow.supplier_id
-                        ? "발주 중..."
-                        : `${supplierRow.supplier.supplier_name} 발주`}
+                        ? t("loading")
+                        : `${supplierRow.supplier.supplier_name} ${t("orders")}`}
                     </button>
                     <button
                       type="button"
@@ -424,14 +426,14 @@ export default function AdminOrderDetailPage() {
                       }
                       onClick={() => cancelSupplierOrder(supplierRow.supplier_id)}
                     >
-                      {cancellingSupplierId === supplierRow.supplier_id ? "취소 중..." : "발주 취소"}
+                      {cancellingSupplierId === supplierRow.supplier_id ? t("loading") : t("cancel")}
                     </button>
                     {purchaseOrder ? (
                       <a
                         href={`/api/admin/purchase-orders/${purchaseOrder.id}/download`}
                         className="rounded border border-slate-300 px-3 py-1 text-sm"
                       >
-                        발주서 다운로드
+                        {t("shipment")} PDF
                       </a>
                     ) : null}
                   </div>
@@ -442,12 +444,12 @@ export default function AdminOrderDetailPage() {
                     <thead>
                       <tr className="bg-slate-50">
                         <th className="border border-slate-200 px-2 py-1 text-left">No</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">제품명</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">규격</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">단위</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">수량</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">비고</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">공급사 배정</th>
+                        <th className="border border-slate-200 px-2 py-1 text-left">{t("product")}</th>
+                        <th className="border border-slate-200 px-2 py-1 text-left">Spec</th>
+                        <th className="border border-slate-200 px-2 py-1 text-left">Unit</th>
+                        <th className="border border-slate-200 px-2 py-1 text-left">{t("total")}</th>
+                        <th className="border border-slate-200 px-2 py-1 text-left">{t("message")}</th>
+                        <th className="border border-slate-200 px-2 py-1 text-left">{t("supplier")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -490,7 +492,7 @@ export default function AdminOrderDetailPage() {
                                 disabled={statusChangeDisabled || assigningItemId === item.id}
                                 onClick={() => assignOrderItem(item.id)}
                               >
-                                {assigningItemId === item.id ? "처리 중..." : "배정"}
+                                {assigningItemId === item.id ? t("loading") : t("confirm")}
                               </button>
                             </div>
                           </td>
@@ -506,12 +508,12 @@ export default function AdminOrderDetailPage() {
       </section>
 
       <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">세금계산서</h2>
+        <h2 className="text-lg font-semibold">{t("tax_invoices")}</h2>
         <p className="mt-1 text-xs text-slate-500">
-          주문 연결 해제/재연결은 세금계산서 메일함 화면에서 수행합니다.
+          {t("tax_invoices")}
         </p>
         {order.tax_invoices.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">연결된 세금계산서가 없습니다.</p>
+          <p className="mt-2 text-sm text-slate-500">{t("no_data")}</p>
         ) : (
           <div className="mt-3 space-y-4">
             {Object.entries(groupedInvoices).map(([supplierName, invoices]) => (
@@ -524,14 +526,14 @@ export default function AdminOrderDetailPage() {
                         {invoice.email_inbox.from_email} /{" "}
                         {new Date(invoice.email_inbox.received_at).toLocaleString()} /{" "}
                         {invoice.order_link_type === "AUTO"
-                          ? "자동 연결"
+                          ? "AUTO"
                           : invoice.order_link_type === "MANUAL"
-                            ? "수동 연결"
-                            : "연결 타입 없음"}
+                            ? "MANUAL"
+                            : "-"}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {invoice.files.length === 0 ? (
-                          <span className="text-xs text-slate-400">첨부 없음</span>
+                          <span className="text-xs text-slate-400">{t("no_data")}</span>
                         ) : (
                           invoice.files.map((file) => (
                             <a
@@ -539,7 +541,7 @@ export default function AdminOrderDetailPage() {
                               href={`/api/admin/tax-invoices/files/${file.id}/download`}
                               className="rounded border border-slate-300 px-2 py-1 text-xs"
                             >
-                              {file.file_type} 다운로드
+                              {file.file_type} {t("download")}
                             </a>
                           ))
                         )}

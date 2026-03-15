@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslation } from "@/hooks/useTranslation";
 
 type NotificationRow = {
   recipientId: number;
@@ -45,6 +46,7 @@ function getEntityLink(pathname: string, row: NotificationRow) {
 
 export function NotificationBell() {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -56,12 +58,12 @@ export function NotificationBell() {
       const response = await fetch("/api/notifications?limit=20");
       const result = (await response.json()) as NotificationResponse;
       if (!response.ok || !result.success || !result.data) {
-        throw new Error(result.message ?? "알림 조회 실패");
+        throw new Error(result.message ?? t("error"));
       }
       setRows(result.data.notifications);
       setUnreadCount(result.data.unreadCount);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "알림 조회 실패");
+      setError(err instanceof Error ? err.message : t("error"));
     }
   }
 
@@ -69,6 +71,7 @@ export function NotificationBell() {
     load();
     const timer = window.setInterval(load, 30000);
     return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const sortedRows = useMemo(
@@ -86,11 +89,11 @@ export function NotificationBell() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "알림 읽음 처리 실패");
+        throw new Error(result.message ?? t("error"));
       }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "알림 읽음 처리 실패");
+      setError(err instanceof Error ? err.message : t("error"));
     }
   }
 
@@ -112,13 +115,13 @@ export function NotificationBell() {
       {open ? (
         <div className="absolute right-0 z-20 mt-2 w-[360px] rounded border border-slate-200 bg-white p-3 shadow">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-900">알림</p>
+            <p className="text-sm font-semibold text-slate-900">{t("recent_activity")}</p>
             <button
               type="button"
               className="text-xs text-slate-500"
               onClick={() => setOpen(false)}
             >
-              닫기
+              {t("cancel")}
             </button>
           </div>
           {error ? <p className="mb-2 rounded bg-red-50 p-2 text-xs text-red-700">{error}</p> : null}
@@ -143,12 +146,12 @@ export function NotificationBell() {
                         className="rounded border border-slate-300 px-2 py-1"
                         onClick={() => handleMarkRead(row.recipientId)}
                       >
-                        읽음
+                        {t("confirm")}
                       </button>
                     ) : null}
                     {link ? (
                       <Link href={link} className="text-blue-700 underline">
-                        이동
+                        {t("dashboard")}
                       </Link>
                     ) : null}
                   </div>
@@ -157,7 +160,7 @@ export function NotificationBell() {
             })}
             {sortedRows.length === 0 ? (
               <li className="rounded border border-slate-200 px-2 py-3 text-center text-xs text-slate-500">
-                알림이 없습니다.
+                {t("no_data")}
               </li>
             ) : null}
           </ul>
