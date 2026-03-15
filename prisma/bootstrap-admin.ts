@@ -7,6 +7,20 @@ async function main() {
   const adminPasswordHash = await bcrypt.hash("ChangeMe123!", 12);
   const testPasswordHash = await bcrypt.hash("Test1234!", 12);
 
+  const mongoliaCountry = await prisma.country.upsert({
+    where: { country_code: "MN" },
+    update: {
+      country_name: "Mongolia",
+      is_active: true,
+    },
+    create: {
+      country_code: "MN",
+      country_name: "Mongolia",
+      is_active: true,
+    },
+    select: { id: true },
+  });
+
   const defaultCountry =
     (await prisma.country.findFirst({
       orderBy: { id: "asc" },
@@ -71,6 +85,48 @@ async function main() {
   });
 
   await prisma.user.upsert({
+    where: { login_id: "korea.supply.admin" },
+    update: {
+      password_hash: adminPasswordHash,
+      name: "Korea Supply Admin",
+      role: Role.KOREA_SUPPLY_ADMIN,
+      country_id: null,
+      supplier_id: null,
+      is_active: true,
+    },
+    create: {
+      login_id: "korea.supply.admin",
+      password_hash: adminPasswordHash,
+      name: "Korea Supply Admin",
+      role: Role.KOREA_SUPPLY_ADMIN,
+      country_id: null,
+      supplier_id: null,
+      is_active: true,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { login_id: "country.mn.admin" },
+    update: {
+      password_hash: adminPasswordHash,
+      name: "Mongolia Country Admin",
+      role: Role.COUNTRY_ADMIN,
+      country_id: mongoliaCountry.id,
+      supplier_id: null,
+      is_active: true,
+    },
+    create: {
+      login_id: "country.mn.admin",
+      password_hash: adminPasswordHash,
+      name: "Mongolia Country Admin",
+      role: Role.COUNTRY_ADMIN,
+      country_id: mongoliaCountry.id,
+      supplier_id: null,
+      is_active: true,
+    },
+  });
+
+  await prisma.user.upsert({
     where: { login_id: "buyer.test.01" },
     update: {
       password_hash: testPasswordHash,
@@ -113,6 +169,8 @@ async function main() {
   console.log("Bootstrap completed:");
   console.log("- SUPER_ADMIN: superadmin / ChangeMe123!");
   console.log("- ADMIN: admin01 / ChangeMe123!");
+  console.log("- KOREA_SUPPLY_ADMIN: korea.supply.admin / ChangeMe123!");
+  console.log("- COUNTRY_ADMIN(MN): country.mn.admin / ChangeMe123!");
   console.log("- BUYER(test): buyer.test.01 / Test1234!");
   console.log("- SUPPLIER(test): supplier.test.01 / Test1234!");
 }
