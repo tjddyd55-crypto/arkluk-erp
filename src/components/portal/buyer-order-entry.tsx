@@ -12,6 +12,7 @@ type Product = {
   id: number;
   product_code: string;
   product_name: string;
+  description: string | null;
   spec: string;
   unit: string;
   price: string;
@@ -332,6 +333,7 @@ export function BuyerOrderEntry() {
               <tr className="bg-slate-50">
                 <th className="border border-slate-200 px-2 py-1 text-left">Code</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">{t("product")}</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">Description</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">Spec</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">Unit</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">Price</th>
@@ -343,6 +345,7 @@ export function BuyerOrderEntry() {
                 <tr key={product.id}>
                   <td className="border border-slate-200 px-2 py-1">{product.product_code}</td>
                   <td className="border border-slate-200 px-2 py-1">{product.product_name}</td>
+                  <td className="border border-slate-200 px-2 py-1">{product.description ?? "-"}</td>
                   <td className="border border-slate-200 px-2 py-1">{product.spec}</td>
                   <td className="border border-slate-200 px-2 py-1">{product.unit}</td>
                   <td className="border border-slate-200 px-2 py-1">

@@ -12,6 +12,8 @@ export type AuthUser = {
   role: Role;
   language: Language;
   name: string;
+  email: string | null;
+  contactPhone: string | null;
   countryId: number | null;
   supplierId: number | null;
   isActive: boolean;
@@ -56,6 +58,8 @@ export async function getAuthUser(req: NextRequest): Promise<AuthUser | null> {
         role: true,
         language: true,
         name: true,
+        email: true,
+        contact_phone: true,
         country_id: true,
         supplier_id: true,
         is_active: true,
@@ -72,6 +76,8 @@ export async function getAuthUser(req: NextRequest): Promise<AuthUser | null> {
       role: user.role,
       language: user.language,
       name: user.name,
+      email: user.email,
+      contactPhone: user.contact_phone,
       countryId: user.country_id,
       supplierId: user.supplier_id,
       isActive: user.is_active,

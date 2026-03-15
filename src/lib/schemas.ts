@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const positiveNumber = z.coerce.number().positive();
+const translationLanguageSchema = z.enum(["ko", "en", "mn", "ar"]);
 
 export const loginSchema = z.object({
   loginId: z.string().min(3),
@@ -48,6 +49,7 @@ export const productUpsertSchema = z.object({
   supplierId: positiveNumber,
   categoryId: positiveNumber,
   countryCode: z.string().trim().min(2).max(10).optional(),
+  sourceLanguage: translationLanguageSchema.optional(),
   productCode: z.string().min(1).max(80),
   productName: z.string().min(1).max(200),
   productImageUrl: z.url().optional().nullable(),
@@ -63,6 +65,7 @@ export const productUpsertSchema = z.object({
 
 export const supplierProductCreateSchema = z.object({
   categoryId: positiveNumber,
+  sourceLanguage: translationLanguageSchema.optional(),
   name: z.string().trim().min(1).max(200),
   sku: z.string().trim().min(1).max(80),
   description: z.string().trim().max(1000).optional().nullable(),

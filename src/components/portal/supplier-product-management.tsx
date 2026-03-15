@@ -8,10 +8,14 @@ type Category = {
 };
 
 type ProductStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
+type SupportedLanguage = "ko" | "en" | "mn" | "ar";
 
 type ProductRow = {
   id: number;
   category_id: number;
+  name_original: string;
+  description_original: string | null;
+  source_language: SupportedLanguage;
   name: string | null;
   sku: string | null;
   description: string | null;
@@ -32,6 +36,7 @@ type ProductRow = {
 
 type FormState = {
   categoryId: string;
+  sourceLanguage: SupportedLanguage;
   name: string;
   sku: string;
   description: string;
@@ -43,6 +48,7 @@ type FormState = {
 
 const INITIAL_FORM: FormState = {
   categoryId: "",
+  sourceLanguage: "ko",
   name: "",
   sku: "",
   description: "",
@@ -51,6 +57,13 @@ const INITIAL_FORM: FormState = {
   currency: "KRW",
   thumbnailUrl: "",
 };
+
+const LANGUAGE_OPTIONS: Array<{ value: SupportedLanguage; label: string }> = [
+  { value: "ko", label: "한국어" },
+  { value: "en", label: "English" },
+  { value: "mn", label: "Монгол" },
+  { value: "ar", label: "العربية" },
+];
 
 const STATUS_LABEL: Record<ProductStatus, string> = {
   DRAFT: "임시저장",
@@ -122,9 +135,10 @@ export function SupplierProductManagement() {
     }
     setForm({
       categoryId: String(product.category_id),
-      name: product.name ?? product.product_name,
+      sourceLanguage: product.source_language ?? "ko",
+      name: product.name_original ?? product.name ?? product.product_name,
       sku: product.sku ?? product.product_code,
-      description: product.description ?? "",
+      description: product.description_original ?? product.description ?? "",
       specification: product.specification ?? product.spec,
       price: String(product.price ?? ""),
       currency: product.currency ?? "KRW",
@@ -153,6 +167,7 @@ export function SupplierProductManagement() {
     try {
       const payload = {
         categoryId: Number(form.categoryId),
+        sourceLanguage: form.sourceLanguage,
         name: form.name.trim(),
         sku: form.sku.trim(),
         description: form.description.trim() || null,
@@ -300,6 +315,19 @@ export function SupplierProductManagement() {
               {categories.map((category) => (
                 <option key={category.id} value={String(category.id)}>
                   {category.category_name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              value={form.sourceLanguage}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, sourceLanguage: e.target.value as SupportedLanguage }))
+              }
+            >
+              {LANGUAGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  원문 언어: {option.label}
                 </option>
               ))}
             </select>

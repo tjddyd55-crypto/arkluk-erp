@@ -4,6 +4,7 @@ import { Prisma, ProductStatus } from "@prisma/client";
 import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit-log";
+import { generateProductTranslations } from "@/server/services/product-translation-service";
 
 const PRODUCT_TEMPLATE_COLUMNS = [
   "공급사",
@@ -128,6 +129,9 @@ export async function upsertProductsFromExcel(actorId: number, buffer: Buffer) {
         supplier_id: supplier.id,
         category_id: category.id,
         country_code: supplier.country_code,
+        name_original: row.productName,
+        description_original: row.memo || null,
+        source_language: "ko" as const,
         name: row.productName,
         sku: row.productCode,
         description: row.memo || null,
@@ -145,12 +149,26 @@ export async function upsertProductsFromExcel(actorId: number, buffer: Buffer) {
       };
 
       if (!existing) {
-        await tx.product.create({ data: payload });
+        const createdProduct = await tx.product.create({ data: payload });
+        await generateProductTranslations({
+          productId: createdProduct.id,
+          nameOriginal: createdProduct.name_original,
+          descriptionOriginal: createdProduct.description_original,
+          sourceLanguage: createdProduct.source_language,
+          tx,
+        });
         created += 1;
       } else {
-        await tx.product.update({
+        const updatedProduct = await tx.product.update({
           where: { id: existing.id },
           data: payload,
+        });
+        await generateProductTranslations({
+          productId: updatedProduct.id,
+          nameOriginal: updatedProduct.name_original,
+          descriptionOriginal: updatedProduct.description_original,
+          sourceLanguage: updatedProduct.source_language,
+          tx,
         });
         updated += 1;
       }

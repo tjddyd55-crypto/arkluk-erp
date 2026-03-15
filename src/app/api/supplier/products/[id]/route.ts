@@ -6,6 +6,7 @@ import { handleRouteError, HttpError, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { supplierProductUpdateSchema } from "@/lib/schemas";
 import { createAuditLog } from "@/server/services/audit-log";
+import { generateProductTranslations } from "@/server/services/product-translation-service";
 
 export async function PATCH(
   request: NextRequest,
@@ -77,6 +78,9 @@ export async function PATCH(
       data: {
         category_id: parsed.data.categoryId,
         country_code: supplier.country_code,
+        name_original: parsed.data.name,
+        description_original: parsed.data.description,
+        source_language: parsed.data.sourceLanguage,
         name: parsed.data.name,
         sku: parsed.data.sku,
         description: parsed.data.description,
@@ -92,6 +96,13 @@ export async function PATCH(
         status: ProductStatus.DRAFT,
         rejection_reason: null,
       },
+    });
+
+    await generateProductTranslations({
+      productId: updated.id,
+      nameOriginal: updated.name_original,
+      descriptionOriginal: updated.description_original,
+      sourceLanguage: updated.source_language,
     });
 
     await createAuditLog({

@@ -6,6 +6,7 @@ import { handleRouteError, HttpError, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { productUpsertSchema } from "@/lib/schemas";
 import { createAuditLog } from "@/server/services/audit-log";
+import { generateProductTranslations } from "@/server/services/product-translation-service";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "KOREA_SUPPLY_ADMIN", "ADMIN"] as const;
 
@@ -46,6 +47,9 @@ export async function PATCH(
         supplier_id: parsed.data.supplierId,
         category_id: parsed.data.categoryId,
         country_code: parsed.data.countryCode ?? supplier.country_code,
+        name_original: parsed.data.productName,
+        description_original: parsed.data.memo,
+        source_language: parsed.data.sourceLanguage,
         name: parsed.data.productName,
         sku: parsed.data.productCode,
         description: parsed.data.memo,
@@ -63,6 +67,13 @@ export async function PATCH(
         sort_order: parsed.data.sortOrder,
         is_active: parsed.data.isActive,
       },
+    });
+
+    await generateProductTranslations({
+      productId: updated.id,
+      nameOriginal: updated.name_original,
+      descriptionOriginal: updated.description_original,
+      sourceLanguage: updated.source_language,
     });
 
     await createAuditLog({

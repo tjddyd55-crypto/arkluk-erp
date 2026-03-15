@@ -21,6 +21,7 @@
   "dependencies": {
     "@prisma/client": "^6.19.2",
     "bcryptjs": "^3.0.3",
+    "google-translate-api-x": "^10.7.2",
     "imapflow": "^1.2.13",
     "jose": "^6.2.1",
     "mailparser": "^3.9.4",

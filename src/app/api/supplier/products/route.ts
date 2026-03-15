@@ -6,6 +6,7 @@ import { handleRouteError, HttpError, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { supplierProductCreateSchema } from "@/lib/schemas";
 import { createAuditLog } from "@/server/services/audit-log";
+import { generateProductTranslations } from "@/server/services/product-translation-service";
 
 export async function GET(request: NextRequest) {
   try {
@@ -74,6 +75,9 @@ export async function POST(request: NextRequest) {
         supplier_id: user.supplierId,
         category_id: parsed.data.categoryId,
         country_code: supplier.country_code,
+        name_original: parsed.data.name,
+        description_original: parsed.data.description ?? null,
+        source_language: parsed.data.sourceLanguage ?? "ko",
         name: parsed.data.name,
         sku: parsed.data.sku,
         description: parsed.data.description ?? null,
@@ -90,6 +94,13 @@ export async function POST(request: NextRequest) {
         unit: "EA",
         memo: parsed.data.description ?? null,
       },
+    });
+
+    await generateProductTranslations({
+      productId: created.id,
+      nameOriginal: created.name_original,
+      descriptionOriginal: created.description_original,
+      sourceLanguage: created.source_language,
     });
 
     await createAuditLog({

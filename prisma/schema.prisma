@@ -264,6 +264,9 @@ model Product {
   supplier_id       Int
   category_id       Int
   country_code      String
+  name_original     String
+  description_original String?
+  source_language   Language   @default(ko)
   name              String?
   sku               String?
   description       String?
@@ -288,6 +291,7 @@ model Product {
   order_items       OrderItem[]
   quote_items       QuoteItem[]
   approval_logs     ProductApprovalLog[]
+  translations      ProductTranslation[]
 
   @@unique([supplier_id, product_code])
   @@index([supplier_id, status])
@@ -296,12 +300,28 @@ model Product {
   @@index([product_name])
 }
 
+model ProductTranslation {
+  id          Int      @id @default(autoincrement())
+  product_id  Int
+  language    Language
+  name        String
+  description String?
+  is_auto     Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  product     Product  @relation(fields: [product_id], references: [id])
+
+  @@unique([product_id, language])
+  @@index([language])
+}
+
 model User {
   id                    Int              @id @default(autoincrement())
   login_id              String           @unique
   password_hash         String
   name                  String
   email                 String?
+  contact_phone         String?
   role                  Role
   language              Language         @default(en)
   country_id            Int?

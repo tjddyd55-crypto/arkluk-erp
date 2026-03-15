@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type PendingProduct = {
   id: number;
@@ -140,6 +141,12 @@ export function AdminProductReview() {
                   </td>
                   <td className="border border-slate-200 px-2 py-1">
                     <div className="flex gap-2">
+                      <Link
+                        href={`/admin/products/${row.id}`}
+                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                      >
+                        번역 수정
+                      </Link>
                       <button
                         type="button"
                         className="rounded bg-emerald-600 px-2 py-1 text-xs text-white disabled:opacity-50"

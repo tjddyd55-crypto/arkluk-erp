@@ -15,6 +15,8 @@ type AuthMeResponse = {
     countryId: number | null;
     supplierId: number | null;
     language: SupportedLanguage;
+    email: string | null;
+    contactPhone: string | null;
   } | null;
   message?: string;
 };
@@ -26,6 +28,8 @@ export function UserProfileSettings() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>(language);
+  const [email, setEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
 
   useEffect(() => {
     async function loadProfile() {
@@ -38,6 +42,8 @@ export function UserProfileSettings() {
         }
         setProfile(result.data);
         setSelectedLanguage(result.data.language);
+        setEmail(result.data.email ?? "");
+        setContactPhone(result.data.contactPhone ?? "");
       } catch (err) {
         setError(err instanceof Error ? err.message : t("error"));
       }
@@ -45,15 +51,19 @@ export function UserProfileSettings() {
     loadProfile();
   }, [t]);
 
-  async function saveLanguage() {
+  async function saveProfileSettings() {
     setPending(true);
     setError(null);
     setMessage(null);
     try {
-      const response = await fetch("/api/auth/language", {
+      const response = await fetch("/api/auth/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language: selectedLanguage }),
+        body: JSON.stringify({
+          language: selectedLanguage,
+          email: email.trim() ? email.trim() : null,
+          contactPhone: contactPhone.trim() ? contactPhone.trim() : null,
+        }),
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
@@ -61,6 +71,16 @@ export function UserProfileSettings() {
       }
       setLanguage(selectedLanguage);
       setMessage(t("success"));
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              language: selectedLanguage,
+              email: email.trim() ? email.trim() : null,
+              contactPhone: contactPhone.trim() ? contactPhone.trim() : null,
+            }
+          : prev,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error"));
     } finally {
@@ -93,7 +113,29 @@ export function UserProfileSettings() {
         <p className="mt-1 text-xs text-slate-500">
           저장하면 이후 로그인에서도 같은 기본 언어로 표시됩니다.
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          <label className="text-sm text-slate-700">
+            Email
+            <input
+              className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="example@domain.com"
+              disabled={pending}
+            />
+          </label>
+          <label className="text-sm text-slate-700">
+            Contact
+            <input
+              className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+              value={contactPhone}
+              onChange={(event) => setContactPhone(event.target.value)}
+              placeholder="+82-10-0000-0000"
+              disabled={pending}
+            />
+          </label>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <select
             className="rounded border border-slate-300 px-2 py-1 text-sm"
             value={selectedLanguage}
@@ -108,7 +150,7 @@ export function UserProfileSettings() {
           <button
             type="button"
             className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
-            onClick={saveLanguage}
+            onClick={saveProfileSettings}
             disabled={pending}
           >
             {pending ? t("loading") : t("save")}
