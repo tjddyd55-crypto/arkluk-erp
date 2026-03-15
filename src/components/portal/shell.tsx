@@ -18,6 +18,8 @@ const superAdminMenu: MenuItem[] = [
   { href: "/admin/suppliers", labelKey: "suppliers" },
   { href: "/admin/countries", labelKey: "countries" },
   { href: "/admin/users", labelKey: "users" },
+  { href: "/admin/products", labelKey: "products" },
+  { href: "/admin/product-approvals", labelKey: "product_approval" },
   { href: "/admin/profile", labelKey: "profile" },
   { href: "/admin/translations", labelKey: "translations" },
 ];
@@ -26,6 +28,8 @@ const koreaSupplyAdminMenu: MenuItem[] = [
   { href: "/admin/supply-dashboard", labelKey: "supply_dashboard" },
   { href: "/admin/orders", labelKey: "orders" },
   { href: "/admin/suppliers", labelKey: "suppliers" },
+  { href: "/admin/products", labelKey: "products" },
+  { href: "/admin/product-approvals", labelKey: "product_approval" },
   { href: "/admin/profile", labelKey: "profile" },
   { href: "/admin/translations", labelKey: "translations" },
 ];

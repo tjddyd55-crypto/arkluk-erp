@@ -32,6 +32,7 @@
   "view_only_policy": "This page is view-only by policy.",
   "permission_denied": "Permission denied",
   "translations": "Translations",
+  "product_approval": "Product Approval",
   "translation_management": "Translation Management",
   "namespace": "Namespace",
   "key": "Key",

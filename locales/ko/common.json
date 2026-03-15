@@ -32,6 +32,7 @@
   "view_only_policy": "정책상 조회 전용 페이지입니다.",
   "permission_denied": "권한이 없습니다",
   "translations": "번역",
+  "product_approval": "상품 승인",
   "translation_management": "번역 관리",
   "namespace": "네임스페이스",
   "key": "키",
