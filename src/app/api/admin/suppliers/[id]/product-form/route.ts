@@ -6,6 +6,7 @@ import { supplierProductFormSaveSchema } from "@/lib/schemas";
 import { createAuditLog } from "@/server/services/audit-log";
 import {
   getSupplierActiveProductForm,
+  hardDeleteSupplierProductField,
   saveSupplierProductForm,
 } from "@/server/services/supplier-product-form-service";
 
@@ -84,6 +85,38 @@ export async function PATCH(
 ) {
   try {
     return await upsertForm(request, params);
+  } catch (error) {
+    return handleRouteError(error);
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const user = await requireAuth(request, [...ADMIN_ROLES]);
+    const supplierId = await parseSupplierId(params);
+    const body = (await request.json().catch(() => ({}))) as { fieldId?: number };
+    const fieldId = Number(body.fieldId);
+    if (Number.isNaN(fieldId)) {
+      throw new HttpError(400, "삭제할 fieldId가 필요합니다.");
+    }
+
+    await hardDeleteSupplierProductField({
+      supplierId,
+      fieldId,
+    });
+
+    await createAuditLog({
+      actorId: user.id,
+      actionType: "DELETE_SUPPLIER_PRODUCT_FIELD",
+      targetType: "SUPPLIER",
+      targetId: supplierId,
+      afterData: { fieldId },
+    });
+
+    return ok({ deleted: true });
   } catch (error) {
     return handleRouteError(error);
   }

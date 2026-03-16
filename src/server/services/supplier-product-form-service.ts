@@ -323,3 +323,41 @@ export async function saveSupplierProductForm(input: {
     return saved;
   });
 }
+
+export async function hardDeleteSupplierProductField(input: {
+  supplierId: number;
+  fieldId: number;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const field = await tx.supplierProductField.findFirst({
+      where: {
+        id: input.fieldId,
+        form: {
+          supplier_id: input.supplierId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+    if (!field) {
+      throw new HttpError(404, "삭제할 필드를 찾을 수 없습니다.");
+    }
+
+    const valueCount = await tx.supplierProductFieldValue.count({
+      where: { field_id: input.fieldId },
+    });
+    if (valueCount > 0) {
+      throw new HttpError(
+        400,
+        "해당 필드에 저장된 상품 데이터가 있어 물리 삭제할 수 없습니다. 비활성화로 처리해 주세요.",
+      );
+    }
+
+    await tx.supplierProductField.delete({
+      where: { id: input.fieldId },
+    });
+
+    return { deleted: true };
+  });
+}
