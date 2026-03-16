@@ -2,6 +2,14 @@ import { z } from "zod";
 
 const positiveNumber = z.coerce.number().positive();
 const translationLanguageSchema = z.enum(["ko", "en", "mn", "ar"]);
+export const supplierProductFieldTypeSchema = z.enum([
+  "TEXT",
+  "TEXTAREA",
+  "NUMBER",
+  "SELECT",
+  "BOOLEAN",
+  "DATE",
+]);
 
 export const loginSchema = z.object({
   loginId: z.string().min(3),
@@ -83,6 +91,50 @@ export const supplierProductUpdateSchema = supplierProductCreateSchema
 
 export const supplierProductSubmitSchema = z.object({
   submit: z.literal(true).optional().default(true),
+});
+
+export const supplierDynamicProductUpsertSchema = z.object({
+  categoryId: positiveNumber,
+  sourceLanguage: translationLanguageSchema.optional(),
+  imageUrl: z.string().trim().max(500).optional().nullable(),
+  formValues: z.record(z.string(), z.unknown()),
+});
+
+export const supplierDynamicProductPatchSchema = z.object({
+  categoryId: positiveNumber.optional(),
+  sourceLanguage: translationLanguageSchema.optional(),
+  imageUrl: z.string().trim().max(500).optional().nullable(),
+  formValues: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const supplierProductFormFieldSchema = z.object({
+  id: z.coerce.number().int().positive().optional(),
+  fieldKey: z.string().trim().min(1).max(100),
+  fieldLabel: z.string().trim().min(1).max(150),
+  fieldType: supplierProductFieldTypeSchema,
+  isRequired: z.boolean().optional(),
+  isEnabled: z.boolean().optional(),
+  sortOrder: z.coerce.number().int().optional(),
+  placeholderText: z.string().trim().max(200).optional().nullable(),
+  helpText: z.string().trim().max(500).optional().nullable(),
+  validationJson: z.record(z.string(), z.unknown()).optional().nullable(),
+});
+
+export const supplierProductFormSaveSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  isActive: z.boolean().optional(),
+  fields: z.array(supplierProductFormFieldSchema).min(1),
+});
+
+export const supplierProductFieldRequestCreateSchema = z.object({
+  requestTitle: z.string().trim().min(1).max(150),
+  requestedFieldLabel: z.string().trim().min(1).max(150),
+  requestedFieldType: supplierProductFieldTypeSchema,
+  requestReason: z.string().trim().min(1).max(1000),
+});
+
+export const supplierProductFieldRequestReviewSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED"]),
 });
 
 export const productReviewSchema = z.object({

@@ -4,25 +4,50 @@ import { Prisma, ProductStatus } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
-import { supplierProductCreateSchema } from "@/lib/schemas";
+import {
+  supplierDynamicProductUpsertSchema,
+  supplierProductCreateSchema,
+} from "@/lib/schemas";
 import { createAuditLog } from "@/server/services/audit-log";
 import { generateProductTranslations } from "@/server/services/product-translation-service";
+import { validateAndNormalizeDynamicValues, upsertSupplierProductFieldValues } from "@/server/services/supplier-dynamic-product-service";
+import { getSupplierActiveProductForm } from "@/server/services/supplier-product-form-service";
 
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth(request, ["SUPPLIER"]);
-    if (!user.supplierId) {
+    const supplierId = user.supplierId;
+    if (!supplierId) {
       throw new HttpError(400, "공급사 계정 정보가 올바르지 않습니다.");
     }
 
     const products = await prisma.product.findMany({
-      where: { supplier_id: user.supplierId },
+      where: { supplier_id: supplierId },
       include: {
         category: true,
+        field_values: {
+          include: {
+            field: {
+              select: {
+                id: true,
+                field_key: true,
+                field_label: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [{ category_id: "asc" }, { sort_order: "asc" }],
     });
-    return ok(products);
+    return ok(
+      products.map((product) => ({
+        ...product,
+        dynamic_values: product.field_values.reduce<Record<string, string | null>>((acc, row) => {
+          acc[row.field.field_key] = row.value_text;
+          return acc;
+        }, {}),
+      })),
+    );
   } catch (error) {
     return handleRouteError(error);
   }
@@ -31,16 +56,38 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth(request, ["SUPPLIER"]);
-    if (!user.supplierId) {
+    const supplierId = user.supplierId;
+    if (!supplierId) {
       throw new HttpError(400, "공급사 계정 정보가 올바르지 않습니다.");
     }
 
-    const parsed = supplierProductCreateSchema.safeParse(await request.json());
-    if (!parsed.success) {
+    const rawBody = await request.json();
+    const dynamicParsed = supplierDynamicProductUpsertSchema.safeParse(rawBody);
+    const legacyParsed = dynamicParsed.success
+      ? null
+      : supplierProductCreateSchema.safeParse(rawBody);
+    if (!dynamicParsed.success && !legacyParsed?.success) {
       throw new HttpError(400, "상품 등록 값이 올바르지 않습니다.");
     }
+    const legacyData = legacyParsed && legacyParsed.success ? legacyParsed.data : null;
+
+    const dynamicPayload = dynamicParsed.success
+      ? dynamicParsed.data
+      : {
+          categoryId: legacyData!.categoryId,
+          sourceLanguage: legacyData!.sourceLanguage,
+          imageUrl: legacyData!.thumbnailUrl ?? null,
+          formValues: {
+            name: legacyData!.name,
+            sku: legacyData!.sku,
+            description: legacyData!.description ?? "",
+            specification: legacyData!.specification,
+            price: legacyData!.price,
+            currency: legacyData!.currency,
+          },
+        };
     const supplier = await prisma.supplier.findUnique({
-      where: { id: user.supplierId },
+      where: { id: supplierId },
       select: { country_code: true },
     });
     if (!supplier) {
@@ -49,8 +96,8 @@ export async function POST(request: NextRequest) {
 
     const category = await prisma.category.findFirst({
       where: {
-        id: parsed.data.categoryId,
-        supplier_id: user.supplierId,
+        id: dynamicPayload.categoryId,
+        supplier_id: supplierId,
         is_active: true,
       },
       select: { id: true },
@@ -61,8 +108,11 @@ export async function POST(request: NextRequest) {
 
     const existing = await prisma.product.findFirst({
       where: {
-        supplier_id: user.supplierId,
-        OR: [{ sku: parsed.data.sku }, { product_code: parsed.data.sku }],
+        supplier_id: supplierId,
+        OR: [
+          { sku: String(dynamicPayload.formValues.sku ?? "").trim() },
+          { product_code: String(dynamicPayload.formValues.sku ?? "").trim() },
+        ],
       },
       select: { id: true },
     });
@@ -70,30 +120,48 @@ export async function POST(request: NextRequest) {
       throw new HttpError(409, "이미 등록된 SKU입니다.");
     }
 
-    const created = await prisma.product.create({
-      data: {
-        supplier_id: user.supplierId,
-        category_id: parsed.data.categoryId,
-        country_code: supplier.country_code,
-        name_original: parsed.data.name,
-        description_original: parsed.data.description ?? null,
-        source_language: parsed.data.sourceLanguage ?? "ko",
-        name: parsed.data.name,
-        sku: parsed.data.sku,
-        description: parsed.data.description ?? null,
-        specification: parsed.data.specification,
-        price: new Prisma.Decimal(parsed.data.price),
-        currency: parsed.data.currency,
-        thumbnail_url: parsed.data.thumbnailUrl ?? null,
-        status: ProductStatus.DRAFT,
-        is_active: false,
-        product_code: parsed.data.sku,
-        product_name: parsed.data.name,
-        product_image_url: parsed.data.thumbnailUrl ?? null,
-        spec: parsed.data.specification,
-        unit: "EA",
-        memo: parsed.data.description ?? null,
-      },
+    const form = await getSupplierActiveProductForm(supplierId, user.id);
+    const normalized = validateAndNormalizeDynamicValues({
+      fields: form.fields,
+      values: dynamicPayload.formValues,
+    });
+
+    const created = await prisma.$transaction(async (tx) => {
+      const newProduct = await tx.product.create({
+        data: {
+          supplier_id: supplierId,
+          category_id: dynamicPayload.categoryId,
+          country_code: supplier.country_code,
+          name_original: normalized.productCore.name,
+          description_original: normalized.productCore.description,
+          source_language: dynamicPayload.sourceLanguage ?? "ko",
+          name: normalized.productCore.name,
+          sku: normalized.productCore.sku,
+          description: normalized.productCore.description,
+          specification: normalized.productCore.specification,
+          price: new Prisma.Decimal(normalized.productCore.price),
+          currency: normalized.productCore.currency,
+          thumbnail_url: dynamicPayload.imageUrl ?? null,
+          image_url: dynamicPayload.imageUrl ?? null,
+          status: ProductStatus.DRAFT,
+          is_active: false,
+          product_code: normalized.productCore.sku,
+          product_name: normalized.productCore.name,
+          product_image_url: dynamicPayload.imageUrl ?? null,
+          spec: normalized.productCore.specification,
+          unit: normalized.productCore.unit,
+          memo: normalized.productCore.description ?? null,
+        },
+      });
+
+      await upsertSupplierProductFieldValues(tx, {
+        productId: newProduct.id,
+        formId: form.id,
+        fields: form.fields,
+        normalizedValues: normalized.normalizedValues,
+      });
+
+      return newProduct;
     });
 
     await generateProductTranslations({
@@ -111,6 +179,7 @@ export async function POST(request: NextRequest) {
       afterData: {
         status: created.status,
         sku: created.sku,
+        formId: form.id,
       },
     });
 

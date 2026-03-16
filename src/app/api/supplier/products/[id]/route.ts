@@ -4,9 +4,38 @@ import { Prisma, ProductStatus } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
-import { supplierProductUpdateSchema } from "@/lib/schemas";
+import {
+  supplierDynamicProductPatchSchema,
+  supplierProductUpdateSchema,
+} from "@/lib/schemas";
 import { createAuditLog } from "@/server/services/audit-log";
 import { generateProductTranslations } from "@/server/services/product-translation-service";
+import {
+  upsertSupplierProductFieldValues,
+  validateAndNormalizeDynamicValues,
+} from "@/server/services/supplier-dynamic-product-service";
+import { getSupplierActiveProductForm } from "@/server/services/supplier-product-form-service";
+
+function mergeLegacyPatchValues(
+  formValues: Record<string, unknown>,
+  legacy: Partial<{
+    name: string;
+    sku: string;
+    description: string | null;
+    specification: string;
+    price: number;
+    currency: string;
+  }>,
+) {
+  const next = { ...formValues };
+  if (legacy.name !== undefined) next.name = legacy.name;
+  if (legacy.sku !== undefined) next.sku = legacy.sku;
+  if (legacy.description !== undefined) next.description = legacy.description ?? "";
+  if (legacy.specification !== undefined) next.specification = legacy.specification;
+  if (legacy.price !== undefined) next.price = legacy.price;
+  if (legacy.currency !== undefined) next.currency = legacy.currency;
+  return next;
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -14,7 +43,8 @@ export async function PATCH(
 ) {
   try {
     const user = await requireAuth(request, ["SUPPLIER"]);
-    if (!user.supplierId) {
+    const supplierId = user.supplierId;
+    if (!supplierId) {
       throw new HttpError(400, "공급사 계정 정보가 올바르지 않습니다.");
     }
 
@@ -25,13 +55,24 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const parsed = supplierProductUpdateSchema.safeParse(body);
-    if (!parsed.success) {
+    const dynamicParsed = supplierDynamicProductPatchSchema.safeParse(body);
+    const legacyParsed = dynamicParsed.success ? null : supplierProductUpdateSchema.safeParse(body);
+    if (!dynamicParsed.success && !legacyParsed?.success) {
       throw new HttpError(400, "상품 수정 값이 올바르지 않습니다.");
     }
+    const legacyData = legacyParsed && legacyParsed.success ? legacyParsed.data : null;
 
     const before = await prisma.product.findFirst({
-      where: { id: productId, supplier_id: user.supplierId },
+      where: { id: productId, supplier_id: supplierId },
+      include: {
+        field_values: {
+          include: {
+            field: {
+              select: { id: true, form_id: true, field_key: true },
+            },
+          },
+        },
+      },
     });
     if (!before) {
       throw new HttpError(404, "상품을 찾을 수 없습니다.");
@@ -40,11 +81,13 @@ export async function PATCH(
       throw new HttpError(400, "DRAFT 또는 REJECTED 상태 상품만 수정할 수 있습니다.");
     }
 
-    if (parsed.data.categoryId) {
+    const categoryId = dynamicParsed.success ? dynamicParsed.data.categoryId : legacyData?.categoryId;
+
+    if (categoryId) {
       const category = await prisma.category.findFirst({
         where: {
-          id: parsed.data.categoryId,
-          supplier_id: user.supplierId,
+          id: categoryId,
+          supplier_id: supplierId,
           is_active: true,
         },
       });
@@ -53,19 +96,40 @@ export async function PATCH(
       }
     }
     const supplier = await prisma.supplier.findUnique({
-      where: { id: user.supplierId },
+      where: { id: supplierId },
       select: { country_code: true },
     });
     if (!supplier) {
       throw new HttpError(400, "공급사 정보를 찾을 수 없습니다.");
     }
 
-    if (parsed.data.sku && parsed.data.sku !== before.sku && parsed.data.sku !== before.product_code) {
+    const currentForm = await getSupplierActiveProductForm(supplierId, user.id);
+    const existingValues = before.field_values.reduce<Record<string, unknown>>((acc, row) => {
+      acc[row.field.field_key] = row.value_text;
+      return acc;
+    }, {});
+
+    const mergedValues = dynamicParsed.success
+      ? { ...existingValues, ...(dynamicParsed.data.formValues ?? {}) }
+      : mergeLegacyPatchValues(existingValues, legacyData ?? {});
+
+    const normalized = validateAndNormalizeDynamicValues({
+      fields: currentForm.fields,
+      values: mergedValues,
+    });
+
+    if (
+      normalized.productCore.sku !== before.sku &&
+      normalized.productCore.sku !== before.product_code
+    ) {
       const duplicate = await prisma.product.findFirst({
         where: {
-          supplier_id: user.supplierId,
+          supplier_id: supplierId,
           id: { not: productId },
-          OR: [{ sku: parsed.data.sku }, { product_code: parsed.data.sku }],
+          OR: [
+            { sku: normalized.productCore.sku },
+            { product_code: normalized.productCore.sku },
+          ],
         },
       });
       if (duplicate) {
@@ -73,29 +137,51 @@ export async function PATCH(
       }
     }
 
-    const updated = await prisma.product.update({
-      where: { id: productId },
-      data: {
-        category_id: parsed.data.categoryId,
-        country_code: supplier.country_code,
-        name_original: parsed.data.name,
-        description_original: parsed.data.description,
-        source_language: parsed.data.sourceLanguage,
-        name: parsed.data.name,
-        sku: parsed.data.sku,
-        description: parsed.data.description,
-        specification: parsed.data.specification,
-        product_name: parsed.data.name,
-        product_code: parsed.data.sku,
-        product_image_url: parsed.data.thumbnailUrl,
-        thumbnail_url: parsed.data.thumbnailUrl,
-        spec: parsed.data.specification,
-        price: parsed.data.price ? new Prisma.Decimal(parsed.data.price) : undefined,
-        currency: parsed.data.currency,
-        memo: parsed.data.description,
-        status: ProductStatus.DRAFT,
-        rejection_reason: null,
-      },
+    const nextImageUrl = dynamicParsed.success
+      ? (dynamicParsed.data.imageUrl === undefined ? before.image_url : dynamicParsed.data.imageUrl)
+      : (legacyData?.thumbnailUrl === undefined
+          ? before.image_url
+          : legacyData.thumbnailUrl);
+    const nextSourceLanguage = dynamicParsed.success
+      ? (dynamicParsed.data.sourceLanguage ?? before.source_language)
+      : (legacyData?.sourceLanguage ?? before.source_language);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const next = await tx.product.update({
+        where: { id: productId },
+        data: {
+          category_id: categoryId ?? before.category_id,
+          country_code: supplier.country_code,
+          name_original: normalized.productCore.name,
+          description_original: normalized.productCore.description,
+          source_language: nextSourceLanguage,
+          name: normalized.productCore.name,
+          sku: normalized.productCore.sku,
+          description: normalized.productCore.description,
+          specification: normalized.productCore.specification,
+          product_name: normalized.productCore.name,
+          product_code: normalized.productCore.sku,
+          product_image_url: nextImageUrl ?? null,
+          thumbnail_url: nextImageUrl ?? null,
+          image_url: nextImageUrl ?? null,
+          spec: normalized.productCore.specification,
+          price: new Prisma.Decimal(normalized.productCore.price),
+          currency: normalized.productCore.currency,
+          memo: normalized.productCore.description,
+          unit: normalized.productCore.unit,
+          status: ProductStatus.DRAFT,
+          rejection_reason: null,
+        },
+      });
+
+      await upsertSupplierProductFieldValues(tx, {
+        productId: productId,
+        formId: currentForm.id,
+        fields: currentForm.fields,
+        normalizedValues: normalized.normalizedValues,
+      });
+
+      return next;
     });
 
     await generateProductTranslations({
@@ -115,6 +201,56 @@ export async function PATCH(
     });
 
     return ok(updated);
+  } catch (error) {
+    return handleRouteError(error);
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const user = await requireAuth(request, ["SUPPLIER"]);
+    const supplierId = user.supplierId;
+    if (!supplierId) {
+      throw new HttpError(400, "공급사 계정 정보가 올바르지 않습니다.");
+    }
+
+    const { id } = await params;
+    const productId = Number(id);
+    if (Number.isNaN(productId)) {
+      throw new HttpError(400, "유효하지 않은 상품 ID입니다.");
+    }
+
+    const before = await prisma.product.findFirst({
+      where: { id: productId, supplier_id: supplierId },
+    });
+    if (!before) {
+      throw new HttpError(404, "상품을 찾을 수 없습니다.");
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.productApprovalLog.deleteMany({
+        where: { product_id: productId },
+      });
+      await tx.productTranslation.deleteMany({
+        where: { product_id: productId },
+      });
+      await tx.product.delete({
+        where: { id: productId },
+      });
+    });
+
+    await createAuditLog({
+      actorId: user.id,
+      actionType: "SUPPLIER_DELETE_PRODUCT",
+      targetType: "PRODUCT",
+      targetId: productId,
+      beforeData: before,
+    });
+
+    return ok({ deleted: true });
   } catch (error) {
     return handleRouteError(error);
   }
