@@ -10,6 +10,7 @@ type Supplier = {
 
 type FormFieldRow = {
   id?: number;
+  /** 서버 부여. 기존 필드만 있음, 신규는 빈 문자열 */
   fieldKey: string;
   fieldLabel: string;
   fieldType: "TEXT" | "TEXTAREA" | "NUMBER" | "SELECT" | "BOOLEAN" | "DATE";
@@ -73,6 +74,7 @@ export function SupplierProductFormManager() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     async function loadSuppliers() {
@@ -161,7 +163,7 @@ export function SupplierProductFormManager() {
         name: formName.trim(),
         fields: rows.map((row) => ({
           id: row.id,
-          fieldKey: row.fieldKey.trim(),
+          fieldKey: row.id != null && row.fieldKey.trim() !== "" ? row.fieldKey.trim() : undefined,
           fieldLabel: row.fieldLabel.trim(),
           fieldType: row.fieldType,
           isRequired: row.isRequired,
@@ -255,13 +257,13 @@ export function SupplierProductFormManager() {
               <tbody>
                 {rows.map((row, index) => (
                   <tr key={`${row.id ?? "new"}-${index}`}>
-                    <td className="border border-slate-200 px-2 py-1">
-                      <input
-                        className="w-36 rounded border border-slate-300 px-2 py-1 text-xs"
-                        value={row.fieldKey}
-                        onChange={(e) => updateField(index, { fieldKey: e.target.value })}
-                      />
-                    </td>
+                    {showAdvanced ? (
+                      <td className="border border-slate-200 px-2 py-1">
+                        <span className="inline-block w-36 truncate rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-500" title={row.fieldKey || "(신규 저장 시 부여)"}>
+                          {row.fieldKey || "(신규 저장 시 부여)"}
+                        </span>
+                      </td>
+                    ) : null}
                     <td className="border border-slate-200 px-2 py-1">
                       <input
                         className="w-36 rounded border border-slate-300 px-2 py-1 text-xs"
@@ -340,7 +342,7 @@ export function SupplierProductFormManager() {
                 ))}
                 {rows.length === 0 ? (
                   <tr>
-                    <td className="border border-slate-200 px-2 py-2 text-center text-slate-500" colSpan={10}>
+                    <td className="border border-slate-200 px-2 py-2 text-center text-slate-500" colSpan={showAdvanced ? 11 : 10}>
                       등록된 필드가 없습니다.
                     </td>
                   </tr>

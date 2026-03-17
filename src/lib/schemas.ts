@@ -109,7 +109,8 @@ export const supplierDynamicProductPatchSchema = z.object({
 
 export const supplierProductFormFieldSchema = z.object({
   id: z.coerce.number().int().positive().optional(),
-  fieldKey: z.string().trim().min(1).max(100),
+  /** 신규 필드는 생략(서버 자동 생성). 기존 필드는 매칭용으로만 전송, 수정 불가. */
+  fieldKey: z.string().trim().max(100).optional(),
   fieldLabel: z.string().trim().min(1).max(150),
   fieldType: supplierProductFieldTypeSchema,
   isRequired: z.boolean().optional(),

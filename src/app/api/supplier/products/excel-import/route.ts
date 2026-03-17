@@ -8,6 +8,7 @@ import { createAuditLog } from "@/server/services/audit-log";
 import { generateProductTranslations } from "@/server/services/product-translation-service";
 import {
   parseSupplierProductExcelRows,
+  parseSupplierProductExcelWithHeaders,
 } from "@/server/services/supplier-product-excel-service";
 import { getSupplierActiveProductForm } from "@/server/services/supplier-product-form-service";
 import {
@@ -33,23 +34,76 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const rows = parseSupplierProductExcelRows(buffer);
-    if (rows.length === 0) {
-      throw new HttpError(400, "업로드할 데이터가 없습니다.");
-    }
-
     const form = await getSupplierActiveProductForm(supplierId, user.id);
     const enabledFields = form.fields
       .filter((field) => field.is_enabled)
       .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
 
-    const labelToKey = new Map(enabledFields.map((field) => [field.field_label, field.field_key]));
+    const keyToField = new Map(enabledFields.map((f) => [f.field_key, f]));
+    const labelToField = new Map(enabledFields.map((f) => [f.field_label, f]));
+
+    const parsed = parseSupplierProductExcelWithHeaders(buffer);
+    const useNewFormat =
+      parsed &&
+      parsed.dataRows.length > 0 &&
+      parsed.headerLabels.length > 0;
+
+    type DataRow = Record<string, unknown> | unknown[];
+    let rows: DataRow[];
+    let rowNoOffset: number;
+    let resolveRow: (row: DataRow, rowIndex: number) => {
+      categoryName: string;
+      formValues: Record<string, unknown>;
+      imageUrl: string | null;
+      sourceLanguage: string;
+    };
+
+    if (useNewFormat && parsed) {
+      rows = parsed.dataRows as DataRow[];
+      rowNoOffset = 3;
+      const lastCol = parsed.headerLabels.length - 1;
+      const categoryCol = 0;
+      const imageCol = lastCol;
+      resolveRow = (row: DataRow, _rowIndex: number) => {
+        const arr = row as unknown[];
+        const categoryName = String(arr[categoryCol] ?? "").trim();
+        const formValues: Record<string, unknown> = {};
+        for (let i = 1; i < imageCol; i++) {
+          const key = parsed!.headerKeys[i]?.trim();
+          const label = parsed!.headerLabels[i]?.trim();
+          const field = (key && keyToField.get(key)) ?? (label && labelToField.get(label));
+          if (field) formValues[field.field_key] = arr[i];
+        }
+        const imageUrl = String(arr[imageCol] ?? "").trim() || null;
+        const sourceLanguage = "ko";
+        return { categoryName, formValues, imageUrl, sourceLanguage };
+      };
+    } else {
+      const legacyRows = parseSupplierProductExcelRows(buffer);
+      if (legacyRows.length === 0) {
+        throw new HttpError(400, "업로드할 데이터가 없습니다.");
+      }
+      rows = legacyRows;
+      rowNoOffset = 2;
+      const labelToKey = new Map(enabledFields.map((f) => [f.field_label, f.field_key]));
+      resolveRow = (row: DataRow) => {
+        const rec = row as Record<string, unknown>;
+        const categoryName = String(rec["카테고리"] ?? "").trim();
+        const formValues: Record<string, unknown> = {};
+        for (const [label, key] of labelToKey.entries()) {
+          formValues[key] = rec[label];
+        }
+        const imageUrl = String(rec["이미지URL(선택)"] ?? "").trim() || null;
+        const sourceLanguage = (String(rec["원문언어"] ?? "").trim().toLowerCase() || "ko") as string;
+        return { categoryName, formValues, imageUrl, sourceLanguage };
+      };
+    }
 
     const categories = await prisma.category.findMany({
       where: { supplier_id: supplierId, is_active: true },
       select: { id: true, category_name: true },
     });
-    const categoryMap = new Map(categories.map((category) => [category.category_name, category.id]));
+    const categoryMap = new Map(categories.map((c) => [c.category_name, c.id]));
 
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
@@ -64,9 +118,9 @@ export async function POST(request: NextRequest) {
     const errors: string[] = [];
 
     for (const [index, row] of rows.entries()) {
-      const rowNo = index + 2;
+      const rowNo = index + rowNoOffset;
       try {
-        const categoryName = String(row["카테고리"] ?? "").trim();
+        const { categoryName, formValues, imageUrl: imageUrlValue, sourceLanguage: sourceLanguageVal } = resolveRow(row, index);
         if (!categoryName) {
           throw new HttpError(400, "카테고리 값이 필요합니다.");
         }
@@ -75,19 +129,13 @@ export async function POST(request: NextRequest) {
           throw new HttpError(400, `카테고리를 찾을 수 없습니다. (${categoryName})`);
         }
 
-        const formValues: Record<string, unknown> = {};
-        for (const [label, key] of labelToKey.entries()) {
-          formValues[key] = row[label];
-        }
         const normalized = validateAndNormalizeDynamicValues({
           fields: enabledFields,
           values: formValues,
         });
 
-        const imageUrlValue = String(row["이미지URL(선택)"] ?? "").trim() || null;
-        const sourceLanguage = (String(row["원문언어"] ?? "").trim().toLowerCase() || "ko") as Language;
         const allowedLanguages: Language[] = ["ko", "en", "mn", "ar"];
-        const finalSourceLanguage = allowedLanguages.includes(sourceLanguage) ? sourceLanguage : "ko";
+        const finalSourceLanguage = allowedLanguages.includes(sourceLanguageVal as Language) ? (sourceLanguageVal as Language) : "ko";
 
         const upserted = await prisma.$transaction(async (tx) => {
           const existing = await tx.product.findFirst({

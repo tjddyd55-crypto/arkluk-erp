@@ -14,12 +14,12 @@ export async function GET(request: NextRequest) {
     }
 
     const form = await getSupplierActiveProductForm(supplierId, user.id);
-    const labels = form.fields
+    const columns = form.fields
       .filter((field) => field.is_enabled)
       .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
-      .map((field) => field.field_label);
+      .map((field) => ({ label: field.field_label, fieldKey: field.field_key }));
 
-    const fileBuffer = buildSupplierProductExcelTemplate({ labels });
+    const fileBuffer = buildSupplierProductExcelTemplate({ columns });
 
     return new Response(fileBuffer, {
       status: 200,
