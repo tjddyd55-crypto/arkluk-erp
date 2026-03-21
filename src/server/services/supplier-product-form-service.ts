@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import { Prisma, SupplierProductFieldType } from "@prisma/client";
 
 import { HttpError } from "@/lib/http";
@@ -6,9 +8,13 @@ import { prisma } from "@/lib/prisma";
 export const CORE_PRODUCT_FIELD_KEYS = ["sku", "name", "specification", "price"] as const;
 export const DEFAULT_SUPPLIER_PRODUCT_FORM_NAME = "기본 상품 등록 폼";
 
+const FIELD_KEY_PREFIX = "f_";
+const FIELD_KEY_RANDOM_LENGTH = 8;
+
 export type ProductFormFieldInput = {
   id?: number;
-  fieldKey: string;
+  /** 신규 필드는 생략(서버 자동 생성). 기존 필드는 매칭용, 변경 불가. */
+  fieldKey?: string;
   fieldLabel: string;
   fieldType: SupplierProductFieldType;
   isRequired?: boolean;
@@ -19,7 +25,10 @@ export type ProductFormFieldInput = {
   validationJson?: unknown;
 };
 
-export const DEFAULT_SUPPLIER_PRODUCT_FIELDS: ProductFormFieldInput[] = [
+/** 초기 폼 시드: field_key는 항상 고정(semantic 키). */
+export type SupplierProductFormSeedField = ProductFormFieldInput & { fieldKey: string };
+
+export const DEFAULT_SUPPLIER_PRODUCT_FIELDS: SupplierProductFormSeedField[] = [
   { fieldKey: "sku", fieldLabel: "SKU", fieldType: SupplierProductFieldType.TEXT, isRequired: true, sortOrder: 10 },
   { fieldKey: "name", fieldLabel: "상품명", fieldType: SupplierProductFieldType.TEXT, isRequired: true, sortOrder: 20 },
   {
@@ -85,13 +94,32 @@ function normalizeFieldKey(fieldKey: string) {
   return normalized;
 }
 
-function normalizeFieldInput(input: ProductFormFieldInput, index: number): ProductFormFieldInput {
+async function generateUniqueFieldKey(
+  formId: number,
+  tx: TxClient,
+  excludeKeys: Set<string>,
+): Promise<string> {
+  const maxAttempts = 50;
+  for (let i = 0; i < maxAttempts; i++) {
+    const key = FIELD_KEY_PREFIX + randomBytes(FIELD_KEY_RANDOM_LENGTH / 2).toString("hex");
+    if (excludeKeys.has(key)) continue;
+    const existing = await tx.supplierProductField.findUnique({
+      where: { form_id_field_key: { form_id: formId, field_key: key } },
+      select: { id: true },
+    });
+    if (!existing) return key;
+  }
+  throw new HttpError(500, "field_key 생성에 실패했습니다. 다시 시도해 주세요.");
+}
+
+type NormalizedField = Omit<ProductFormFieldInput, "fieldKey"> & { fieldKey?: string };
+
+function normalizeFieldInput(input: ProductFormFieldInput, index: number): NormalizedField {
   if (!input.fieldLabel?.trim()) {
     throw new HttpError(400, "field_label은 필수입니다.");
   }
-  return {
+  const base = {
     ...input,
-    fieldKey: normalizeFieldKey(input.fieldKey),
     fieldLabel: input.fieldLabel.trim(),
     isRequired: input.isRequired ?? false,
     isEnabled: input.isEnabled ?? true,
@@ -100,6 +128,10 @@ function normalizeFieldInput(input: ProductFormFieldInput, index: number): Produ
     helpText: input.helpText?.trim() || null,
     validationJson: input.validationJson ?? null,
   };
+  if (input.fieldKey != null && String(input.fieldKey).trim() !== "") {
+    return { ...base, fieldKey: normalizeFieldKey(input.fieldKey) };
+  }
+  return { ...base, fieldKey: undefined };
 }
 
 function toJsonValue(
@@ -115,18 +147,33 @@ function toJsonValue(
   return cloned === null ? Prisma.JsonNull : (cloned as Prisma.InputJsonValue);
 }
 
-function validateFieldSet(fields: ProductFormFieldInput[]) {
-  const normalizedFields = fields.map(normalizeFieldInput);
+function validateFieldSet(fields: ProductFormFieldInput[]): NormalizedField[] {
+  const normalizedFields = fields.map((f, i) => normalizeFieldInput(f, i));
+
+  for (const field of normalizedFields) {
+    if (field.id != null) {
+      if (field.fieldKey == null || String(field.fieldKey).trim() === "") {
+        throw new HttpError(400, "기존 필드는 매칭을 위해 field_key가 필요합니다.");
+      }
+    } else {
+      if (field.fieldKey != null && String(field.fieldKey).trim() !== "") {
+        throw new HttpError(400, "신규 필드에는 field_key를 보내지 마세요. 서버에서 자동 생성됩니다.");
+      }
+    }
+  }
+
   const uniqueKeys = new Set<string>();
   for (const field of normalizedFields) {
-    if (uniqueKeys.has(field.fieldKey)) {
-      throw new HttpError(400, `중복 field_key가 있습니다. (${field.fieldKey})`);
+    if (field.fieldKey != null) {
+      if (uniqueKeys.has(field.fieldKey)) {
+        throw new HttpError(400, `중복 field_key가 있습니다. (${field.fieldKey})`);
+      }
+      uniqueKeys.add(field.fieldKey);
     }
-    uniqueKeys.add(field.fieldKey);
   }
 
   for (const coreKey of CORE_PRODUCT_FIELD_KEYS) {
-    const coreField = normalizedFields.find((field) => field.fieldKey === coreKey);
+    const coreField = normalizedFields.find((f) => f.fieldKey === coreKey);
     if (!coreField || !coreField.isEnabled || !coreField.isRequired) {
       throw new HttpError(
         400,
@@ -255,17 +302,22 @@ export async function saveSupplierProductForm(input: {
       where: { form_id: form.id },
       select: { id: true, field_key: true },
     });
-    const existingById = new Map(existingFields.map((field) => [field.id, field]));
-    const existingByKey = new Map(existingFields.map((field) => [field.field_key, field]));
+    const existingById = new Map(existingFields.map((f) => [f.id, f]));
+    const existingByKey = new Map(existingFields.map((f) => [f.field_key, f]));
     const keepFieldIds = new Set<number>();
+    const usedKeysForNew = new Set(existingFields.map((f) => f.field_key));
 
     for (const field of normalizedFields) {
-      const existing = (field.id ? existingById.get(field.id) : undefined) ?? existingByKey.get(field.fieldKey);
+      const existing =
+        (field.id ? existingById.get(field.id) : undefined) ??
+        (field.fieldKey ? existingByKey.get(field.fieldKey) : undefined);
       if (existing) {
+        if (field.fieldKey != null && field.fieldKey !== existing.field_key) {
+          throw new HttpError(400, `field_key는 변경할 수 없습니다. (${existing.field_key})`);
+        }
         await tx.supplierProductField.update({
           where: { id: existing.id },
           data: {
-            field_key: field.fieldKey,
             field_label: field.fieldLabel,
             field_type: field.fieldType,
             is_required: field.isRequired ?? false,
@@ -278,10 +330,12 @@ export async function saveSupplierProductForm(input: {
         });
         keepFieldIds.add(existing.id);
       } else {
+        const fieldKey = await generateUniqueFieldKey(form.id, tx, usedKeysForNew);
+        usedKeysForNew.add(fieldKey);
         const created = await tx.supplierProductField.create({
           data: {
             form_id: form.id,
-            field_key: field.fieldKey,
+            field_key: fieldKey,
             field_label: field.fieldLabel,
             field_type: field.fieldType,
             is_required: field.isRequired ?? false,
