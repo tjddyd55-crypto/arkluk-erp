@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Supplier = {
   id: number;
@@ -10,7 +10,8 @@ type Supplier = {
 
 type FormFieldRow = {
   id?: number;
-  /** 서버 부여. 기존 필드만 있음, 신규는 빈 문자열 */
+  /** 저장 전 신규 행 식별(정렬 이동용) */
+  clientTempId?: string;
   fieldKey: string;
   fieldLabel: string;
   fieldType: "TEXT" | "TEXTAREA" | "NUMBER" | "SELECT" | "BOOLEAN" | "DATE";
@@ -65,6 +66,20 @@ function mapField(field: ProductFormResponse["fields"][number]): FormFieldRow {
   };
 }
 
+function rowStableKey(row: FormFieldRow, index: number) {
+  return row.id != null ? `id:${row.id}` : `tmp:${row.clientTempId ?? index}`;
+}
+
+function sortRowsForDisplay(list: FormFieldRow[]) {
+  return [...list].sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    const ak = a.id ?? 0;
+    const bk = b.id ?? 0;
+    if (ak !== bk) return ak - bk;
+    return (a.clientTempId ?? "").localeCompare(b.clientTempId ?? "");
+  });
+}
+
 export function SupplierProductFormManager() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
@@ -74,7 +89,18 @@ export function SupplierProductFormManager() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  /** 내부키(read-only) + validation(json) 표시 */
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  /** 필드 추가용: 표시명·타입 입력 후 행 추가 */
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [newFieldLabel, setNewFieldLabel] = useState("");
+  const [newFieldType, setNewFieldType] = useState<FormFieldRow["fieldType"]>("TEXT");
+
+  const displayRows = useMemo(() => sortRowsForDisplay(rows), [rows]);
+
+  const baseColCount = 8;
+  const advancedColCount = 2;
+  const totalColCount = baseColCount + (showAdvancedSettings ? advancedColCount : 0);
 
   useEffect(() => {
     async function loadSuppliers() {
@@ -124,29 +150,104 @@ export function SupplierProductFormManager() {
     void loadForm(selectedSupplierId);
   }, [selectedSupplierId]);
 
-  function addField() {
-    setRows((prev) => [
-      ...prev,
-      {
-        fieldKey: "",
-        fieldLabel: "",
-        fieldType: "TEXT",
-        isRequired: false,
-        isEnabled: true,
-        sortOrder: prev.length > 0 ? Math.max(...prev.map((row) => row.sortOrder)) + 10 : 10,
-        placeholderText: "",
-        helpText: "",
-        validationJson: "",
-      },
-    ]);
+  function findRowIndexInState(target: FormFieldRow): number {
+    return rows.findIndex((r) => {
+      if (target.id != null && r.id === target.id) return true;
+      if (target.clientTempId && r.clientTempId === target.clientTempId) return true;
+      return false;
+    });
   }
 
-  function updateField(index: number, patch: Partial<FormFieldRow>) {
-    setRows((prev) => prev.map((row, idx) => (idx === index ? { ...row, ...patch } : row)));
+  function moveRowInOrder(displayIndex: number, direction: "up" | "down") {
+    const sorted = sortRowsForDisplay(rows);
+    const j = direction === "up" ? displayIndex - 1 : displayIndex + 1;
+    if (j < 0 || j >= sorted.length) return;
+    const rowA = sorted[displayIndex];
+    const rowB = sorted[j];
+    const idxA = findRowIndexInState(rowA);
+    const idxB = findRowIndexInState(rowB);
+    if (idxA < 0 || idxB < 0) return;
+    setRows((prev) => {
+      const next = [...prev];
+      const soA = next[idxA].sortOrder;
+      const soB = next[idxB].sortOrder;
+      next[idxA] = { ...next[idxA], sortOrder: soB };
+      next[idxB] = { ...next[idxB], sortOrder: soA };
+      return next;
+    });
   }
 
-  function removeField(index: number) {
-    setRows((prev) => prev.filter((_, idx) => idx !== index));
+  function openFieldComposer() {
+    setComposerOpen(true);
+    setNewFieldLabel("");
+    setNewFieldType("TEXT");
+  }
+
+  function confirmAddFieldFromComposer() {
+    const label = newFieldLabel.trim();
+    if (!label) {
+      setError("표시명을 입력해 주세요.");
+      return;
+    }
+    setError(null);
+    setRows((prev) => {
+      const nextSort =
+        prev.length > 0 ? Math.max(...prev.map((r) => r.sortOrder)) + 10 : 10;
+      return [
+        ...prev,
+        {
+          clientTempId:
+            typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `tmp-${Date.now()}`,
+          fieldKey: "",
+          fieldLabel: label,
+          fieldType: newFieldType,
+          isRequired: false,
+          isEnabled: true,
+          sortOrder: nextSort,
+          placeholderText: "",
+          helpText: "",
+          validationJson: "",
+        },
+      ];
+    });
+    setComposerOpen(false);
+    setNewFieldLabel("");
+    setNewFieldType("TEXT");
+  }
+
+  function updateField(indexInRows: number, patch: Partial<FormFieldRow>) {
+    setRows((prev) => prev.map((row, idx) => (idx === indexInRows ? { ...row, ...patch } : row)));
+  }
+
+  function updateFieldByDisplayRow(displayRow: FormFieldRow, patch: Partial<FormFieldRow>) {
+    const idx = findRowIndexInState(displayRow);
+    if (idx >= 0) updateField(idx, patch);
+  }
+
+  function requestDeactivateField(displayRow: FormFieldRow) {
+    if (!displayRow.isEnabled) return;
+    const okConfirm = window.confirm(
+      "이 필드를 숨기시겠습니까?\n비활성화된 필드는 입력 폼·엑셀 템플릿에서 제외되며, 기존 상품 데이터는 유지됩니다.",
+    );
+    if (!okConfirm) return;
+    if (displayRow.id == null) {
+      setRows((prev) => {
+        const i = prev.findIndex(
+          (r) => r.clientTempId != null && r.clientTempId === displayRow.clientTempId,
+        );
+        if (i < 0) return prev;
+        return prev.filter((_, idx) => idx !== i);
+      });
+      return;
+    }
+    updateFieldByDisplayRow(displayRow, { isEnabled: false });
+  }
+
+  function requestReactivateField(displayRow: FormFieldRow) {
+    if (displayRow.isEnabled) return;
+    updateFieldByDisplayRow(displayRow, { isEnabled: true });
   }
 
   async function saveForm() {
@@ -195,8 +296,16 @@ export function SupplierProductFormManager() {
   }
 
   return (
-    <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
-      <h2 className="text-lg font-semibold text-slate-900">공급사 상품 입력 폼 설정</h2>
+    <section className="space-y-4 rounded border border-slate-200 bg-white p-4">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900">공급사 상품 입력 폼 설정</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          이 설정은 상품 등록 화면과 엑셀 업로드 구조에 그대로 반영됩니다.
+          <span className="font-medium text-slate-800"> 표시명</span>은 엑셀 1행(사용자용 헤더)에
+          사용되며, 시스템 식별은 서버가 부여한 내부키로 처리됩니다.
+        </p>
+      </div>
+
       {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
 
@@ -225,7 +334,7 @@ export function SupplierProductFormManager() {
             <button
               type="button"
               className="rounded border border-slate-300 px-3 py-1 text-sm"
-              onClick={addField}
+              onClick={openFieldComposer}
             >
               필드 추가
             </button>
@@ -237,113 +346,232 @@ export function SupplierProductFormManager() {
             >
               {saving ? "저장 중..." : "폼 저장"}
             </button>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={showAdvancedSettings}
+                onChange={(e) => setShowAdvancedSettings(e.target.checked)}
+              />
+              고급 설정 (내부키·validation)
+            </label>
           </div>
-          <div className="overflow-auto">
+
+          {composerOpen ? (
+            <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 p-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-slate-600">표시명</label>
+                <input
+                  className="min-w-[12rem] rounded border border-slate-300 px-2 py-1 text-sm"
+                  value={newFieldLabel}
+                  onChange={(e) => setNewFieldLabel(e.target.value)}
+                  placeholder="예: 재고 수량"
+                  autoFocus
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-slate-600">타입</label>
+                <select
+                  className="rounded border border-slate-300 px-2 py-1 text-sm"
+                  value={newFieldType}
+                  onChange={(e) => setNewFieldType(e.target.value as FormFieldRow["fieldType"])}
+                >
+                  {FIELD_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                className="rounded bg-slate-800 px-3 py-1 text-sm text-white"
+                onClick={confirmAddFieldFromComposer}
+              >
+                추가
+              </button>
+              <button
+                type="button"
+                className="rounded border border-slate-300 px-3 py-1 text-sm"
+                onClick={() => setComposerOpen(false)}
+              >
+                취소
+              </button>
+            </div>
+          ) : null}
+
+          <div className="overflow-auto rounded border border-slate-200">
             <table className="min-w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-slate-50">
-                  <th className="border border-slate-200 px-2 py-1 text-left">내부키</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">표시명</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">타입</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">필수</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">활성</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">순서</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">placeholder</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">help</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">validation(json)</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">삭제</th>
+                <tr className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  <th className="border-b border-slate-200 px-3 py-2" style={{ minWidth: "14rem" }}>
+                    표시명
+                  </th>
+                  <th className="border-b border-slate-200 px-2 py-2">타입</th>
+                  <th className="border-b border-slate-200 px-2 py-2 text-center" title="필수 입력">
+                    필수
+                  </th>
+                  <th className="border-b border-slate-200 px-2 py-2 text-center">활성</th>
+                  <th className="border-b border-slate-200 px-2 py-2 text-center">순서</th>
+                  <th className="border-b border-slate-200 px-2 py-2">placeholder</th>
+                  <th className="border-b border-slate-200 px-2 py-2">도움말</th>
+                  {showAdvancedSettings ? (
+                    <>
+                      <th className="border-b border-slate-200 px-2 py-2">validation (JSON)</th>
+                      <th className="border-b border-slate-200 px-2 py-2">내부키</th>
+                    </>
+                  ) : null}
+                  <th className="border-b border-slate-200 px-2 py-2 text-center">비활성화</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, index) => (
-                  <tr key={`${row.id ?? "new"}-${index}`}>
-                    {showAdvanced ? (
-                      <td className="border border-slate-200 px-2 py-1">
-                        <span className="inline-block w-36 truncate rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-500" title={row.fieldKey || "(신규 저장 시 부여)"}>
-                          {row.fieldKey || "(신규 저장 시 부여)"}
+                {displayRows.map((row, displayIndex) => {
+                  const stateIdx = findRowIndexInState(row);
+                  const disabledVisual = !row.isEnabled;
+                  return (
+                    <tr
+                      key={rowStableKey(row, displayIndex)}
+                      className={disabledVisual ? "bg-slate-50/80 text-slate-500" : ""}
+                    >
+                      <td className="border-b border-slate-100 px-3 py-2">
+                        <input
+                          className="w-full min-w-[12rem] rounded border border-slate-300 px-2 py-1.5 text-sm font-medium text-slate-900"
+                          value={row.fieldLabel}
+                          onChange={(e) => stateIdx >= 0 && updateField(stateIdx, { fieldLabel: e.target.value })}
+                          disabled={stateIdx < 0}
+                        />
+                      </td>
+                      <td className="border-b border-slate-100 px-2 py-2">
+                        <select
+                          className="rounded border border-slate-300 px-2 py-1 text-xs"
+                          value={row.fieldType}
+                          onChange={(e) =>
+                            stateIdx >= 0 &&
+                            updateField(stateIdx, {
+                              fieldType: e.target.value as FormFieldRow["fieldType"],
+                            })
+                          }
+                          disabled={stateIdx < 0}
+                        >
+                          {FIELD_TYPE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="border-b border-slate-100 px-2 py-2 text-center">
+                        <button
+                          type="button"
+                          title={row.isRequired ? "필수 입력" : "선택 입력"}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-lg leading-none text-slate-700 hover:bg-slate-50"
+                          onClick={() =>
+                            stateIdx >= 0 && updateField(stateIdx, { isRequired: !row.isRequired })
+                          }
+                          disabled={stateIdx < 0}
+                        >
+                          {row.isRequired ? "✓" : "—"}
+                        </button>
+                      </td>
+                      <td className="border-b border-slate-100 px-2 py-2 text-center">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            row.isEnabled
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-200 text-slate-600"
+                          }`}
+                        >
+                          {row.isEnabled ? "노출" : "숨김"}
                         </span>
                       </td>
-                    ) : null}
-                    <td className="border border-slate-200 px-2 py-1">
-                      <input
-                        className="w-36 rounded border border-slate-300 px-2 py-1 text-xs"
-                        value={row.fieldLabel}
-                        onChange={(e) => updateField(index, { fieldLabel: e.target.value })}
-                      />
-                    </td>
-                    <td className="border border-slate-200 px-2 py-1">
-                      <select
-                        className="rounded border border-slate-300 px-2 py-1 text-xs"
-                        value={row.fieldType}
-                        onChange={(e) =>
-                          updateField(index, { fieldType: e.target.value as FormFieldRow["fieldType"] })
-                        }
-                      >
-                        {FIELD_TYPE_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="border border-slate-200 px-2 py-1">
-                      <input
-                        type="checkbox"
-                        checked={row.isRequired}
-                        onChange={(e) => updateField(index, { isRequired: e.target.checked })}
-                      />
-                    </td>
-                    <td className="border border-slate-200 px-2 py-1">
-                      <input
-                        type="checkbox"
-                        checked={row.isEnabled}
-                        onChange={(e) => updateField(index, { isEnabled: e.target.checked })}
-                      />
-                    </td>
-                    <td className="border border-slate-200 px-2 py-1">
-                      <input
-                        type="number"
-                        className="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
-                        value={row.sortOrder}
-                        onChange={(e) => updateField(index, { sortOrder: Number(e.target.value) })}
-                      />
-                    </td>
-                    <td className="border border-slate-200 px-2 py-1">
-                      <input
-                        className="w-32 rounded border border-slate-300 px-2 py-1 text-xs"
-                        value={row.placeholderText}
-                        onChange={(e) => updateField(index, { placeholderText: e.target.value })}
-                      />
-                    </td>
-                    <td className="border border-slate-200 px-2 py-1">
-                      <input
-                        className="w-32 rounded border border-slate-300 px-2 py-1 text-xs"
-                        value={row.helpText}
-                        onChange={(e) => updateField(index, { helpText: e.target.value })}
-                      />
-                    </td>
-                    <td className="border border-slate-200 px-2 py-1">
-                      <input
-                        className="w-40 rounded border border-slate-300 px-2 py-1 text-xs"
-                        value={row.validationJson}
-                        onChange={(e) => updateField(index, { validationJson: e.target.value })}
-                      />
-                    </td>
-                    <td className="border border-slate-200 px-2 py-1">
-                      <button
-                        type="button"
-                        className="rounded border border-red-300 px-2 py-1 text-xs text-red-700"
-                        onClick={() => removeField(index)}
-                      >
-                        삭제
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="border-b border-slate-100 px-1 py-2 text-center">
+                        <div className="inline-flex flex-col gap-0.5">
+                          <button
+                            type="button"
+                            className="rounded border border-slate-200 px-1.5 py-0 text-xs hover:bg-slate-100 disabled:opacity-40"
+                            disabled={displayIndex === 0}
+                            onClick={() => moveRowInOrder(displayIndex, "up")}
+                            title="위로"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded border border-slate-200 px-1.5 py-0 text-xs hover:bg-slate-100 disabled:opacity-40"
+                            disabled={displayIndex >= displayRows.length - 1}
+                            onClick={() => moveRowInOrder(displayIndex, "down")}
+                            title="아래로"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </td>
+                      <td className="border-b border-slate-100 px-2 py-2">
+                        <input
+                          className="w-36 max-w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                          value={row.placeholderText}
+                          onChange={(e) =>
+                            stateIdx >= 0 && updateField(stateIdx, { placeholderText: e.target.value })
+                          }
+                          disabled={stateIdx < 0}
+                        />
+                      </td>
+                      <td className="border-b border-slate-100 px-2 py-2">
+                        <input
+                          className="w-36 max-w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                          value={row.helpText}
+                          onChange={(e) => stateIdx >= 0 && updateField(stateIdx, { helpText: e.target.value })}
+                          disabled={stateIdx < 0}
+                        />
+                      </td>
+                      {showAdvancedSettings ? (
+                        <>
+                          <td className="border-b border-slate-100 px-2 py-2">
+                            <input
+                              className="w-44 max-w-full rounded border border-slate-300 px-2 py-1 font-mono text-xs"
+                              value={row.validationJson}
+                              onChange={(e) =>
+                                stateIdx >= 0 && updateField(stateIdx, { validationJson: e.target.value })
+                              }
+                              placeholder='{"min":0}'
+                              disabled={stateIdx < 0}
+                            />
+                          </td>
+                          <td className="border-b border-slate-100 px-2 py-2">
+                            <span
+                              className="inline-block max-w-[10rem] truncate rounded border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs text-slate-600"
+                              title={row.fieldKey || "저장 시 서버에서 부여"}
+                            >
+                              {row.fieldKey || "— (저장 시 부여)"}
+                            </span>
+                          </td>
+                        </>
+                      ) : null}
+                      <td className="border-b border-slate-100 px-2 py-2 text-center">
+                        {row.isEnabled ? (
+                          <button
+                            type="button"
+                            className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100"
+                            onClick={() => requestDeactivateField(row)}
+                          >
+                            비활성화
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                            onClick={() => requestReactivateField(row)}
+                          >
+                            다시 노출
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {rows.length === 0 ? (
                   <tr>
-                    <td className="border border-slate-200 px-2 py-2 text-center text-slate-500" colSpan={showAdvanced ? 11 : 10}>
-                      등록된 필드가 없습니다.
+                    <td className="px-3 py-6 text-center text-slate-500" colSpan={totalColCount}>
+                      등록된 필드가 없습니다. 「필드 추가」로 항목을 만드세요.
                     </td>
                   </tr>
                 ) : null}
