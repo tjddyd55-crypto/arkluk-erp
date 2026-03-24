@@ -42,8 +42,8 @@ export async function POST(
       const next = await tx.product.update({
         where: { id: productId },
         data: {
-          status: ProductStatus.PENDING,
-          is_active: false,
+          status: ProductStatus.APPROVED,
+          is_active: true,
           rejection_reason: null,
         },
       });
@@ -54,6 +54,15 @@ export async function POST(
           action: ProductApprovalAction.SUBMIT,
           actor_user_id: user.id,
           reason: null,
+        },
+      });
+
+      await tx.productApprovalLog.create({
+        data: {
+          product_id: productId,
+          action: ProductApprovalAction.APPROVE,
+          actor_user_id: user.id,
+          reason: "제출 시 자동 승인",
         },
       });
 

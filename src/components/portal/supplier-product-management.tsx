@@ -342,7 +342,7 @@ export function SupplierProductManagement() {
       if (!response.ok || !result.success) {
         throw new Error(result.message ?? "상품 제출 실패");
       }
-      setMessage("상품이 승인 대기 상태로 제출되었습니다.");
+      setMessage("상품이 제출되어 자동 승인되었습니다.");
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "상품 제출 실패");
