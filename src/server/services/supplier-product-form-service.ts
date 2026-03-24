@@ -71,6 +71,10 @@ export const DEFAULT_SUPPLIER_PRODUCT_FIELDS: SupplierProductFormSeedField[] = [
   },
 ];
 
+const DEFAULT_FIELD_LABEL_BY_KEY = Object.fromEntries(
+  DEFAULT_SUPPLIER_PRODUCT_FIELDS.map((field) => [field.fieldKey, field.fieldLabel]),
+) as Record<string, string>;
+
 type FormWithFields = Prisma.SupplierProductFormGetPayload<{
   include: {
     fields: {
@@ -94,6 +98,25 @@ function normalizeFieldKey(fieldKey: string) {
   return normalized;
 }
 
+function resolvePersistedFieldLabel(input: ProductFormFieldInput) {
+  const trimmedLabel = input.fieldLabel?.trim() ?? "";
+  if (trimmedLabel !== "") {
+    return trimmedLabel;
+  }
+
+  if (input.isEnabled === false) {
+    const normalizedKey =
+      input.fieldKey != null && String(input.fieldKey).trim() !== ""
+        ? normalizeFieldKey(String(input.fieldKey))
+        : "";
+    if (normalizedKey !== "") {
+      return DEFAULT_FIELD_LABEL_BY_KEY[normalizedKey] ?? normalizedKey;
+    }
+  }
+
+  throw new HttpError(400, "field_label은 필수입니다.");
+}
+
 async function generateUniqueFieldKey(
   formId: number,
   tx: TxClient,
@@ -115,12 +138,9 @@ async function generateUniqueFieldKey(
 type NormalizedField = Omit<ProductFormFieldInput, "fieldKey"> & { fieldKey?: string };
 
 function normalizeFieldInput(input: ProductFormFieldInput, index: number): NormalizedField {
-  if (!input.fieldLabel?.trim()) {
-    throw new HttpError(400, "field_label은 필수입니다.");
-  }
   const base = {
     ...input,
-    fieldLabel: input.fieldLabel.trim(),
+    fieldLabel: resolvePersistedFieldLabel(input),
     isRequired: input.isRequired ?? false,
     isEnabled: input.isEnabled ?? true,
     sortOrder: input.sortOrder ?? (index + 1) * 10,

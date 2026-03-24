@@ -51,11 +51,70 @@ const FIELD_TYPE_OPTIONS: Array<{ value: FormFieldRow["fieldType"]; label: strin
   { value: "DATE", label: "날짜" },
 ];
 
+const DEFAULT_FIELD_LABEL_BY_KEY: Record<string, string> = {
+  sku: "상품코드",
+  name: "상품명",
+  specification: "규격",
+  price: "단가",
+  currency: "통화",
+  description: "상품 설명",
+  unit: "단위",
+};
+
+function getFallbackFieldLabel(fieldKey: string, isEnabled: boolean) {
+  const normalizedKey = fieldKey.trim();
+  if (isEnabled || normalizedKey === "") {
+    return "";
+  }
+  return DEFAULT_FIELD_LABEL_BY_KEY[normalizedKey] ?? normalizedKey;
+}
+
+function resolveRowFieldLabel(row: Pick<FormFieldRow, "fieldLabel" | "fieldKey" | "isEnabled">) {
+  const label = row.fieldLabel.trim();
+  if (label !== "") {
+    return label;
+  }
+  return getFallbackFieldLabel(row.fieldKey, row.isEnabled);
+}
+
+function parseValidationJson(raw: string, rowNumber: number) {
+  if (raw.trim() === "") {
+    return null;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error(`${rowNumber}번째 필드의 validation JSON 형식이 올바르지 않습니다.`);
+  }
+}
+
+function buildSaveFields(rows: FormFieldRow[]) {
+  return sortRowsForDisplay(rows).map((row, index) => {
+    const fieldLabel = resolveRowFieldLabel(row);
+    if (fieldLabel === "") {
+      throw new Error(`${index + 1}번째 필드의 표시명을 입력해 주세요.`);
+    }
+
+    return {
+      id: row.id,
+      fieldKey: row.id != null && row.fieldKey.trim() !== "" ? row.fieldKey.trim() : undefined,
+      fieldLabel,
+      fieldType: row.fieldType,
+      isRequired: row.isRequired,
+      isEnabled: row.isEnabled,
+      sortOrder: row.sortOrder,
+      placeholderText: row.placeholderText.trim() || null,
+      helpText: row.helpText.trim() || null,
+      validationJson: parseValidationJson(row.validationJson, index + 1),
+    };
+  });
+}
+
 function mapField(field: ProductFormResponse["fields"][number]): FormFieldRow {
   return {
     id: field.id,
     fieldKey: field.field_key,
-    fieldLabel: field.field_label,
+    fieldLabel: field.field_label.trim() || getFallbackFieldLabel(field.field_key, field.is_enabled),
     fieldType: field.field_type,
     isRequired: field.is_required,
     isEnabled: field.is_enabled,
@@ -262,18 +321,7 @@ export function SupplierProductFormManager() {
     try {
       const payload = {
         name: formName.trim(),
-        fields: rows.map((row) => ({
-          id: row.id,
-          fieldKey: row.id != null && row.fieldKey.trim() !== "" ? row.fieldKey.trim() : undefined,
-          fieldLabel: row.fieldLabel.trim(),
-          fieldType: row.fieldType,
-          isRequired: row.isRequired,
-          isEnabled: row.isEnabled,
-          sortOrder: row.sortOrder,
-          placeholderText: row.placeholderText.trim() || null,
-          helpText: row.helpText.trim() || null,
-          validationJson: row.validationJson.trim() ? JSON.parse(row.validationJson) : null,
-        })),
+        fields: buildSaveFields(rows),
       };
       const response = await fetch(`/api/admin/suppliers/${selectedSupplierId}/product-form`, {
         method: "PATCH",
