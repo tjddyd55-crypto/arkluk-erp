@@ -22,9 +22,9 @@ export const countryUpsertSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+/** 회사코드(company_code)는 서버 자동 생성 — 클라이언트에서 보내지 않음 */
 export const supplierUpsertSchema = z.object({
   companyName: z.string().trim().min(2).max(150),
-  companyCode: z.string().trim().min(1).max(50),
   countryCode: z.string().trim().min(2).max(10).default("KR"),
   businessNumber: z.string().trim().min(3).max(40).optional().nullable(),
   representativeName: z.string().trim().min(2).max(100).optional().nullable(),
@@ -40,6 +40,24 @@ export const supplierUpsertSchema = z.object({
   invoiceSenderEmail: z.email().optional().nullable(),
   isActive: z.boolean().optional(),
   allowSupplierProductEdit: z.boolean().optional(),
+});
+
+export const supplierLoginIdSchema = z
+  .string()
+  .trim()
+  .min(3)
+  .max(100)
+  .regex(/^[^\s]+$/, "로그인 아이디에 공백을 사용할 수 없습니다.");
+
+/** 공급사 신규 생성: 로그인 계정 필수 */
+export const supplierCreateSchema = supplierUpsertSchema.extend({
+  loginId: supplierLoginIdSchema,
+  password: z.string().min(8).max(128),
+});
+
+/** 공급사 수정: 비밀번호는 입력한 경우에만 변경 */
+export const supplierUpdateSchema = supplierUpsertSchema.partial().extend({
+  newPassword: z.string().min(8).max(128).optional(),
 });
 
 export const supplierInvoiceSendersSchema = z.object({

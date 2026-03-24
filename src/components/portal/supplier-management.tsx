@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 
 type SupplierStatus = "PENDING" | "ACTIVE" | "INACTIVE" | "SUSPENDED";
 
+type SupplierUserRow = { login_id: string; id: number };
+
 type Supplier = {
   id: number;
   company_name: string;
@@ -19,11 +21,11 @@ type Supplier = {
   order_email: string;
   created_at: string;
   updated_at: string;
+  users?: SupplierUserRow[];
 };
 
 type FormState = {
   companyName: string;
-  companyCode: string;
   countryCode: string;
   businessNumber: string;
   representativeName: string;
@@ -33,11 +35,13 @@ type FormState = {
   address: string;
   status: SupplierStatus;
   orderEmail: string;
+  loginId: string;
+  password: string;
+  newPassword: string;
 };
 
 const INITIAL_FORM: FormState = {
   companyName: "",
-  companyCode: "",
   countryCode: "KR",
   businessNumber: "",
   representativeName: "",
@@ -47,6 +51,9 @@ const INITIAL_FORM: FormState = {
   address: "",
   status: "PENDING",
   orderEmail: "",
+  loginId: "",
+  password: "",
+  newPassword: "",
 };
 
 const statusLabel: Record<SupplierStatus, string> = {
@@ -61,6 +68,15 @@ function normalizeOptional(value: string) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+async function copyText(label: string, text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    window.alert(`${label}을(를) 클립보드에 복사했습니다.`);
+  } catch {
+    window.prompt("복사해 주세요:", text);
+  }
+}
+
 export function SupplierManagement() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +87,13 @@ export function SupplierManagement() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [actionSupplierId, setActionSupplierId] = useState<number | null>(null);
+  const [showCompanyCodes, setShowCompanyCodes] = useState(false);
+  /** 생성 직후 복사용(서버에 다시 안 나옴) */
+  const [lastCreatedCredentials, setLastCreatedCredentials] = useState<{
+    loginId: string;
+    password: string;
+    companyCode: string | null;
+  } | null>(null);
 
   const sortedSuppliers = useMemo(
     () =>
@@ -107,13 +130,13 @@ export function SupplierManagement() {
     setFormOpen(true);
     setError(null);
     setMessage(null);
+    setLastCreatedCredentials(null);
   }
 
   function openEditForm(supplier: Supplier) {
     setEditingId(supplier.id);
     setForm({
       companyName: supplier.company_name,
-      companyCode: supplier.company_code ?? "",
       countryCode: supplier.country_code,
       businessNumber: supplier.business_number ?? "",
       representativeName: supplier.representative_name ?? "",
@@ -123,26 +146,40 @@ export function SupplierManagement() {
       address: supplier.address ?? "",
       status: supplier.status,
       orderEmail: supplier.order_email,
+      loginId: "",
+      password: "",
+      newPassword: "",
     });
     setFormOpen(true);
     setError(null);
     setMessage(null);
+    setLastCreatedCredentials(null);
   }
 
   async function submitForm() {
     setError(null);
     setMessage(null);
 
-    if (!form.companyName.trim() || !form.companyCode.trim() || !form.contactEmail.trim()) {
-      setError("회사명, 회사코드, 담당자 이메일은 필수입니다.");
+    if (!form.companyName.trim() || !form.contactEmail.trim()) {
+      setError("회사명과 담당자 이메일은 필수입니다.");
       return;
+    }
+
+    if (editingId === null) {
+      if (!form.loginId.trim()) {
+        setError("로그인 아이디는 필수입니다.");
+        return;
+      }
+      if (form.password.length < 8) {
+        setError("비밀번호는 8자 이상이어야 합니다.");
+        return;
+      }
     }
 
     setSubmitting(true);
     try {
-      const payload = {
+      const basePayload = {
         companyName: form.companyName.trim(),
-        companyCode: form.companyCode.trim(),
         countryCode: form.countryCode.trim().toUpperCase(),
         businessNumber: normalizeOptional(form.businessNumber),
         representativeName: normalizeOptional(form.representativeName),
@@ -157,6 +194,20 @@ export function SupplierManagement() {
       const targetUrl =
         editingId === null ? "/api/admin/suppliers" : `/api/admin/suppliers/${editingId}`;
       const method = editingId === null ? "POST" : "PATCH";
+      const payload =
+        editingId === null
+          ? {
+              ...basePayload,
+              loginId: form.loginId.trim(),
+              password: form.password,
+            }
+          : {
+              ...basePayload,
+              ...(form.newPassword.trim().length >= 8
+                ? { newPassword: form.newPassword }
+                : {}),
+            };
+
       const response = await fetch(targetUrl, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -167,10 +218,22 @@ export function SupplierManagement() {
         throw new Error(result.message ?? "공급사 저장 실패");
       }
 
-      setMessage(editingId === null ? "공급사가 생성되었습니다." : "공급사 정보가 수정되었습니다.");
-      setFormOpen(false);
-      setEditingId(null);
-      setForm(INITIAL_FORM);
+      if (editingId === null) {
+        const data = result.data as Supplier & { supplierLoginId?: string };
+        setLastCreatedCredentials({
+          loginId: data.supplierLoginId ?? form.loginId.trim(),
+          password: form.password,
+          companyCode: data.company_code ?? null,
+        });
+        setMessage(
+          "공급사와 로그인 계정이 생성되었습니다. 아래 정보를 복사해 공급사에 전달해 주세요.",
+        );
+      } else {
+        setMessage("공급사 정보가 수정되었습니다.");
+        setFormOpen(false);
+        setEditingId(null);
+        setForm(INITIAL_FORM);
+      }
       await loadSuppliers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "공급사 저장 실패");
@@ -202,39 +265,127 @@ export function SupplierManagement() {
     }
   }
 
+  const tableColSpan = showCompanyCodes ? 8 : 7;
+
   return (
     <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-slate-900">공급사 목록</h2>
-        <button
-          type="button"
-          className="rounded bg-slate-900 px-3 py-2 text-sm text-white"
-          onClick={openCreateForm}
-        >
-          Add Supplier
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={showCompanyCodes}
+              onChange={(e) => setShowCompanyCodes(e.target.checked)}
+            />
+            회사코드 표시
+          </label>
+          <button
+            type="button"
+            className="rounded bg-slate-900 px-3 py-2 text-sm text-white"
+            onClick={openCreateForm}
+          >
+            공급사 추가
+          </button>
+        </div>
       </div>
+
+      <p className="text-xs text-slate-500">
+        회사코드는 시스템이 자동 부여하며 수정할 수 없습니다. 공급사 생성 시 로그인 계정이 함께
+        만들어지며, 해당 계정으로 상품 등록·엑셀 업로드가 가능합니다.
+      </p>
 
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
       {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
+
+      {lastCreatedCredentials ? (
+        <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm">
+          <p className="font-medium text-amber-950">생성된 로그인 정보 (한 번만 표시)</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-slate-700">
+              아이디: <code className="rounded bg-white px-1">{lastCreatedCredentials.loginId}</code>
+            </span>
+            <button
+              type="button"
+              className="rounded border border-amber-300 bg-white px-2 py-0.5 text-xs"
+              onClick={() => copyText("아이디", lastCreatedCredentials.loginId)}
+            >
+              아이디 복사
+            </button>
+            <button
+              type="button"
+              className="rounded border border-amber-300 bg-white px-2 py-0.5 text-xs"
+              onClick={() => copyText("비밀번호", lastCreatedCredentials.password)}
+            >
+              비밀번호 복사
+            </button>
+            {lastCreatedCredentials.companyCode ? (
+              <button
+                type="button"
+                className="rounded border border-amber-300 bg-white px-2 py-0.5 text-xs"
+                onClick={() => copyText("회사코드", lastCreatedCredentials.companyCode!)}
+              >
+                회사코드 복사
+              </button>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className="mt-2 text-xs text-amber-800 underline"
+            onClick={() => setLastCreatedCredentials(null)}
+          >
+            닫기
+          </button>
+        </div>
+      ) : null}
 
       {formOpen ? (
         <div className="rounded border border-slate-200 bg-slate-50 p-3">
           <h3 className="text-sm font-semibold text-slate-900">
             {editingId === null ? "공급사 추가" : "공급사 수정"}
           </h3>
+          {editingId === null ? (
+            <div className="mt-2 space-y-2 rounded border border-slate-200 bg-white p-2">
+              <p className="text-xs font-medium text-slate-700">로그인 계정 (필수)</p>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                <input
+                  value={form.loginId}
+                  onChange={(e) => setForm((prev) => ({ ...prev, loginId: e.target.value }))}
+                  className="rounded border border-slate-300 px-2 py-1 text-sm"
+                  placeholder="로그인 아이디 (이메일 또는 사용자명)"
+                  autoComplete="off"
+                />
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                  className="rounded border border-slate-300 px-2 py-1 text-sm"
+                  placeholder="비밀번호 (8자 이상)"
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 space-y-2 rounded border border-slate-200 bg-white p-2">
+              <p className="text-xs text-slate-600">
+                비밀번호를 바꿀 때만 아래에 입력하세요. 비워 두면 유지됩니다.
+              </p>
+              <input
+                type="password"
+                value={form.newPassword}
+                onChange={(e) => setForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                className="w-full max-w-md rounded border border-slate-300 px-2 py-1 text-sm"
+                placeholder="새 비밀번호 (8자 이상, 변경 시만)"
+                autoComplete="new-password"
+              />
+            </div>
+          )}
           <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
             <input
               value={form.companyName}
               onChange={(e) => setForm((prev) => ({ ...prev, companyName: e.target.value }))}
               className="rounded border border-slate-300 px-2 py-1 text-sm"
               placeholder="회사명"
-            />
-            <input
-              value={form.companyCode}
-              onChange={(e) => setForm((prev) => ({ ...prev, companyCode: e.target.value }))}
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
-              placeholder="회사코드"
             />
             <input
               value={form.countryCode}
@@ -298,7 +449,7 @@ export function SupplierManagement() {
             rows={2}
             placeholder="주소"
           />
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
               className="rounded bg-slate-900 px-3 py-1 text-sm text-white disabled:opacity-60"
@@ -314,10 +465,23 @@ export function SupplierManagement() {
                 setFormOpen(false);
                 setEditingId(null);
                 setForm(INITIAL_FORM);
+                setLastCreatedCredentials(null);
               }}
             >
               취소
             </button>
+            {editingId === null && lastCreatedCredentials ? (
+              <button
+                type="button"
+                className="rounded border border-slate-300 px-3 py-1 text-sm"
+                onClick={() => {
+                  setFormOpen(false);
+                  setForm(INITIAL_FORM);
+                }}
+              >
+                폼 닫기
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -330,7 +494,10 @@ export function SupplierManagement() {
             <thead>
               <tr className="bg-slate-50">
                 <th className="border border-slate-200 px-2 py-1 text-left">회사명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">회사코드</th>
+                {showCompanyCodes ? (
+                  <th className="border border-slate-200 px-2 py-1 text-left">회사코드</th>
+                ) : null}
+                <th className="border border-slate-200 px-2 py-1 text-left">로그인 아이디</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">국가</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">담당자</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">연락처</th>
@@ -342,7 +509,14 @@ export function SupplierManagement() {
               {sortedSuppliers.map((supplier) => (
                 <tr key={supplier.id}>
                   <td className="border border-slate-200 px-2 py-1">{supplier.company_name}</td>
-                  <td className="border border-slate-200 px-2 py-1">{supplier.company_code ?? "-"}</td>
+                  {showCompanyCodes ? (
+                    <td className="border border-slate-200 px-2 py-1 font-mono text-xs text-slate-600">
+                      {supplier.company_code ?? "—"}
+                    </td>
+                  ) : null}
+                  <td className="border border-slate-200 px-2 py-1 font-mono text-xs">
+                    {supplier.users?.[0]?.login_id ?? "—"}
+                  </td>
                   <td className="border border-slate-200 px-2 py-1">{supplier.country_code}</td>
                   <td className="border border-slate-200 px-2 py-1">{supplier.contact_name ?? "-"}</td>
                   <td className="border border-slate-200 px-2 py-1">
@@ -357,7 +531,7 @@ export function SupplierManagement() {
                         className="rounded border border-slate-300 px-2 py-1 text-xs"
                         onClick={() => openEditForm(supplier)}
                       >
-                        Edit
+                        수정
                       </button>
                       {supplier.status === "SUSPENDED" || supplier.status === "INACTIVE" ? (
                         <button
@@ -366,7 +540,7 @@ export function SupplierManagement() {
                           disabled={actionSupplierId === supplier.id}
                           onClick={() => updateSupplierStatus(supplier.id, "ACTIVE")}
                         >
-                          {actionSupplierId === supplier.id ? "처리 중..." : "Activate"}
+                          {actionSupplierId === supplier.id ? "처리 중..." : "활성화"}
                         </button>
                       ) : (
                         <button
@@ -375,7 +549,7 @@ export function SupplierManagement() {
                           disabled={actionSupplierId === supplier.id}
                           onClick={() => updateSupplierStatus(supplier.id, "SUSPENDED")}
                         >
-                          {actionSupplierId === supplier.id ? "처리 중..." : "Suspend"}
+                          {actionSupplierId === supplier.id ? "처리 중..." : "정지"}
                         </button>
                       )}
                     </div>
@@ -384,7 +558,10 @@ export function SupplierManagement() {
               ))}
               {sortedSuppliers.length === 0 ? (
                 <tr>
-                  <td className="border border-slate-200 px-2 py-3 text-center text-slate-500" colSpan={7}>
+                  <td
+                    className="border border-slate-200 px-2 py-3 text-center text-slate-500"
+                    colSpan={tableColSpan}
+                  >
                     등록된 공급사가 없습니다.
                   </td>
                 </tr>

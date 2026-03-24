@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
-import { SupplierStatus } from "@prisma/client";
+import { Role, SupplierStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
-import { supplierUpsertSchema } from "@/lib/schemas";
+import { supplierUpdateSchema } from "@/lib/schemas";
+import { hashPassword } from "@/lib/security";
 import { createAuditLog } from "@/server/services/audit-log";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "KOREA_SUPPLY_ADMIN", "ADMIN"] as const;
@@ -51,7 +52,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const parsed = supplierUpsertSchema.partial().safeParse(body);
+    const parsed = supplierUpdateSchema.safeParse(body);
     if (!parsed.success) {
       throw new HttpError(400, "공급사 수정 값이 올바르지 않습니다.");
     }
@@ -61,11 +62,12 @@ export async function PATCH(
       throw new HttpError(404, "공급사를 찾을 수 없습니다.");
     }
 
+    const resolvedStatus = resolveSupplierStatus(parsed.data.status, parsed.data.isActive);
+
     const updated = await prisma.supplier.update({
       where: { id: supplierId },
       data: {
         company_name: parsed.data.companyName,
-        company_code: parsed.data.companyCode,
         country_code: parsed.data.countryCode?.toUpperCase(),
         business_number: parsed.data.businessNumber,
         representative_name: parsed.data.representativeName,
@@ -73,7 +75,7 @@ export async function PATCH(
         contact_email: parsed.data.contactEmail?.toLowerCase(),
         contact_phone: parsed.data.contactPhone,
         address: parsed.data.address,
-        status: resolveSupplierStatus(parsed.data.status, parsed.data.isActive),
+        status: resolvedStatus,
         supplier_code: parsed.data.supplierCode,
         supplier_name: parsed.data.supplierName ?? parsed.data.companyName,
         order_email: parsed.data.orderEmail?.toLowerCase(),
@@ -81,10 +83,21 @@ export async function PATCH(
         invoice_sender_email: parsed.data.invoiceSenderEmail
           ? parsed.data.invoiceSenderEmail.toLowerCase()
           : parsed.data.invoiceSenderEmail,
-        is_active: isActiveByStatus(resolveSupplierStatus(parsed.data.status, parsed.data.isActive)),
+        is_active: isActiveByStatus(resolvedStatus),
         allow_supplier_product_edit: parsed.data.allowSupplierProductEdit,
       },
     });
+
+    if (parsed.data.newPassword && parsed.data.newPassword.trim() !== "") {
+      const passwordHash = await hashPassword(parsed.data.newPassword);
+      await prisma.user.updateMany({
+        where: {
+          supplier_id: supplierId,
+          role: Role.SUPPLIER,
+        },
+        data: { password_hash: passwordHash },
+      });
+    }
 
     if (parsed.data.invoiceSenderEmail !== undefined) {
       const senderEmail = parsed.data.invoiceSenderEmail?.toLowerCase();
