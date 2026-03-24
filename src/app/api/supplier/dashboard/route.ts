@@ -21,14 +21,14 @@ export async function GET(request: NextRequest) {
           where: {
             supplier_id: user.supplierId,
             status: {
-              in: [OrderSupplierStatus.SENT, OrderSupplierStatus.SUPPLIER_CONFIRMED],
+              in: [OrderSupplierStatus.SENT, OrderSupplierStatus.CONFIRMED],
             },
           },
         }),
         prisma.orderSupplier.count({
           where: {
             supplier_id: user.supplierId,
-            status: OrderSupplierStatus.DELIVERING,
+            status: OrderSupplierStatus.SHIPPING,
           },
         }),
         prisma.orderSupplier.count({

@@ -66,12 +66,33 @@ enum ProductApprovalAction {
 }
 
 enum OrderSupplierStatus {
-  WAITING
+  PENDING
   SENT
-  SUPPLIER_CONFIRMED
-  DELIVERING
+  VIEWED
+  CONFIRMED
+  REJECTED
+  SHIPPING
   COMPLETED
   CANCELLED
+}
+
+/** 공급사 구간·통합 발주서 PDF 생성 상태 */
+enum OsPdfStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+/** 공급사 발주 메일 전달 상태 */
+enum OsEmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum PoPdfDownloadType {
+  COMBINED
+  SUPPLIER_SECTION
 }
 
 enum ShipmentStatus {
@@ -102,6 +123,7 @@ enum NotificationEvent {
   ORDER_CREATED
   ORDER_ASSIGNED
   SUPPLIER_CONFIRMED
+  SUPPLIER_REJECTED
   SHIPMENT_SHIPPED
   SHIPMENT_DELIVERED
   ORDER_DELAYED
@@ -445,6 +467,7 @@ model User {
   updated_system_settings SystemSetting[] @relation("SystemSettingUpdatedBy")
   shipment_status_logs  ShipmentStatusLog[] @relation("ShipmentStatusLogCreatedBy")
   notification_recipients NotificationRecipient[]
+  po_pdf_download_logs    PoPdfDownloadLog[]     @relation("PoPdfDownloadBy")
   order_event_logs     OrderEventLog[] @relation("OrderEventCreatedBy")
   buyer_status_updated_orders Order[] @relation("BuyerOrderStatusUpdatedBy")
   supplier_status_updated_shipments Shipment[] @relation("SupplierShipmentStatusUpdatedBy")
@@ -563,6 +586,11 @@ model Order {
   buyer_status_updated_by Int?
   buyer_status_updated_at DateTime?
   memo          String?
+  /** 통합 발주서 PDF 상대 경로 (주문 생성 시 스냅샷 저장, 예: storage/order-pdfs/2026/order-1-combined.pdf) */
+  combined_po_pdf_path String?   @db.VarChar(512)
+  combined_pdf_status  OsPdfStatus @default(PENDING)
+  combined_pdf_last_error String? @db.Text
+  combined_pdf_generated_at DateTime?
   created_at    DateTime         @default(now())
   updated_at    DateTime         @updatedAt
   buyer         User             @relation("BuyerOrders", fields: [buyer_id], references: [id])
@@ -575,6 +603,7 @@ model Order {
   purchase_orders PurchaseOrder[]
   event_logs    OrderEventLog[]
   buyer_status_updater User?     @relation("BuyerOrderStatusUpdatedBy", fields: [buyer_status_updated_by], references: [id])
+  po_pdf_download_logs PoPdfDownloadLog[]
 
   @@index([buyer_id, country_id, status])
   @@index([buyer_id, buyer_status])
@@ -633,7 +662,7 @@ model OrderSupplier {
   id                  Int                 @id @default(autoincrement())
   order_id            Int
   supplier_id         Int
-  status              OrderSupplierStatus @default(WAITING)
+  status              OrderSupplierStatus @default(PENDING)
   sent_at             DateTime?
   sent_by             Int?
   email_sent          Boolean             @default(false)
@@ -644,6 +673,22 @@ model OrderSupplier {
   supplier_confirmed_at DateTime?
   expected_delivery_date DateTime?
   supplier_note      String?
+  /** 공급사별 발주서 PDF 상대 경로 (주문 생성 시 스냅샷) */
+  supplier_po_pdf_path String?          @db.VarChar(512)
+  /** PDF 헤더에 인쇄된 PO 참조 (주문일 기준 연도·고정 번호) */
+  po_snapshot_ref     String?          @db.VarChar(128)
+  pdf_status          OsPdfStatus      @default(PENDING)
+  pdf_last_error      String?          @db.Text
+  pdf_generated_at    DateTime?
+  email_status        OsEmailStatus    @default(PENDING)
+  email_last_error    String?          @db.Text
+  email_sent_at       DateTime?
+  email_sent_to       String?          @db.VarChar(512)
+  viewed_at           DateTime?
+  rejected_at         DateTime?
+  completed_at        DateTime?
+  tracking_number     String?          @db.VarChar(128)
+  reject_reason       String?          @db.Text
   created_at          DateTime            @default(now())
   updated_at          DateTime            @updatedAt
   order               Order               @relation(fields: [order_id], references: [id])
@@ -651,9 +696,28 @@ model OrderSupplier {
   sender              User?               @relation("OrderSentBy", fields: [sent_by], references: [id])
   checker             User?               @relation("SupplierCheckedBy", fields: [supplier_checked_by], references: [id])
   shipments           Shipment[]
+  po_pdf_download_logs PoPdfDownloadLog[]
 
   @@unique([order_id, supplier_id])
   @@index([status])
+}
+
+model PoPdfDownloadLog {
+  id                Int               @id @default(autoincrement())
+  order_id          Int
+  order_supplier_id Int?
+  user_id           Int
+  role              Role
+  download_type     PoPdfDownloadType
+  ip                String?           @db.VarChar(64)
+  user_agent        String?           @db.VarChar(512)
+  downloaded_at     DateTime          @default(now())
+  order             Order             @relation(fields: [order_id], references: [id])
+  order_supplier    OrderSupplier?    @relation(fields: [order_supplier_id], references: [id])
+  user              User              @relation("PoPdfDownloadBy", fields: [user_id], references: [id])
+
+  @@index([order_id, downloaded_at])
+  @@index([user_id, downloaded_at])
 }
 
 model Shipment {

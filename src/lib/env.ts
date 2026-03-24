@@ -63,6 +63,11 @@ const envSchema = z.object({
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
     z.string().optional(),
   ),
+  /** 통합 발주서 등 내부 운영 알림 수신(쉼표 구분 가능 — 첫 주소만 사용) */
+  KOREA_OPS_EMAIL: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().optional(),
+  ),
 });
 
 const parsed = envSchema.safeParse({
@@ -81,6 +86,7 @@ const parsed = envSchema.safeParse({
   SMTP_SECURE: process.env.SMTP_SECURE,
   SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL,
   OUR_COMPANY_NAME: process.env.OUR_COMPANY_NAME,
+  KOREA_OPS_EMAIL: process.env.KOREA_OPS_EMAIL,
 });
 
 if (!parsed.success) {

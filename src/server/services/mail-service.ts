@@ -2,16 +2,25 @@ import nodemailer from "nodemailer";
 
 import { env } from "@/lib/env";
 
+type MailAttachment =
+  | {
+      filename: string;
+      path: string;
+      contentType?: string;
+    }
+  | {
+      filename: string;
+      content: Buffer;
+      contentType?: string;
+    };
+
 type SendMailInput = {
-  to: string;
+  /** 단일 주소 또는 다중 수신자(쉼표 분리 대신 배열 권장) */
+  to: string | string[];
   cc?: string | null;
   subject: string;
   text: string;
-  attachments?: Array<{
-    filename: string;
-    path: string;
-    contentType?: string;
-  }>;
+  attachments?: MailAttachment[];
 };
 
 type SendMailResult = {
@@ -58,9 +67,10 @@ function createTransporter() {
 export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
   const { mocked, transporter } = createTransporter();
   try {
+    const toField = Array.isArray(input.to) ? input.to.join(", ") : input.to;
     await transporter.sendMail({
       from: env.SMTP_FROM_EMAIL ?? "no-reply@arklux.local",
-      to: input.to,
+      to: toField,
       cc: input.cc ?? undefined,
       subject: input.subject,
       text: input.text,

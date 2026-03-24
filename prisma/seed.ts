@@ -545,7 +545,7 @@ async function main() {
     create: {
       order_id: sampleOrder.id,
       supplier_id: supplierA.id,
-      status: "WAITING",
+      status: "PENDING",
     },
   });
 
@@ -560,7 +560,7 @@ async function main() {
     create: {
       order_id: sampleOrder.id,
       supplier_id: supplierB.id,
-      status: "WAITING",
+      status: "PENDING",
     },
   });
 

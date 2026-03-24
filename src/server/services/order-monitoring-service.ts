@@ -63,7 +63,7 @@ async function fetchDelayedOrderRows(limit?: number) {
         some: {
           supplier_confirmed_at: null,
           status: {
-            in: [OrderSupplierStatus.WAITING, OrderSupplierStatus.SENT],
+            in: [OrderSupplierStatus.PENDING, OrderSupplierStatus.SENT],
           },
         },
       },
@@ -84,7 +84,7 @@ async function fetchDelayedOrderRows(limit?: number) {
         where: {
           supplier_confirmed_at: null,
           status: {
-            in: [OrderSupplierStatus.WAITING, OrderSupplierStatus.SENT],
+            in: [OrderSupplierStatus.PENDING, OrderSupplierStatus.SENT],
           },
         },
         select: {
@@ -159,7 +159,7 @@ export async function countDelayedOrders() {
         some: {
           supplier_confirmed_at: null,
           status: {
-            in: [OrderSupplierStatus.WAITING, OrderSupplierStatus.SENT],
+            in: [OrderSupplierStatus.PENDING, OrderSupplierStatus.SENT],
           },
         },
       },

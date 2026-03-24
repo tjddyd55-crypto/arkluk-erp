@@ -1,17 +1,45 @@
 import { NextRequest } from "next/server";
 
 import { requireAuth } from "@/lib/auth";
-import { handleRouteError, HttpError } from "@/lib/http";
+import { handleRouteError, HttpError, ok } from "@/lib/http";
+import { supplierSetDeliveryDate } from "@/server/services/order-service";
 
 export async function PATCH(
   request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth(request, ["SUPPLIER"]);
-    throw new HttpError(
-      403,
-      "SUPPLIER는 Order 상태를 변경할 수 없습니다. Shipment 상태만 변경 가능합니다.",
-    );
+    const user = await requireAuth(request, ["SUPPLIER"]);
+    if (!user.supplierId) {
+      throw new HttpError(400, "공급사 계정 정보가 올바르지 않습니다.");
+    }
+
+    const { id } = await params;
+    const orderId = Number(id);
+    if (Number.isNaN(orderId)) {
+      throw new HttpError(400, "유효하지 않은 주문 ID입니다.");
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      expectedDeliveryDate?: string;
+      supplierNote?: string | null;
+    };
+
+    if (typeof body.expectedDeliveryDate !== "string" || !body.expectedDeliveryDate.trim()) {
+      throw new HttpError(400, "납기 예정일이 필요합니다.");
+    }
+
+    const expectedDeliveryDate = new Date(body.expectedDeliveryDate);
+    if (Number.isNaN(expectedDeliveryDate.getTime())) {
+      throw new HttpError(400, "날짜 형식이 올바르지 않습니다.");
+    }
+
+    await supplierSetDeliveryDate(orderId, user.supplierId, user.id, {
+      expectedDeliveryDate,
+      supplierNote: body.supplierNote ?? null,
+    });
+
+    return ok({ ok: true });
   } catch (error) {
     return handleRouteError(error);
   }

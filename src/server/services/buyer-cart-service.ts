@@ -1,16 +1,22 @@
-import { Prisma, ProductStatus, SupplierProductFieldType, SupplierStatus } from "@prisma/client";
+import { Prisma, ProductStatus, SupplierProductFieldType } from "@prisma/client";
 
 import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import {
   listDetailFieldRows,
-  resolveBuyerDisplayName,
+  resolveBuyerCatalogDisplayName,
   resolveBuyerOrderLineSnapshots,
   resolveBuyerUnitPrice,
   type BuyerFormFieldRow,
 } from "@/lib/buyer-dynamic-product-display";
 import { createOrder } from "@/server/services/order-service";
 import { getSupplierActiveProductForm } from "@/server/services/supplier-product-form-service";
+
+function shouldLogBuyerProductsDebug() {
+  return (
+    process.env.DEBUG_BUYER_PRODUCTS === "1" || process.env.NODE_ENV === "development"
+  );
+}
 
 async function assertBuyerWithCountry(buyerId: number) {
   const buyer = await prisma.user.findUnique({
@@ -142,6 +148,8 @@ export async function getBuyerCartDetail(buyerId: number) {
             select: {
               id: true,
               supplier_id: true,
+              product_name: true,
+              product_code: true,
               field_values: { select: { field_id: true, value_text: true } },
             },
           },
@@ -174,7 +182,10 @@ export async function getBuyerCartDetail(buyerId: number) {
     const form = await getSupplierActiveProductForm(row.product.supplier_id, null);
     const enabledRows = toBuyerFieldRows(form.fields).filter((r) => r.is_enabled);
     const valueByKey = valueByKeyFromFieldValues(form.fields, row.product.field_values);
-    const displayName = resolveBuyerDisplayName(enabledRows, valueByKey);
+    const displayName = resolveBuyerCatalogDisplayName(enabledRows, valueByKey, {
+      product_name: row.product.product_name,
+      product_code: row.product.product_code,
+    });
     const qty = row.quantity.toString();
     const price = row.price_snapshot.toString();
     const lineTotal = new Prisma.Decimal(price).mul(new Prisma.Decimal(qty)).toString();
@@ -275,6 +286,8 @@ export async function checkoutBuyerCart(input: { buyerId: number; memo?: string 
       },
       select: {
         id: true,
+        product_name: true,
+        product_code: true,
         field_values: { select: { field_id: true, value_text: true } },
       },
     });
@@ -288,7 +301,10 @@ export async function checkoutBuyerCart(input: { buyerId: number; memo?: string 
     const form = await getSupplierActiveProductForm(line.supplier_id, null);
     const enabledRows = toBuyerFieldRows(form.fields).filter((r) => r.is_enabled);
     const valueByKey = valueByKeyFromFieldValues(form.fields, product.field_values);
-    const snaps = resolveBuyerOrderLineSnapshots(enabledRows, valueByKey);
+    const snaps = resolveBuyerOrderLineSnapshots(enabledRows, valueByKey, {
+      product_name: product.product_name,
+      product_code: product.product_code,
+    });
     if (snaps.unitPrice == null) {
       throw new HttpError(400, `상품(ID ${line.product_id})의 가격을 확인할 수 없습니다.`);
     }
@@ -323,13 +339,12 @@ export async function checkoutBuyerCart(input: { buyerId: number; memo?: string 
 }
 
 export async function getBuyerProductsPayload(supplierId: number, buyerId: number) {
-  const { countryCode } = await assertBuyerWithCountry(buyerId);
+  await assertBuyerWithCountry(buyerId);
 
   const supplier = await prisma.supplier.findFirst({
     where: {
       id: supplierId,
       is_active: true,
-      status: SupplierStatus.ACTIVE,
     },
     select: { id: true },
   });
@@ -341,17 +356,25 @@ export async function getBuyerProductsPayload(supplierId: number, buyerId: numbe
   const formFields = form.fields;
   const fieldRows = toBuyerFieldRows(formFields.filter((f) => f.is_enabled));
 
+  const logDebug = shouldLogBuyerProductsDebug();
+  const totalProductsForSupplier = logDebug
+    ? await prisma.product.count({ where: { supplier_id: supplierId } })
+    : 0;
+
+  /**
+   * 카탈로그 목록은 의도적으로 느슨하게 (status / country / is_active 미필터).
+   * 장바구니·결제 단계는 addBuyerCartItem / checkout 에서 별도 검증.
+   */
   const products = await prisma.product.findMany({
-    where: {
-      supplier_id: supplierId,
-      country_code: countryCode,
-      is_active: true,
-      status: ProductStatus.APPROVED,
-    },
+    where: { supplier_id: supplierId },
     select: {
       id: true,
       supplier_id: true,
       category_id: true,
+      status: true,
+      is_active: true,
+      product_name: true,
+      product_code: true,
       image_url: true,
       thumbnail_url: true,
       product_image_url: true,
@@ -360,14 +383,32 @@ export async function getBuyerProductsPayload(supplierId: number, buyerId: numbe
     orderBy: [{ sort_order: "asc" }, { id: "asc" }],
   });
 
+  if (logDebug) {
+    // eslint-disable-next-line no-console -- 진단용 (DEBUG_BUYER_PRODUCTS 또는 development)
+    console.info("[getBuyerProductsPayload] debug", {
+      supplierId,
+      buyerId,
+      totalProductsForSupplier,
+      returnedAfterWhere: products.length,
+      productWhere: { supplier_id: supplierId },
+    });
+  }
+
   const list = products.map((p) => {
     const valueByKey = valueByKeyFromFieldValues(formFields, p.field_values);
+    const orderable = p.is_active && p.status === ProductStatus.APPROVED;
     return {
       id: p.id,
       supplier_id: p.supplier_id,
       category_id: p.category_id,
+      status: p.status,
+      isActive: p.is_active,
+      orderable,
       image_url: p.image_url ?? p.thumbnail_url ?? p.product_image_url,
-      displayName: resolveBuyerDisplayName(fieldRows, valueByKey),
+      displayName: resolveBuyerCatalogDisplayName(fieldRows, valueByKey, {
+        product_name: p.product_name,
+        product_code: p.product_code,
+      }),
       unitPrice: resolveBuyerUnitPrice(fieldRows, valueByKey),
       detailRows: listDetailFieldRows(fieldRows, valueByKey),
     };

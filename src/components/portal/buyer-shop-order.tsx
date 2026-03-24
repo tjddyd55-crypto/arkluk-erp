@@ -5,12 +5,17 @@ import { useSearchParams } from "next/navigation";
 
 import { useTranslation } from "@/hooks/useTranslation";
 
+type ProductStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
+
 type ProductRow = {
   id: number;
   displayName: string;
   unitPrice: number | null;
   image_url: string | null;
   detailRows: Array<{ field_key: string; field_label: string; value: string }>;
+  status: ProductStatus;
+  isActive: boolean;
+  orderable: boolean;
 };
 
 type ProductsPayload = {
@@ -23,6 +28,23 @@ function parseSupplierId(raw: string | null): number | null {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) return null;
   return n;
+}
+
+function productStatusBadgeKey(p: ProductRow): string {
+  if (!p.isActive) return "buyer_product_inactive";
+  if (p.status === "APPROVED") return "buyer_product_orderable";
+  if (p.status === "PENDING") return "buyer_product_pending";
+  if (p.status === "DRAFT") return "buyer_product_draft";
+  if (p.status === "REJECTED") return "buyer_product_rejected";
+  return "buyer_product_not_orderable";
+}
+
+function badgeClassName(p: ProductRow): string {
+  if (!p.isActive) return "bg-slate-100 text-slate-700";
+  if (p.status === "APPROVED") return "bg-emerald-100 text-emerald-800";
+  if (p.status === "PENDING") return "bg-amber-100 text-amber-900";
+  if (p.status === "REJECTED") return "bg-red-100 text-red-800";
+  return "bg-slate-100 text-slate-700";
 }
 
 export function BuyerShopOrder() {
@@ -74,11 +96,12 @@ export function BuyerShopOrder() {
     };
   }, [supplierId, t]);
 
-  async function addToCart(productId: number, e: FormEvent) {
+  async function addToCart(product: ProductRow, e: FormEvent) {
     e.preventDefault();
+    if (!product.orderable) return;
     setMessage(null);
     setError(null);
-    const raw = quantities[productId] ?? "1";
+    const raw = quantities[product.id] ?? "1";
     const qty = Number(raw);
     if (!Number.isFinite(qty) || qty <= 0) {
       setError(t("buyer_invalid_qty"));
@@ -88,7 +111,7 @@ export function BuyerShopOrder() {
       const res = await fetch("/api/buyer/cart/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, quantity: qty }),
+        body: JSON.stringify({ productId: product.id, quantity: qty }),
       });
       const result = await res.json();
       if (!res.ok || !result.success) {
@@ -136,7 +159,12 @@ export function BuyerShopOrder() {
                       <div className="flex h-full items-center justify-center text-xs text-slate-400">—</div>
                     )}
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <span
+                      className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${badgeClassName(p)}`}
+                    >
+                      {t(productStatusBadgeKey(p))}
+                    </span>
                     <p className="font-medium text-slate-900">{p.displayName}</p>
                     <p className="text-sm text-slate-600">
                       {p.unitPrice != null ? `${p.unitPrice.toLocaleString()}` : "—"}
@@ -157,24 +185,33 @@ export function BuyerShopOrder() {
                   </dl>
                 ) : null}
                 <form
-                  className="mt-2 flex flex-wrap items-center gap-2"
-                  onSubmit={(e) => addToCart(p.id, e)}
+                  className={`mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center ${
+                    !p.orderable ? "opacity-70" : ""
+                  }`}
+                  onSubmit={(e) => addToCart(p, e)}
                 >
-                  <label className="text-xs text-slate-600">{t("buyer_qty")}</label>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    className="w-24 rounded border border-slate-300 px-2 py-1 text-sm"
-                    value={quantities[p.id] ?? "1"}
-                    onChange={(e) => setQuantities((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                  />
-                  <button
-                    type="submit"
-                    className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
-                  >
-                    {t("buyer_add_cart")}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="text-xs text-slate-600">{t("buyer_qty")}</label>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      disabled={!p.orderable}
+                      className="w-24 rounded border border-slate-300 px-2 py-1 text-sm disabled:cursor-not-allowed disabled:bg-slate-100"
+                      value={quantities[p.id] ?? "1"}
+                      onChange={(e) => setQuantities((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!p.orderable}
+                      className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:hover:bg-slate-400"
+                    >
+                      {t("buyer_add_cart")}
+                    </button>
+                  </div>
+                  {!p.orderable ? (
+                    <p className="text-xs text-amber-800">{t("buyer_cart_blocked_hint")}</p>
+                  ) : null}
                 </form>
               </li>
             ))}

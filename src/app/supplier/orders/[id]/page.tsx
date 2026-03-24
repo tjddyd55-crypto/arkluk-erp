@@ -5,18 +5,31 @@ import { useParams } from "next/navigation";
 import { useTranslation } from "@/hooks/useTranslation";
 
 type SupplierOrderDetail = {
+  id: number;
   order_id: number;
   status:
-    | "WAITING"
+    | "PENDING"
     | "SENT"
-    | "SUPPLIER_CONFIRMED"
-    | "DELIVERING"
+    | "VIEWED"
+    | "CONFIRMED"
+    | "SHIPPING"
     | "COMPLETED"
-    | "CANCELLED";
+    | "CANCELLED"
+    | "REJECTED";
+  pdf_status: string;
+  email_status: string;
+  pdf_last_error: string | null;
+  email_last_error: string | null;
+  tracking_number: string | null;
+  reject_reason: string | null;
   sent_at: string | null;
   supplier_confirmed_at: string | null;
   expected_delivery_date: string | null;
   supplier_note: string | null;
+  supplier: {
+    supplier_name: string;
+    company_name: string | null;
+  };
   order: {
     order_no: string;
     status: string;
@@ -68,17 +81,51 @@ type ShipmentRow = {
   }>;
 };
 
-const statusLabelMap: Record<
-  "WAITING" | "SENT" | "SUPPLIER_CONFIRMED" | "DELIVERING" | "COMPLETED" | "CANCELLED",
-  string
-> = {
-  WAITING: "발송 대기",
-  SENT: "발송 완료",
-  SUPPLIER_CONFIRMED: "공급사 확인",
-  DELIVERING: "출고 완료",
-  COMPLETED: "납품 완료",
+const statusLabelMap: Record<SupplierOrderDetail["status"], string> = {
+  PENDING: "대기",
+  SENT: "발송됨",
+  VIEWED: "확인함",
+  CONFIRMED: "수락",
+  SHIPPING: "배송 중",
+  COMPLETED: "완료",
   CANCELLED: "취소",
+  REJECTED: "거절",
 };
+
+function badgeClassForOsStatus(status: SupplierOrderDetail["status"]) {
+  switch (status) {
+    case "PENDING":
+      return "bg-slate-200 text-slate-800";
+    case "SENT":
+      return "bg-blue-100 text-blue-900";
+    case "VIEWED":
+      return "bg-violet-100 text-violet-900";
+    case "CONFIRMED":
+      return "bg-emerald-100 text-emerald-900";
+    case "REJECTED":
+      return "bg-red-100 text-red-900";
+    case "SHIPPING":
+      return "bg-orange-100 text-orange-900";
+    case "COMPLETED":
+      return "bg-green-800 text-white";
+    case "CANCELLED":
+      return "bg-slate-300 text-slate-800";
+    default:
+      return "bg-slate-200 text-slate-800";
+  }
+}
+
+function labelForPdfStatus(v: string) {
+  if (v === "SUCCESS") return "성공";
+  if (v === "FAILED") return "실패";
+  return "준비 중";
+}
+
+function labelForEmailStatus(v: string) {
+  if (v === "SENT") return "발송됨";
+  if (v === "FAILED") return "실패";
+  return "대기";
+}
 
 const shipmentStatusLabelMap: Record<
   "CREATED" | "SHIPPED" | "IN_TRANSIT" | "DELIVERED" | "CANCELLED",
@@ -96,7 +143,7 @@ const supplierShipmentStatusOptions: Array<
 > = ["CONFIRMED", "PREPARING", "PACKING", "SHIPPED", "DELIVERED", "HOLD"];
 
 function getSupplierStatusLabel(status: SupplierOrderDetail["status"], orderStatus: string) {
-  if (status === "WAITING" && orderStatus === "ASSIGNED") {
+  if (status === "PENDING" && orderStatus === "ASSIGNED") {
     return "배정 완료";
   }
   return statusLabelMap[status];
@@ -138,6 +185,11 @@ export default function SupplierOrderDetailPage() {
   const [shipmentWorkflowStatusMap, setShipmentWorkflowStatusMap] = useState<
     Record<number, ShipmentRow["supplier_status"]>
   >({});
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectReasonInput, setRejectReasonInput] = useState("");
+  const [trackingInput, setTrackingInput] = useState("");
+  const [regeneratingPdf, setRegeneratingPdf] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
 
   async function loadDetail() {
     setLoading(true);
@@ -153,6 +205,48 @@ export default function SupplierOrderDetailPage() {
       setConfirmDate(toDateInputValue(payload.expected_delivery_date));
       setDeliveryDate(toDateInputValue(payload.expected_delivery_date));
       setSupplierNote(payload.supplier_note ?? "");
+      setTrackingInput(payload.tracking_number ?? "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("error"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /** 상세 조회 후 열람 처리(SENT→VIEWED) — 서버 상태만 갱신 */
+  async function loadDetailWithViewMark() {
+    setLoading(true);
+    setError(null);
+    try {
+      const first = await fetch(`/api/supplier/orders/${orderId}`);
+      const firstJson = await first.json();
+      if (!first.ok || !firstJson.success) {
+        throw new Error(firstJson.message ?? t("error"));
+      }
+      const firstPayload = firstJson.data as SupplierOrderDetail;
+      setDetail(firstPayload);
+      setConfirmDate(toDateInputValue(firstPayload.expected_delivery_date));
+      setDeliveryDate(toDateInputValue(firstPayload.expected_delivery_date));
+      setSupplierNote(firstPayload.supplier_note ?? "");
+      setTrackingInput(firstPayload.tracking_number ?? "");
+
+      await fetch(`/api/supplier/orders/${orderId}/check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+
+      const second = await fetch(`/api/supplier/orders/${orderId}`);
+      const secondJson = await second.json();
+      if (!second.ok || !secondJson.success) {
+        throw new Error(secondJson.message ?? t("error"));
+      }
+      const payload = secondJson.data as SupplierOrderDetail;
+      setDetail(payload);
+      setConfirmDate(toDateInputValue(payload.expected_delivery_date));
+      setDeliveryDate(toDateInputValue(payload.expected_delivery_date));
+      setSupplierNote(payload.supplier_note ?? "");
+      setTrackingInput(payload.tracking_number ?? "");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error"));
     } finally {
@@ -185,7 +279,7 @@ export default function SupplierOrderDetailPage() {
 
   useEffect(() => {
     if (!Number.isNaN(orderId)) {
-      loadDetail();
+      void loadDetailWithViewMark();
       loadShipments();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -376,7 +470,7 @@ export default function SupplierOrderDetailPage() {
     }
   }
 
-  async function handleConfirmOrder() {
+  async function handleAcceptOrder() {
     if (!detail) {
       return;
     }
@@ -384,8 +478,8 @@ export default function SupplierOrderDetailPage() {
     setActionError(null);
     setConfirming(true);
     try {
-      const response = await fetch(`/api/supplier/orders/${orderId}/check`, {
-        method: "POST",
+      const response = await fetch(`/api/supplier/orders/${orderId}/accept`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           expectedDeliveryDate: confirmDate || null,
@@ -394,14 +488,84 @@ export default function SupplierOrderDetailPage() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message ?? "발주 확인 처리 실패");
+        throw new Error(result.message ?? "수락 처리 실패");
       }
-      setMessage("발주 확인 처리가 완료되었습니다.");
-      await loadDetail();
+      setMessage("발주를 수락했습니다.");
+      await loadDetailWithViewMark();
+      await loadShipments();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "발주 확인 처리 실패");
+      setActionError(err instanceof Error ? err.message : "수락 처리 실패");
     } finally {
       setConfirming(false);
+    }
+  }
+
+  async function handleRejectOrder() {
+    setMessage(null);
+    setActionError(null);
+    setRejecting(true);
+    try {
+      const response = await fetch(`/api/supplier/orders/${orderId}/reject`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rejectReason: rejectReasonInput.trim() || null,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "거절 처리 실패");
+      }
+      setMessage("발주를 거절했습니다.");
+      setRejectReasonInput("");
+      await loadDetailWithViewMark();
+      await loadShipments();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "거절 처리 실패");
+    } finally {
+      setRejecting(false);
+    }
+  }
+
+  async function handleRegeneratePdf() {
+    setMessage(null);
+    setActionError(null);
+    setRegeneratingPdf(true);
+    try {
+      const response = await fetch(`/api/supplier/orders/${orderId}/pdf-regenerate`, {
+        method: "POST",
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "PDF 재생성 실패");
+      }
+      setMessage("PDF를 재생성했습니다.");
+      await loadDetail();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "PDF 재생성 실패");
+    } finally {
+      setRegeneratingPdf(false);
+    }
+  }
+
+  async function handleResendPoEmail() {
+    setMessage(null);
+    setActionError(null);
+    setResendingEmail(true);
+    try {
+      const response = await fetch(`/api/supplier/orders/${orderId}/po-email`, {
+        method: "POST",
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "이메일 재전송 실패");
+      }
+      setMessage(result.data?.mocked ? "모의 발송으로 기록했습니다." : "이메일을 재전송했습니다.");
+      await loadDetail();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "이메일 재전송 실패");
+    } finally {
+      setResendingEmail(false);
     }
   }
 
@@ -427,7 +591,7 @@ export default function SupplierOrderDetailPage() {
         throw new Error(result.message ?? "납기 입력 실패");
       }
       setMessage("납기 예정일이 저장되었습니다.");
-      await loadDetail();
+      await loadDetailWithViewMark();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "납기 입력 실패");
     } finally {
@@ -455,7 +619,7 @@ export default function SupplierOrderDetailPage() {
         throw new Error(result.message ?? "발주 취소 실패");
       }
       setMessage("발주 취소 처리가 완료되었습니다.");
-      await loadDetail();
+      await loadDetailWithViewMark();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "발주 취소 실패");
     } finally {
@@ -476,14 +640,15 @@ export default function SupplierOrderDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           supplierNote: supplierNote || null,
+          trackingNumber: trackingInput.trim() || null,
         }),
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
         throw new Error(result.message ?? "출고 처리 실패");
       }
-      setMessage("출고 처리되었습니다.");
-      await loadDetail();
+      setMessage("배송을 시작했습니다.");
+      await loadDetailWithViewMark();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "출고 처리 실패");
     } finally {
@@ -511,7 +676,7 @@ export default function SupplierOrderDetailPage() {
         throw new Error(result.message ?? "납품 완료 처리 실패");
       }
       setMessage("납품 완료 처리되었습니다.");
-      await loadDetail();
+      await loadDetailWithViewMark();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "납품 완료 처리 실패");
     } finally {
@@ -526,45 +691,114 @@ export default function SupplierOrderDetailPage() {
     return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error ?? t("not_found")}</p>;
   }
 
-  const canConfirm = false;
-  const canSetDelivery = false;
-  const canCancel = false;
-  const canShip = false;
-  const canDeliver = false;
+  const st = detail.status;
+  const canAccept = st === "PENDING" || st === "SENT" || st === "VIEWED";
+  const canReject = st !== "COMPLETED";
+  const canShip = st === "CONFIRMED";
+  const canDeliver = st === "SHIPPING";
+  const canSetDelivery =
+    Boolean(detail.supplier_confirmed_at) &&
+    st !== "COMPLETED" &&
+    st !== "CANCELLED" &&
+    st !== "REJECTED";
+  const canCancel = st === "SENT" || st === "VIEWED" || st === "CONFIRMED";
+
+  const supplierDisplayName =
+    detail.supplier.company_name?.trim() || detail.supplier.supplier_name;
 
   return (
     <div className="space-y-4">
       <header className="rounded border border-slate-200 bg-white p-4">
-        <h1 className="text-2xl font-bold text-slate-900">{detail.order.order_no}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900">{detail.order.order_no}</h1>
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClassForOsStatus(detail.status)}`}
+          >
+            {getSupplierStatusLabel(detail.status, detail.order.status)}
+          </span>
+        </div>
+        <p className="mt-2 text-sm font-medium text-slate-800">공급사: {supplierDisplayName}</p>
         <p className="mt-1 text-sm text-slate-600">
           {t("buyer")}: {detail.order.buyer.name} / {t("country")}: {detail.order.country.country_name}
         </p>
         <p className="mt-1 text-sm text-slate-600">
-          {t("order_status")}: {getSupplierStatusLabel(detail.status, detail.order.status)}
+          주문(통합) 상태: <span className="font-mono text-xs">{detail.order.status}</span>
         </p>
+        <div className="mt-2 flex flex-wrap gap-2 text-sm">
+          <span className="rounded bg-slate-100 px-2 py-1 text-slate-800">
+            PDF: {labelForPdfStatus(detail.pdf_status)}
+          </span>
+          <span className="rounded bg-slate-100 px-2 py-1 text-slate-800">
+            이메일: {labelForEmailStatus(detail.email_status)}
+          </span>
+        </div>
+        {detail.pdf_status === "FAILED" && detail.pdf_last_error ? (
+          <p className="mt-1 text-xs text-red-600">PDF 오류: {detail.pdf_last_error}</p>
+        ) : null}
+        {detail.email_status === "FAILED" && detail.email_last_error ? (
+          <p className="mt-1 text-xs text-red-600">메일 오류: {detail.email_last_error}</p>
+        ) : null}
         <p className="mt-1 text-xs text-slate-500">
-          발송일: {detail.sent_at ? new Date(detail.sent_at).toLocaleString() : "-"} / 확인일:{" "}
+          발송일: {detail.sent_at ? new Date(detail.sent_at).toLocaleString() : "-"} / 수락일:{" "}
           {detail.supplier_confirmed_at
             ? new Date(detail.supplier_confirmed_at).toLocaleString()
             : "-"}
         </p>
+        {detail.tracking_number ? (
+          <p className="mt-1 text-xs text-slate-600">운송장: {detail.tracking_number}</p>
+        ) : null}
+        {detail.reject_reason ? (
+          <p className="mt-1 text-xs text-red-700">거절 사유: {detail.reject_reason}</p>
+        ) : null}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <a
+            href={`/api/supplier/orders/${orderId}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
+          >
+            {t("po_pdf_download")}
+          </a>
+          {detail.pdf_status === "FAILED" ? (
+            <button
+              type="button"
+              className="rounded border border-amber-600 px-3 py-1.5 text-sm text-amber-900 disabled:opacity-60"
+              disabled={regeneratingPdf}
+              onClick={handleRegeneratePdf}
+            >
+              {regeneratingPdf ? "처리 중..." : "PDF 재생성"}
+            </button>
+          ) : null}
+          {detail.email_status === "FAILED" ? (
+            <button
+              type="button"
+              className="rounded border border-amber-600 px-3 py-1.5 text-sm text-amber-900 disabled:opacity-60"
+              disabled={resendingEmail}
+              onClick={handleResendPoEmail}
+            >
+              {resendingEmail ? "처리 중..." : "이메일 재전송"}
+            </button>
+          ) : null}
+        </div>
       </header>
 
       <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">{t("supplier")} {t("actions")}</h2>
-        <p className="mt-1 text-xs text-amber-700">
-          {t("view_only_policy")}
+        <h2 className="text-lg font-semibold">
+          {t("supplier")} {t("actions")}
+        </h2>
+        <p className="mt-1 text-xs text-slate-500">
+          상태는 서버에서만 변경됩니다. 처리 후 목록이 자동으로 갱신됩니다.
         </p>
 
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <label className="text-sm text-slate-700">
-            확인 시 납기 예정일
+            수락 시 납기 예정일(선택)
             <input
               type="date"
               className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
               value={confirmDate}
               onChange={(event) => setConfirmDate(event.target.value)}
-              disabled={!canConfirm || confirming}
+              disabled={!canAccept || confirming}
             />
           </label>
 
@@ -581,6 +815,18 @@ export default function SupplierOrderDetailPage() {
         </div>
 
         <label className="mt-3 block text-sm text-slate-700">
+          배송 시작 시 운송장 번호
+          <input
+            type="text"
+            className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+            value={trackingInput}
+            onChange={(event) => setTrackingInput(event.target.value)}
+            disabled={!canShip || shipping}
+            placeholder="선택 입력"
+          />
+        </label>
+
+        <label className="mt-3 block text-sm text-slate-700">
           공급사 메모
           <textarea
             className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
@@ -591,14 +837,35 @@ export default function SupplierOrderDetailPage() {
           />
         </label>
 
+        {canReject && st !== "REJECTED" ? (
+          <label className="mt-3 block text-sm text-slate-700">
+            거절 사유(선택)
+            <textarea
+              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              rows={2}
+              value={rejectReasonInput}
+              onChange={(event) => setRejectReasonInput(event.target.value)}
+              disabled={rejecting}
+            />
+          </label>
+        ) : null}
+
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
-            className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
-            onClick={handleConfirmOrder}
-            disabled={!canConfirm || confirming}
+            className="rounded bg-emerald-700 px-3 py-2 text-sm text-white disabled:opacity-60"
+            onClick={handleAcceptOrder}
+            disabled={!canAccept || confirming}
           >
-            {confirming ? "처리 중..." : "발주 확인"}
+            {confirming ? "처리 중..." : "수락"}
+          </button>
+          <button
+            type="button"
+            className="rounded border border-red-400 px-3 py-2 text-sm text-red-800 disabled:opacity-60"
+            onClick={handleRejectOrder}
+            disabled={st === "COMPLETED" || rejecting}
+          >
+            {rejecting ? "처리 중..." : "거절"}
           </button>
           <button
             type="button"
@@ -610,19 +877,19 @@ export default function SupplierOrderDetailPage() {
           </button>
           <button
             type="button"
-            className="rounded border border-indigo-300 px-3 py-2 text-sm text-indigo-700 disabled:opacity-60"
+            className="rounded border border-orange-400 px-3 py-2 text-sm text-orange-900 disabled:opacity-60"
             onClick={handleMarkShipped}
             disabled={!canShip || shipping}
           >
-            {shipping ? "처리 중..." : "출고 처리"}
+            {shipping ? "처리 중..." : "배송 시작"}
           </button>
           <button
             type="button"
-            className="rounded border border-emerald-300 px-3 py-2 text-sm text-emerald-700 disabled:opacity-60"
+            className="rounded border border-emerald-600 px-3 py-2 text-sm text-emerald-900 disabled:opacity-60"
             onClick={handleMarkDelivered}
             disabled={!canDeliver || delivering}
           >
-            {delivering ? "처리 중..." : "납품 완료"}
+            {delivering ? "처리 중..." : "완료"}
           </button>
           <button
             type="button"

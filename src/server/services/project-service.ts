@@ -622,12 +622,7 @@ export async function syncProjectStatusByOrderSuppliers(
   }
 
   const hasDispatched = suppliers.some((supplier) =>
-    [
-      "SENT",
-      "SUPPLIER_CONFIRMED",
-      "DELIVERING",
-      "COMPLETED",
-    ].includes(supplier.status),
+    ["SENT", "VIEWED", "CONFIRMED", "SHIPPING", "COMPLETED"].includes(supplier.status),
   );
   const allCompleted = suppliers.every((supplier) => supplier.status === "COMPLETED");
 

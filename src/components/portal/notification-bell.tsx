@@ -13,6 +13,7 @@ type NotificationRow = {
     | "ORDER_CREATED"
     | "ORDER_ASSIGNED"
     | "SUPPLIER_CONFIRMED"
+    | "SUPPLIER_REJECTED"
     | "SHIPMENT_SHIPPED"
     | "SHIPMENT_DELIVERED"
     | "ORDER_DELAYED"

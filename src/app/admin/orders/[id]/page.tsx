@@ -13,12 +13,13 @@ type OrderDetail = {
   suppliers: Array<{
     supplier_id: number;
     status:
-      | "WAITING"
+      | "PENDING"
       | "SENT"
-      | "SUPPLIER_CONFIRMED"
-      | "DELIVERING"
+      | "CONFIRMED"
+      | "SHIPPING"
       | "COMPLETED"
-      | "CANCELLED";
+      | "CANCELLED"
+      | "REJECTED";
     sent_at: string | null;
     supplier_confirmed_at: string | null;
     expected_delivery_date: string | null;
@@ -309,15 +310,22 @@ export default function AdminOrderDetailPage() {
   const statusChangeDisabled = true;
 
   const statusLabelMap: Record<
-    "WAITING" | "SENT" | "SUPPLIER_CONFIRMED" | "DELIVERING" | "COMPLETED" | "CANCELLED",
+    | "PENDING"
+    | "SENT"
+    | "CONFIRMED"
+    | "SHIPPING"
+    | "COMPLETED"
+    | "CANCELLED"
+    | "REJECTED",
     string
   > = {
-    WAITING: "WAITING",
+    PENDING: "PENDING",
     SENT: "SENT",
-    SUPPLIER_CONFIRMED: "SUPPLIER_CONFIRMED",
-    DELIVERING: "DELIVERING",
+    CONFIRMED: "CONFIRMED",
+    SHIPPING: "SHIPPING",
     COMPLETED: "COMPLETED",
     CANCELLED: "CANCELLED",
+    REJECTED: "REJECTED",
   };
 
   return (
@@ -406,7 +414,7 @@ export default function AdminOrderDetailPage() {
                       className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
                       disabled={
                         statusChangeDisabled ||
-                        supplierRow.status !== "WAITING" ||
+                        supplierRow.status !== "PENDING" ||
                         sendingSupplierId === supplierRow.supplier_id
                       }
                       onClick={() => sendPurchaseOrderToSupplier(supplierRow.supplier_id)}
@@ -421,7 +429,7 @@ export default function AdminOrderDetailPage() {
                       disabled={
                         statusChangeDisabled ||
                         (supplierRow.status !== "SENT" &&
-                          supplierRow.status !== "SUPPLIER_CONFIRMED") ||
+                          supplierRow.status !== "CONFIRMED") ||
                         cancellingSupplierId === supplierRow.supplier_id
                       }
                       onClick={() => cancelSupplierOrder(supplierRow.supplier_id)}

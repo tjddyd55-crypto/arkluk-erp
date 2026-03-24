@@ -6,6 +6,7 @@ import {
   OrderItemStatus,
   OrderStatus,
   OrderSupplierStatus,
+  OsEmailStatus,
   Prisma,
   ProductStatus,
   ProjectStatus,
@@ -28,6 +29,14 @@ import {
   listActiveUserIdsBySupplier,
 } from "@/server/services/notification-service";
 import { createOrderEventLog } from "@/server/services/order-event-log-service";
+import {
+  sendBuyerOrderCompletedEmail,
+  sendBuyerOrderConfirmedEmail,
+  sendBuyerOrderRejectedEmail,
+  sendBuyerShippingStartedEmail,
+} from "@/server/services/order-po-email-service";
+import { runPostOrderPoAndEmailPipeline } from "@/server/services/order-supplier-pipeline-service";
+import { syncOrderAggregateStatus } from "@/server/services/order-status-sync-service";
 import { setProjectStatus, syncProjectStatusByOrderSuppliers } from "@/server/services/project-service";
 import {
   generatePurchaseOrderPDF,
@@ -101,23 +110,30 @@ function calcAmount(price: Prisma.Decimal, qty: number) {
 function isSupplierSectionLocked(status: OrderSupplierStatus) {
   return (
     status === OrderSupplierStatus.SENT ||
-    status === OrderSupplierStatus.SUPPLIER_CONFIRMED ||
-    status === OrderSupplierStatus.DELIVERING ||
-    status === OrderSupplierStatus.COMPLETED
+    status === OrderSupplierStatus.VIEWED ||
+    status === OrderSupplierStatus.CONFIRMED ||
+    status === OrderSupplierStatus.SHIPPING ||
+    status === OrderSupplierStatus.COMPLETED ||
+    status === OrderSupplierStatus.REJECTED
   );
 }
 
 function isSupplierSectionDispatched(status: OrderSupplierStatus) {
   return (
     status === OrderSupplierStatus.SENT ||
-    status === OrderSupplierStatus.SUPPLIER_CONFIRMED ||
-    status === OrderSupplierStatus.DELIVERING ||
+    status === OrderSupplierStatus.VIEWED ||
+    status === OrderSupplierStatus.CONFIRMED ||
+    status === OrderSupplierStatus.SHIPPING ||
     status === OrderSupplierStatus.COMPLETED
   );
 }
 
 function canCancelOrderSupplier(status: OrderSupplierStatus) {
-  return status === OrderSupplierStatus.SENT || status === OrderSupplierStatus.SUPPLIER_CONFIRMED;
+  return (
+    status === OrderSupplierStatus.SENT ||
+    status === OrderSupplierStatus.VIEWED ||
+    status === OrderSupplierStatus.CONFIRMED
+  );
 }
 
 function normalizeSupplierNote(note?: string | null) {
@@ -265,7 +281,7 @@ export async function createOrder(input: CreateOrderInput) {
       data: [...supplierIds].map((supplierId) => ({
         order_id: order.id,
         supplier_id: supplierId,
-        status: OrderSupplierStatus.WAITING,
+        status: OrderSupplierStatus.PENDING,
       })),
       skipDuplicates: true,
     });
@@ -321,6 +337,10 @@ export async function createOrder(input: CreateOrderInput) {
     entityId: updatedItem.id,
     message: `신규 주문이 생성되었습니다. (${updatedItem.order_no})`,
     recipientUserIds: adminUserIds,
+  });
+
+  void runPostOrderPoAndEmailPipeline(updatedItem.id, buyer.id).catch((err) => {
+    console.error("[runPostOrderPoAndEmailPipeline]", updatedItem.id, err);
   });
 
   return updatedItem;
@@ -538,7 +558,7 @@ export async function addCountryOrderItems(orderId: number, input: CountryOrderI
         create: {
           order_id: orderId,
           supplier_id: supplierId,
-          status: OrderSupplierStatus.WAITING,
+          status: OrderSupplierStatus.PENDING,
         },
       });
     }
@@ -568,6 +588,10 @@ export async function addCountryOrderItems(orderId: number, input: CountryOrderI
       throw new HttpError(404, "주문을 찾을 수 없습니다.");
     }
     return updated;
+  });
+
+  void runPostOrderPoAndEmailPipeline(updatedItem.id, actor.id).catch((err) => {
+    console.error("[runPostOrderPoAndEmailPipeline]", updatedItem.id, err);
   });
 
   return updatedItem;
@@ -747,7 +771,7 @@ export async function updateOrder(orderId: number, input: UpdateOrderInput) {
     throw new HttpError(400, "완료/취소된 주문은 수정할 수 없습니다.");
   }
 
-  return prisma.$transaction(async (tx) => {
+  const updatedOrder = await prisma.$transaction(async (tx) => {
     const supplierStatusMap = new Map(
       currentOrder.suppliers.map((supplier) => [supplier.supplier_id, supplier]),
     );
@@ -894,7 +918,7 @@ export async function updateOrder(orderId: number, input: UpdateOrderInput) {
           data: {
             order_id: orderId,
             supplier_id: supplierId,
-            status: OrderSupplierStatus.WAITING,
+            status: OrderSupplierStatus.PENDING,
           },
         });
       }
@@ -920,47 +944,16 @@ export async function updateOrder(orderId: number, input: UpdateOrderInput) {
 
     return updated;
   });
+
+  void runPostOrderPoAndEmailPipeline(orderId, input.actorId).catch((err) => {
+    console.error("[runPostOrderPoAndEmailPipeline]", orderId, err);
+  });
+
+  return updatedOrder;
 }
 
 async function syncOrderStatus(orderId: number, tx: Prisma.TransactionClient) {
-  const suppliers = await tx.orderSupplier.findMany({
-    where: { order_id: orderId },
-    select: { status: true },
-  });
-
-  if (suppliers.length === 0) {
-    await tx.order.update({
-      where: { id: orderId },
-      data: { status: OrderStatus.CREATED },
-    });
-    return;
-  }
-
-  const allDelivered = suppliers.every((supplier) => supplier.status === OrderSupplierStatus.COMPLETED);
-  const hasShipped = suppliers.some(
-    (supplier) =>
-      supplier.status === OrderSupplierStatus.DELIVERING ||
-      supplier.status === OrderSupplierStatus.COMPLETED,
-  );
-  const hasSupplierConfirmed = suppliers.some(
-    (supplier) => supplier.status === OrderSupplierStatus.SUPPLIER_CONFIRMED,
-  );
-  const hasAssigned = suppliers.some((supplier) => isSupplierSectionDispatched(supplier.status));
-
-  const nextStatus = allDelivered
-    ? OrderStatus.DELIVERED
-    : hasShipped
-      ? OrderStatus.SHIPPED
-      : hasSupplierConfirmed
-        ? OrderStatus.SUPPLIER_CONFIRMED
-        : hasAssigned
-          ? OrderStatus.ASSIGNED
-          : OrderStatus.UNDER_REVIEW;
-
-  await tx.order.update({
-    where: { id: orderId },
-    data: { status: nextStatus },
-  });
+  await syncOrderAggregateStatus(orderId, tx);
 }
 
 export async function sendOrderToSupplier(orderId: number, supplierId: number, actorId: number) {
@@ -974,7 +967,7 @@ export async function sendOrderToAll(orderId: number, actorId: number) {
   const waitingSuppliers = await prisma.orderSupplier.findMany({
     where: {
       order_id: orderId,
-      status: OrderSupplierStatus.WAITING,
+      status: OrderSupplierStatus.PENDING,
     },
     select: { supplier_id: true },
   });
@@ -1030,7 +1023,7 @@ async function sendPurchaseOrderToSingleSupplier(
     throw new HttpError(404, "발송 대상 공급사 주문을 찾을 수 없습니다.");
   }
   if (
-    orderSupplier.status !== OrderSupplierStatus.WAITING &&
+    orderSupplier.status !== OrderSupplierStatus.PENDING &&
     orderSupplier.status !== OrderSupplierStatus.CANCELLED
   ) {
     throw new HttpError(400, "이미 발송 처리된 공급사입니다.");
@@ -1104,6 +1097,10 @@ async function sendPurchaseOrderToSingleSupplier(
           sent_at: new Date(),
           sent_by: actorId,
           email_sent: true,
+          email_status: OsEmailStatus.SENT,
+          email_sent_at: new Date(),
+          email_sent_to: orderSupplier.supplier.order_email ?? null,
+          email_last_error: null,
           portal_visible: true,
           supplier_checked: false,
           supplier_checked_at: null,
@@ -1138,6 +1135,14 @@ async function sendPurchaseOrderToSingleSupplier(
         },
         tx,
       );
+    } else {
+      await tx.orderSupplier.update({
+        where: { id: orderSupplier.id },
+        data: {
+          email_status: OsEmailStatus.FAILED,
+          email_last_error: mailResult.errorMessage ?? "메일 발송 실패",
+        },
+      });
     }
 
     await syncOrderStatus(orderId, tx);
@@ -1161,6 +1166,43 @@ async function sendPurchaseOrderToSingleSupplier(
   return txResult;
 }
 
+/** 발주 화면 진입 시: SENT → VIEWED (열람 추적). 그 외 상태는 변경 없음. */
+export async function supplierMarkOrderViewed(
+  orderId: number,
+  supplierId: number,
+  _actorId: number,
+): Promise<{ transitioned: boolean }> {
+  const orderSupplier = await prisma.orderSupplier.findUnique({
+    where: { order_id_supplier_id: { order_id: orderId, supplier_id: supplierId } },
+    select: {
+      id: true,
+      status: true,
+      portal_visible: true,
+    },
+  });
+
+  if (!orderSupplier || !orderSupplier.portal_visible) {
+    throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
+  }
+
+  if (orderSupplier.status !== OrderSupplierStatus.SENT) {
+    return { transitioned: false };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.orderSupplier.update({
+      where: { id: orderSupplier.id },
+      data: {
+        status: OrderSupplierStatus.VIEWED,
+        viewed_at: new Date(),
+      },
+    });
+    await syncOrderStatus(orderId, tx);
+  });
+
+  return { transitioned: true };
+}
+
 export async function supplierCheckOrder(
   orderId: number,
   supplierId: number,
@@ -1181,6 +1223,12 @@ export async function supplierCheckOrder(
           project_id: true,
         },
       },
+      supplier: {
+        select: {
+          supplier_name: true,
+          company_name: true,
+        },
+      },
     },
   });
 
@@ -1188,7 +1236,7 @@ export async function supplierCheckOrder(
     throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
   }
 
-  if (orderSupplier.status === OrderSupplierStatus.WAITING) {
+  if (orderSupplier.status === OrderSupplierStatus.PENDING) {
     const assignedItemCount = await prisma.orderItem.count({
       where: {
         order_id: orderId,
@@ -1203,12 +1251,24 @@ export async function supplierCheckOrder(
   if (orderSupplier.status === OrderSupplierStatus.CANCELLED) {
     throw new HttpError(400, "취소된 주문입니다.");
   }
+  if (orderSupplier.status === OrderSupplierStatus.REJECTED) {
+    throw new HttpError(400, "거절된 발주입니다.");
+  }
   if (
-    orderSupplier.status === OrderSupplierStatus.SUPPLIER_CONFIRMED ||
-    orderSupplier.status === OrderSupplierStatus.DELIVERING ||
+    orderSupplier.status === OrderSupplierStatus.CONFIRMED ||
+    orderSupplier.status === OrderSupplierStatus.SHIPPING ||
     orderSupplier.status === OrderSupplierStatus.COMPLETED
   ) {
     throw new HttpError(400, "이미 주문 확인 처리되었습니다.");
+  }
+
+  const allowedPreConfirm: OrderSupplierStatus[] = [
+    OrderSupplierStatus.PENDING,
+    OrderSupplierStatus.SENT,
+    OrderSupplierStatus.VIEWED,
+  ];
+  if (!allowedPreConfirm.includes(orderSupplier.status)) {
+    throw new HttpError(400, "확인 처리할 수 없는 상태입니다.");
   }
 
   const expectedDeliveryDate = input?.expectedDeliveryDate ?? null;
@@ -1218,7 +1278,7 @@ export async function supplierCheckOrder(
     await tx.orderSupplier.update({
       where: { id: orderSupplier.id },
       data: {
-        status: OrderSupplierStatus.SUPPLIER_CONFIRMED,
+        status: OrderSupplierStatus.CONFIRMED,
         portal_visible: true,
         supplier_checked: true,
         supplier_checked_at: new Date(),
@@ -1296,6 +1356,116 @@ export async function supplierCheckOrder(
       recipientUserIds: adminUserIds,
     });
   }
+
+  const supplierLabel =
+    orderSupplier.supplier.company_name?.trim() ||
+    orderSupplier.supplier.supplier_name;
+  void sendBuyerOrderConfirmedEmail(orderSupplier.order.id, supplierLabel).catch((err) =>
+    console.error("[sendBuyerOrderConfirmedEmail]", err),
+  );
+}
+
+export async function supplierRejectOrder(
+  orderId: number,
+  supplierId: number,
+  actorId: number,
+  input?: { rejectReason?: string | null },
+) {
+  const orderSupplier = await prisma.orderSupplier.findUnique({
+    where: { order_id_supplier_id: { order_id: orderId, supplier_id: supplierId } },
+    include: {
+      order: {
+        select: {
+          id: true,
+          order_no: true,
+          buyer_id: true,
+          project_id: true,
+        },
+      },
+      supplier: {
+        select: {
+          supplier_name: true,
+          company_name: true,
+        },
+      },
+    },
+  });
+
+  if (!orderSupplier || !orderSupplier.portal_visible) {
+    throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
+  }
+
+  const rejectable: OrderSupplierStatus[] = [
+    OrderSupplierStatus.PENDING,
+    OrderSupplierStatus.SENT,
+    OrderSupplierStatus.VIEWED,
+  ];
+  if (!rejectable.includes(orderSupplier.status)) {
+    throw new HttpError(400, "거절할 수 있는 상태가 아닙니다.");
+  }
+
+  const rejectReason = normalizeSupplierNote(input?.rejectReason);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.orderSupplier.update({
+      where: { id: orderSupplier.id },
+      data: {
+        status: OrderSupplierStatus.REJECTED,
+        rejected_at: new Date(),
+        reject_reason: rejectReason,
+        portal_visible: true,
+      },
+    });
+
+    await tx.orderItem.updateMany({
+      where: {
+        order_id: orderId,
+        supplier_id: supplierId,
+      },
+      data: {
+        status: OrderItemStatus.CANCELLED,
+      },
+    });
+
+    await createAuditLog(
+      {
+        actorId,
+        actionType: "SUPPLIER_REJECT_ORDER",
+        targetType: "ORDER",
+        targetId: orderId,
+        afterData: { supplierId, rejectReason },
+      },
+      tx,
+    );
+
+    await syncOrderStatus(orderId, tx);
+    if (orderSupplier.order.project_id) {
+      await syncProjectStatusByOrderSuppliers(
+        {
+          projectId: orderSupplier.order.project_id,
+          actorId,
+        },
+        tx,
+      );
+    }
+  });
+
+  await createNotification({
+    eventType: NotificationEvent.SUPPLIER_REJECTED,
+    entityType: "ORDER",
+    entityId: orderSupplier.order.id,
+    message: `공급사가 발주를 거절했습니다. (${orderSupplier.order.order_no})`,
+    recipientUserIds: [orderSupplier.order.buyer_id],
+  });
+
+  const supplierLabel =
+    orderSupplier.supplier.company_name?.trim() ||
+    orderSupplier.supplier.supplier_name;
+  void sendBuyerOrderRejectedEmail(
+    orderSupplier.order.id,
+    supplierLabel,
+    rejectReason,
+  ).catch((err) => console.error("[sendBuyerOrderRejectedEmail]", err));
 }
 
 export async function supplierSetDeliveryDate(
@@ -1321,7 +1491,7 @@ export async function supplierSetDeliveryDate(
   if (!orderSupplier) {
     throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
   }
-  if (orderSupplier.status === OrderSupplierStatus.WAITING) {
+  if (orderSupplier.status === OrderSupplierStatus.PENDING) {
     throw new HttpError(400, "아직 발송되지 않은 주문입니다.");
   }
   if (orderSupplier.status === OrderSupplierStatus.CANCELLED) {
@@ -1340,7 +1510,7 @@ export async function supplierSetDeliveryDate(
     await tx.orderSupplier.update({
       where: { id: orderSupplier.id },
       data: {
-        status: OrderSupplierStatus.DELIVERING,
+        status: OrderSupplierStatus.SHIPPING,
         expected_delivery_date: input.expectedDeliveryDate,
         supplier_note: supplierNote,
       },
@@ -1474,7 +1644,7 @@ export async function assignOrderItemSupplier(
       create: {
         order_id: orderId,
         supplier_id: input.supplierId,
-        status: OrderSupplierStatus.WAITING,
+        status: OrderSupplierStatus.PENDING,
       },
     });
 
@@ -1496,7 +1666,7 @@ export async function assignOrderItemSupplier(
             },
           },
         });
-        if (previousSupplierRow && previousSupplierRow.status === OrderSupplierStatus.WAITING) {
+        if (previousSupplierRow && previousSupplierRow.status === OrderSupplierStatus.PENDING) {
           await tx.orderSupplier.delete({
             where: {
               order_id_supplier_id: {
@@ -1685,7 +1855,7 @@ export async function supplierMarkShipped(
   orderId: number,
   supplierId: number,
   actorId: number,
-  input?: { supplierNote?: string | null },
+  input?: { supplierNote?: string | null; trackingNumber?: string | null },
 ) {
   const orderSupplier = await prisma.orderSupplier.findUnique({
     where: { order_id_supplier_id: { order_id: orderId, supplier_id: supplierId } },
@@ -1695,26 +1865,36 @@ export async function supplierMarkShipped(
           project_id: true,
         },
       },
+      supplier: {
+        select: {
+          supplier_name: true,
+          company_name: true,
+        },
+      },
     },
   });
   if (!orderSupplier || !orderSupplier.portal_visible) {
     throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
   }
   if (
-    orderSupplier.status !== OrderSupplierStatus.SUPPLIER_CONFIRMED &&
-    orderSupplier.status !== OrderSupplierStatus.DELIVERING
+    orderSupplier.status !== OrderSupplierStatus.CONFIRMED &&
+    orderSupplier.status !== OrderSupplierStatus.SHIPPING
   ) {
     throw new HttpError(400, "출고 처리 가능한 상태가 아닙니다.");
   }
 
   const supplierNote = normalizeSupplierNote(input?.supplierNote);
+  const trackingRaw =
+    typeof input?.trackingNumber === "string" ? input.trackingNumber.trim() : "";
+  const trackingNumber = trackingRaw.length > 0 ? trackingRaw.slice(0, 128) : null;
 
   await prisma.$transaction(async (tx) => {
     await tx.orderSupplier.update({
       where: { id: orderSupplier.id },
       data: {
-        status: OrderSupplierStatus.DELIVERING,
+        status: OrderSupplierStatus.SHIPPING,
         supplier_note: supplierNote,
+        ...(trackingNumber !== null ? { tracking_number: trackingNumber } : {}),
       },
     });
 
@@ -1737,7 +1917,7 @@ export async function supplierMarkShipped(
         actionType: "SUPPLIER_MARK_SHIPPED",
         targetType: "ORDER",
         targetId: orderId,
-        afterData: { supplierId, supplierNote },
+        afterData: { supplierId, supplierNote, trackingNumber },
       },
       tx,
     );
@@ -1762,6 +1942,13 @@ export async function supplierMarkShipped(
       );
     }
   });
+
+  const supplierLabel =
+    orderSupplier.supplier.company_name?.trim() ||
+    orderSupplier.supplier.supplier_name;
+  void sendBuyerShippingStartedEmail(orderId, supplierLabel, trackingNumber).catch((err) =>
+    console.error("[sendBuyerShippingStartedEmail]", err),
+  );
 }
 
 export async function supplierMarkDelivered(
@@ -1778,16 +1965,19 @@ export async function supplierMarkDelivered(
           project_id: true,
         },
       },
+      supplier: {
+        select: {
+          supplier_name: true,
+          company_name: true,
+        },
+      },
     },
   });
   if (!orderSupplier || !orderSupplier.portal_visible) {
     throw new HttpError(404, "주문 공급사 상태를 찾을 수 없습니다.");
   }
-  if (
-    orderSupplier.status !== OrderSupplierStatus.DELIVERING &&
-    orderSupplier.status !== OrderSupplierStatus.SUPPLIER_CONFIRMED
-  ) {
-    throw new HttpError(400, "납품 완료 처리 가능한 상태가 아닙니다.");
+  if (orderSupplier.status !== OrderSupplierStatus.SHIPPING) {
+    throw new HttpError(400, "배송 중인 발주만 완료 처리할 수 있습니다.");
   }
 
   const supplierNote = normalizeSupplierNote(input?.supplierNote);
@@ -1798,6 +1988,7 @@ export async function supplierMarkDelivered(
       data: {
         status: OrderSupplierStatus.COMPLETED,
         supplier_note: supplierNote,
+        completed_at: new Date(),
       },
     });
 
@@ -1845,6 +2036,13 @@ export async function supplierMarkDelivered(
       );
     }
   });
+
+  const supplierLabel =
+    orderSupplier.supplier.company_name?.trim() ||
+    orderSupplier.supplier.supplier_name;
+  void sendBuyerOrderCompletedEmail(orderId, supplierLabel).catch((err) =>
+    console.error("[sendBuyerOrderCompletedEmail]", err),
+  );
 }
 
 export async function supplierCancelOrder(

@@ -27,14 +27,14 @@ export async function GET(request: NextRequest) {
       prisma.orderSupplier.count({
         where: {
           status: {
-            in: [OrderSupplierStatus.SUPPLIER_CONFIRMED, OrderSupplierStatus.DELIVERING],
+            in: [OrderSupplierStatus.CONFIRMED, OrderSupplierStatus.SHIPPING],
           },
         },
       }),
       prisma.orderSupplier.count({
         where: {
           status: {
-            in: [OrderSupplierStatus.WAITING, OrderSupplierStatus.SENT],
+            in: [OrderSupplierStatus.PENDING, OrderSupplierStatus.SENT],
           },
         },
       }),
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         by: ["supplier_id"],
         where: {
           status: {
-            in: [OrderSupplierStatus.SUPPLIER_CONFIRMED, OrderSupplierStatus.DELIVERING],
+            in: [OrderSupplierStatus.CONFIRMED, OrderSupplierStatus.SHIPPING],
           },
         },
         _count: { _all: true },

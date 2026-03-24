@@ -53,6 +53,7 @@ export async function GET(
     if (!orderSupplier || (!orderSupplier.portal_visible && !hasWorkflowItems)) {
       throw new HttpError(404, "주문을 찾을 수 없습니다.");
     }
+
     return ok(orderSupplier);
   } catch (error) {
     return handleRouteError(error);

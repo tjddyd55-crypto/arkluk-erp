@@ -48,3 +48,5 @@ next-env.d.ts
 !/storage/purchase-orders/.gitkeep
 /storage/project-files/*
 !/storage/project-files/.gitkeep
+/storage/order-pdfs/*
+!/storage/order-pdfs/.gitkeep

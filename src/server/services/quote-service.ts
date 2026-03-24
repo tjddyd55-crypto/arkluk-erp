@@ -2,6 +2,7 @@ import {
   OrderItemStatus,
   OrderEventType,
   OrderStatus,
+  OrderSupplierStatus,
   Prisma,
   ProductStatus,
   ProjectStatus,
@@ -16,6 +17,7 @@ import { buildDocumentNo } from "@/lib/utils";
 import { createAuditLog } from "@/server/services/audit-log";
 import { createOrderEventLog } from "@/server/services/order-event-log-service";
 import { setProjectStatus } from "@/server/services/project-service";
+import { runPostOrderPoAndEmailPipeline } from "@/server/services/order-supplier-pipeline-service";
 
 type QuoteActor = {
   id: number;
@@ -324,7 +326,7 @@ export async function rejectQuote(quoteId: number, buyerId: number) {
 }
 
 export async function acceptQuote(quoteId: number, buyerId: number) {
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     const quote = await tx.quote.findUnique({
       where: { id: quoteId },
       include: {
@@ -396,7 +398,7 @@ export async function acceptQuote(quoteId: number, buyerId: number) {
       data: supplierIds.map((supplierId) => ({
         order_id: order.id,
         supplier_id: supplierId,
-        status: "WAITING",
+        status: OrderSupplierStatus.PENDING,
       })),
       skipDuplicates: true,
     });
@@ -463,4 +465,10 @@ export async function acceptQuote(quoteId: number, buyerId: number) {
 
     return order;
   });
+
+  void runPostOrderPoAndEmailPipeline(created.id, buyerId).catch((err) => {
+    console.error("[runPostOrderPoAndEmailPipeline]", created.id, err);
+  });
+
+  return created;
 }

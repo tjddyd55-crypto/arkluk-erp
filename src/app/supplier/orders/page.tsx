@@ -6,12 +6,13 @@ import { useTranslation } from "@/hooks/useTranslation";
 type SupplierOrderRow = {
   order_id: number;
   status:
-    | "WAITING"
+    | "PENDING"
     | "SENT"
-    | "SUPPLIER_CONFIRMED"
-    | "DELIVERING"
+    | "CONFIRMED"
+    | "SHIPPING"
     | "COMPLETED"
-    | "CANCELLED";
+    | "CANCELLED"
+    | "REJECTED";
   sent_at: string | null;
   supplier_confirmed_at: string | null;
   expected_delivery_date: string | null;
@@ -25,15 +26,22 @@ type SupplierOrderRow = {
 };
 
 const statusLabelMap: Record<
-  "WAITING" | "SENT" | "SUPPLIER_CONFIRMED" | "DELIVERING" | "COMPLETED" | "CANCELLED",
+  | "PENDING"
+  | "SENT"
+  | "CONFIRMED"
+  | "SHIPPING"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "REJECTED",
   string
 > = {
-  WAITING: "WAITING",
+  PENDING: "PENDING",
   SENT: "SENT",
-  SUPPLIER_CONFIRMED: "SUPPLIER_CONFIRMED",
-  DELIVERING: "DELIVERING",
+  CONFIRMED: "CONFIRMED",
+  SHIPPING: "SHIPPING",
   COMPLETED: "COMPLETED",
   CANCELLED: "CANCELLED",
+  REJECTED: "REJECTED",
 };
 
 export default function SupplierOrdersPage() {
@@ -43,7 +51,7 @@ export default function SupplierOrdersPage() {
   const [error, setError] = useState<string | null>(null);
 
   function getStatusLabel(row: SupplierOrderRow) {
-    if (row.status === "WAITING" && row.order.status === "ASSIGNED") {
+    if (row.status === "PENDING" && row.order.status === "ASSIGNED") {
       return "ASSIGNED";
     }
     return statusLabelMap[row.status];
