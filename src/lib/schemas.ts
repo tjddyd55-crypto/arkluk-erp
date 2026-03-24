@@ -55,9 +55,10 @@ export const supplierCreateSchema = supplierUpsertSchema.extend({
   password: z.string().min(8).max(128),
 });
 
-/** 공급사 수정: 비밀번호는 입력한 경우에만 변경 */
+/** 공급사 수정: loginId·password(8자+)는 선택, 보낸 항목만 반영 */
 export const supplierUpdateSchema = supplierUpsertSchema.partial().extend({
-  newPassword: z.string().min(8).max(128).optional(),
+  loginId: supplierLoginIdSchema.optional(),
+  password: z.string().min(8).max(128).optional(),
 });
 
 export const supplierInvoiceSendersSchema = z.object({

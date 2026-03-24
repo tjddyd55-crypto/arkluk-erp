@@ -37,7 +37,6 @@ type FormState = {
   orderEmail: string;
   loginId: string;
   password: string;
-  newPassword: string;
 };
 
 const INITIAL_FORM: FormState = {
@@ -53,7 +52,6 @@ const INITIAL_FORM: FormState = {
   orderEmail: "",
   loginId: "",
   password: "",
-  newPassword: "",
 };
 
 const statusLabel: Record<SupplierStatus, string> = {
@@ -88,6 +86,11 @@ export function SupplierManagement() {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [actionSupplierId, setActionSupplierId] = useState<number | null>(null);
   const [showCompanyCodes, setShowCompanyCodes] = useState(false);
+  /** 수정 시 중복 검사에서 제외할 User.id (해당 공급사 대표 계정) */
+  const [editingSupplierUserId, setEditingSupplierUserId] = useState<number | null>(null);
+  const [loginIdCheckState, setLoginIdCheckState] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle");
   /** 생성 직후 복사용(서버에 다시 안 나옴) */
   const [lastCreatedCredentials, setLastCreatedCredentials] = useState<{
     loginId: string;
@@ -126,6 +129,8 @@ export function SupplierManagement() {
 
   function openCreateForm() {
     setEditingId(null);
+    setEditingSupplierUserId(null);
+    setLoginIdCheckState("idle");
     setForm(INITIAL_FORM);
     setFormOpen(true);
     setError(null);
@@ -135,6 +140,8 @@ export function SupplierManagement() {
 
   function openEditForm(supplier: Supplier) {
     setEditingId(supplier.id);
+    setEditingSupplierUserId(supplier.users?.[0]?.id ?? null);
+    setLoginIdCheckState("idle");
     setForm({
       companyName: supplier.company_name,
       countryCode: supplier.country_code,
@@ -146,14 +153,48 @@ export function SupplierManagement() {
       address: supplier.address ?? "",
       status: supplier.status,
       orderEmail: supplier.order_email,
-      loginId: "",
+      loginId: supplier.users?.[0]?.login_id ?? "",
       password: "",
-      newPassword: "",
     });
     setFormOpen(true);
     setError(null);
     setMessage(null);
     setLastCreatedCredentials(null);
+  }
+
+  async function checkLoginIdDuplicate() {
+    if (/\s/.test(form.loginId)) {
+      setLoginIdCheckState("invalid");
+      return;
+    }
+    const raw = form.loginId.trim();
+    if (raw.length < 3) {
+      setLoginIdCheckState("invalid");
+      return;
+    }
+    setLoginIdCheckState("checking");
+    try {
+      const params = new URLSearchParams({ loginId: raw });
+      if (editingSupplierUserId != null) {
+        params.set("excludeUserId", String(editingSupplierUserId));
+      }
+      const response = await fetch(`/api/admin/users/check-login-id?${params.toString()}`);
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        setLoginIdCheckState("invalid");
+        return;
+      }
+      const data = result.data as { available: boolean; reason?: string };
+      if (data.available) {
+        setLoginIdCheckState("available");
+      } else if (data.reason === "SHORT" || data.reason === "WHITESPACE") {
+        setLoginIdCheckState("invalid");
+      } else {
+        setLoginIdCheckState("taken");
+      }
+    } catch {
+      setLoginIdCheckState("invalid");
+    }
   }
 
   async function submitForm() {
@@ -165,15 +206,17 @@ export function SupplierManagement() {
       return;
     }
 
-    if (editingId === null) {
-      if (!form.loginId.trim()) {
-        setError("로그인 아이디는 필수입니다.");
-        return;
-      }
-      if (form.password.length < 8) {
-        setError("비밀번호는 8자 이상이어야 합니다.");
-        return;
-      }
+    if (!form.loginId.trim()) {
+      setError("로그인 아이디는 필수입니다.");
+      return;
+    }
+    if (editingId === null && form.password.length < 8) {
+      setError("비밀번호는 8자 이상이어야 합니다.");
+      return;
+    }
+    if (editingId !== null && form.password.trim() !== "" && form.password.length < 8) {
+      setError("비밀번호를 변경할 경우 8자 이상이어야 합니다.");
+      return;
     }
 
     setSubmitting(true);
@@ -203,9 +246,8 @@ export function SupplierManagement() {
             }
           : {
               ...basePayload,
-              ...(form.newPassword.trim().length >= 8
-                ? { newPassword: form.newPassword }
-                : {}),
+              loginId: form.loginId.trim(),
+              ...(form.password.trim().length >= 8 ? { password: form.password } : {}),
             };
 
       const response = await fetch(targetUrl, {
@@ -232,6 +274,8 @@ export function SupplierManagement() {
         setMessage("공급사 정보가 수정되었습니다.");
         setFormOpen(false);
         setEditingId(null);
+        setEditingSupplierUserId(null);
+        setLoginIdCheckState("idle");
         setForm(INITIAL_FORM);
       }
       await loadSuppliers();
@@ -344,42 +388,67 @@ export function SupplierManagement() {
           <h3 className="text-sm font-semibold text-slate-900">
             {editingId === null ? "공급사 추가" : "공급사 수정"}
           </h3>
-          {editingId === null ? (
-            <div className="mt-2 space-y-2 rounded border border-slate-200 bg-white p-2">
-              <p className="text-xs font-medium text-slate-700">로그인 계정 (필수)</p>
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                <input
-                  value={form.loginId}
-                  onChange={(e) => setForm((prev) => ({ ...prev, loginId: e.target.value }))}
-                  className="rounded border border-slate-300 px-2 py-1 text-sm"
-                  placeholder="로그인 아이디 (이메일 또는 사용자명)"
-                  autoComplete="off"
-                />
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
-                  className="rounded border border-slate-300 px-2 py-1 text-sm"
-                  placeholder="비밀번호 (8자 이상)"
-                  autoComplete="new-password"
-                />
+          <div className="mt-2 space-y-2 rounded border border-slate-200 bg-white p-2">
+            <p className="text-xs font-medium text-slate-700">로그인 계정</p>
+            <p className="text-xs text-slate-500">
+              {editingId === null
+                ? "아이디·비밀번호는 필수입니다."
+                : "아이디를 변경할 수 있습니다. 비밀번호는 변경할 때만 입력(8자 이상)하면 됩니다."}
+            </p>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <div className="flex gap-1.5">
+                  <input
+                    value={form.loginId}
+                    onChange={(e) => {
+                      setLoginIdCheckState("idle");
+                      setForm((prev) => ({ ...prev, loginId: e.target.value }));
+                    }}
+                    className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1 text-sm"
+                    placeholder="로그인 아이디 (이메일 또는 사용자명)"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    className="shrink-0 rounded border border-slate-400 bg-white px-2.5 py-1 text-xs font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+                    disabled={
+                      loginIdCheckState === "checking" ||
+                      form.loginId.trim().length < 3 ||
+                      /\s/.test(form.loginId)
+                    }
+                    onClick={() => void checkLoginIdDuplicate()}
+                  >
+                    {loginIdCheckState === "checking" ? "확인 중…" : "중복 확인"}
+                  </button>
+                </div>
+                {loginIdCheckState === "available" ? (
+                  <span className="text-xs text-emerald-600">사용 가능한 아이디입니다.</span>
+                ) : null}
+                {loginIdCheckState === "taken" ? (
+                  <span className="text-xs text-red-600">이미 사용 중인 아이디입니다.</span>
+                ) : null}
+                {loginIdCheckState === "invalid" ? (
+                  <span className="text-xs text-amber-700">
+                    {/\s/.test(form.loginId)
+                      ? "아이디에 공백을 사용할 수 없습니다."
+                      : "3자 이상 입력한 뒤 확인해 주세요."}
+                  </span>
+                ) : null}
               </div>
-            </div>
-          ) : (
-            <div className="mt-2 space-y-2 rounded border border-slate-200 bg-white p-2">
-              <p className="text-xs text-slate-600">
-                비밀번호를 바꿀 때만 아래에 입력하세요. 비워 두면 유지됩니다.
-              </p>
               <input
                 type="password"
-                value={form.newPassword}
-                onChange={(e) => setForm((prev) => ({ ...prev, newPassword: e.target.value }))}
-                className="w-full max-w-md rounded border border-slate-300 px-2 py-1 text-sm"
-                placeholder="새 비밀번호 (8자 이상, 변경 시만)"
+                value={form.password}
+                onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                className="rounded border border-slate-300 px-2 py-1 text-sm"
+                placeholder={
+                  editingId === null
+                    ? "비밀번호 (8자 이상)"
+                    : "비밀번호 (변경 시만 입력, 8자 이상)"
+                }
                 autoComplete="new-password"
               />
             </div>
-          )}
+          </div>
           <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
             <input
               value={form.companyName}
@@ -464,6 +533,8 @@ export function SupplierManagement() {
               onClick={() => {
                 setFormOpen(false);
                 setEditingId(null);
+                setEditingSupplierUserId(null);
+                setLoginIdCheckState("idle");
                 setForm(INITIAL_FORM);
                 setLastCreatedCredentials(null);
               }}
@@ -476,6 +547,8 @@ export function SupplierManagement() {
                 className="rounded border border-slate-300 px-3 py-1 text-sm"
                 onClick={() => {
                   setFormOpen(false);
+                  setEditingSupplierUserId(null);
+                  setLoginIdCheckState("idle");
                   setForm(INITIAL_FORM);
                 }}
               >

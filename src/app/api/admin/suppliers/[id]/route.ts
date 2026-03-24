@@ -10,6 +10,10 @@ import { createAuditLog } from "@/server/services/audit-log";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "KOREA_SUPPLY_ADMIN", "ADMIN"] as const;
 
+function normalizeLoginId(raw: string) {
+  return raw.trim().toLowerCase();
+}
+
 function resolveSupplierStatus(
   inputStatus?: "PENDING" | "ACTIVE" | "INACTIVE" | "SUSPENDED",
   inputIsActive?: boolean,
@@ -88,8 +92,68 @@ export async function PATCH(
       },
     });
 
-    if (parsed.data.newPassword && parsed.data.newPassword.trim() !== "") {
-      const passwordHash = await hashPassword(parsed.data.newPassword);
+    const contactEmailLower = parsed.data.contactEmail?.toLowerCase() ?? updated.contact_email;
+    const newLoginRaw = parsed.data.loginId?.trim();
+    const newLogin = newLoginRaw ? normalizeLoginId(newLoginRaw) : null;
+    const newPasswordPlain =
+      parsed.data.password != null && String(parsed.data.password).trim() !== ""
+        ? parsed.data.password
+        : null;
+
+    let supplierUser = await prisma.user.findFirst({
+      where: { supplier_id: supplierId, role: Role.SUPPLIER },
+      orderBy: { id: "asc" },
+    });
+
+    let skipPasswordHashUpdate = false;
+
+    if (newLogin) {
+      if (supplierUser) {
+        if (supplierUser.login_id !== newLogin) {
+          const conflict = await prisma.user.findFirst({
+            where: { login_id: newLogin, id: { not: supplierUser.id } },
+            select: { id: true },
+          });
+          if (conflict) {
+            throw new HttpError(409, "이미 사용 중인 로그인 아이디입니다.");
+          }
+          await prisma.user.update({
+            where: { id: supplierUser.id },
+            data: {
+              login_id: newLogin,
+              email: newLogin.includes("@")
+                ? newLogin
+                : contactEmailLower ?? supplierUser.email,
+            },
+          });
+        }
+      } else {
+        if (!newPasswordPlain) {
+          throw new HttpError(
+            400,
+            "이 공급사에 로그인 계정이 없습니다. 아이디와 비밀번호를 함께 입력해 주세요.",
+          );
+        }
+        const passwordHash = await hashPassword(newPasswordPlain);
+        const displayName =
+          parsed.data.contactName?.trim() || parsed.data.companyName?.trim() || updated.company_name;
+        await prisma.user.create({
+          data: {
+            login_id: newLogin,
+            password_hash: passwordHash,
+            name: displayName,
+            email: newLogin.includes("@") ? newLogin : contactEmailLower ?? null,
+            role: Role.SUPPLIER,
+            supplier_id: supplierId,
+            is_active: true,
+          },
+        });
+        skipPasswordHashUpdate = true;
+      }
+    }
+
+    if (newPasswordPlain && !skipPasswordHashUpdate) {
+      const passwordHash = await hashPassword(newPasswordPlain);
       await prisma.user.updateMany({
         where: {
           supplier_id: supplierId,
