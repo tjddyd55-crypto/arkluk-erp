@@ -11,7 +11,7 @@ const bodySchema = z.object({
 
 export const runtime = "nodejs";
 
-/** 본인 `product-images/{supplierId}/...` 객체만 삭제한다. */
+/** 본인 `arklux/{company_code}/...` 또는 레거시 `product-images/{supplierId}/...` 만 삭제한다. */
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth(request, ["SUPPLIER"]);

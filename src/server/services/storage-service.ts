@@ -24,6 +24,50 @@ export function normalizeStorageKey(storedPath: string): string {
   return s.replace(/^storage\//, "");
 }
 
+/** 플랫폼 정적 자산 R2 키 프리픽스 (버킷은 R2_BUCKET_NAME, 예: platform-assets). */
+export const ARKLUX_PLATFORM_PREFIX = "arklux";
+
+/**
+ * company_code를 객체 경로 세그먼트로 쓸 수 있는지 검증한다.
+ * 회사명이 아닌 DB `Supplier.company_code`만 사용한다.
+ */
+export function assertSafeCompanyCodeSegment(companyCode: string): string {
+  const s = companyCode.trim();
+  if (!s) {
+    throw new Error("company_code가 비어 있습니다.");
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(s)) {
+    throw new Error("company_code에 스토리지 경로에 사용할 수 없는 문자가 포함되어 있습니다.");
+  }
+  return s;
+}
+
+/**
+ * 논리 조합 `companyCode` + `fileName` → R2 키 `arklux/{companyCode}/{fileName}`.
+ * fileName은 단일 세그먼트(슬래시·.. 금지).
+ */
+export function buildArkluxAssetObjectKey(companyCode: string, fileName: string): string {
+  const code = assertSafeCompanyCodeSegment(companyCode);
+  const base = fileName.trim().replace(/\\/g, "/");
+  if (!base || base.includes("/") || base.includes("..")) {
+    throw new Error("유효하지 않은 파일명입니다.");
+  }
+  return `${ARKLUX_PLATFORM_PREFIX}/${code}/${base}`;
+}
+
+/**
+ * 공급사 상품 이미지: `arklux/{companyCode}/{fileName}` 키로 저장하고, DB에 넣을 동일 키 문자열을 반환한다.
+ */
+export async function saveArkluxSupplierProductImage(
+  buffer: Buffer,
+  companyCode: string,
+  fileName: string,
+  contentType: string,
+): Promise<string> {
+  const key = buildArkluxAssetObjectKey(companyCode, fileName);
+  return saveFile(buffer, key, contentType);
+}
+
 function localFileAbsolutePath(storedPath: string): string {
   const normalized = storedPath.trim().replace(/\\/g, "/");
   const segments = normalized.split("/").filter(Boolean);
