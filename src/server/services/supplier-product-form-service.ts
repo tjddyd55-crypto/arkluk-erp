@@ -20,6 +20,10 @@ export type ProductFormFieldInput = {
   fieldType: SupplierProductFieldType;
   isRequired?: boolean;
   isEnabled?: boolean;
+  /** 바이어 카탈로그 리스트 대표 표시명 */
+  isPrimaryName?: boolean;
+  /** 바이어 카탈로그 리스트 대표 단가 (NUMBER 권장) */
+  isPrimaryPrice?: boolean;
   sortOrder?: number;
   placeholderText?: string | null;
   helpText?: string | null;
@@ -31,7 +35,14 @@ export type SupplierProductFormSeedField = ProductFormFieldInput & { fieldKey: s
 
 export const DEFAULT_SUPPLIER_PRODUCT_FIELDS: SupplierProductFormSeedField[] = [
   { fieldKey: "sku", fieldLabel: "SKU", fieldType: SupplierProductFieldType.TEXT, isRequired: true, sortOrder: 10 },
-  { fieldKey: "name", fieldLabel: "상품명", fieldType: SupplierProductFieldType.TEXT, isRequired: true, sortOrder: 20 },
+  {
+    fieldKey: "name",
+    fieldLabel: "상품명",
+    fieldType: SupplierProductFieldType.TEXT,
+    isRequired: true,
+    sortOrder: 20,
+    isPrimaryName: true,
+  },
   {
     fieldKey: "specification",
     fieldLabel: "규격",
@@ -45,6 +56,7 @@ export const DEFAULT_SUPPLIER_PRODUCT_FIELDS: SupplierProductFormSeedField[] = [
     fieldType: SupplierProductFieldType.NUMBER,
     isRequired: true,
     sortOrder: 40,
+    isPrimaryPrice: true,
     validationJson: { min: 0.01 },
   },
   {
@@ -144,6 +156,8 @@ function normalizeFieldInput(input: ProductFormFieldInput, index: number): Norma
     fieldLabel: resolvePersistedFieldLabel(input),
     isRequired: input.isRequired ?? false,
     isEnabled: input.isEnabled ?? true,
+    isPrimaryName: input.isPrimaryName ?? false,
+    isPrimaryPrice: input.isPrimaryPrice ?? false,
     sortOrder: input.sortOrder ?? (index + 1) * 10,
     placeholderText: input.placeholderText?.trim() || null,
     helpText: input.helpText?.trim() || null,
@@ -224,6 +238,8 @@ async function createDefaultForm(
           field_type: field.fieldType,
           is_required: field.isRequired ?? false,
           is_enabled: true,
+          is_primary_name: field.isPrimaryName ?? false,
+          is_primary_price: field.isPrimaryPrice ?? false,
           sort_order: field.sortOrder ?? 0,
           placeholder_text: field.placeholderText ?? null,
           help_text: field.helpText ?? null,
@@ -265,6 +281,8 @@ export async function ensureSupplierActiveProductForm(
         field_type: field.fieldType,
         is_required: field.isRequired ?? false,
         is_enabled: true,
+        is_primary_name: field.isPrimaryName ?? false,
+        is_primary_price: field.isPrimaryPrice ?? false,
         sort_order: field.sortOrder ?? 0,
         placeholder_text: field.placeholderText ?? null,
         help_text: field.helpText ?? null,
@@ -356,6 +374,8 @@ export async function saveSupplierProductForm(input: {
             field_type: field.fieldType,
             is_required: field.isRequired ?? false,
             is_enabled: field.isEnabled ?? true,
+            is_primary_name: field.isPrimaryName ?? false,
+            is_primary_price: field.isPrimaryPrice ?? false,
             sort_order: field.sortOrder ?? 0,
             placeholder_text: field.placeholderText ?? null,
             help_text: field.helpText ?? null,
@@ -374,6 +394,8 @@ export async function saveSupplierProductForm(input: {
             field_type: field.fieldType,
             is_required: field.isRequired ?? false,
             is_enabled: field.isEnabled ?? true,
+            is_primary_name: field.isPrimaryName ?? false,
+            is_primary_price: field.isPrimaryPrice ?? false,
             sort_order: field.sortOrder ?? 0,
             placeholder_text: field.placeholderText ?? null,
             help_text: field.helpText ?? null,

@@ -150,6 +150,8 @@ export const supplierProductFormFieldSchema = z.object({
   fieldType: supplierProductFieldTypeSchema,
   isRequired: z.boolean().optional(),
   isEnabled: z.boolean().optional(),
+  isPrimaryName: z.boolean().optional(),
+  isPrimaryPrice: z.boolean().optional(),
   sortOrder: z.preprocess((v) => {
     if (v === null || v === undefined || v === "") return undefined;
     const n = typeof v === "number" ? v : Number(v);
@@ -290,6 +292,25 @@ export const createOrderSchema = z.object({
       }),
     )
     .min(1),
+});
+
+export const buyerCartAddSchema = z.object({
+  productId: positiveNumber,
+  quantity: z.coerce.number().positive(),
+});
+
+export const buyerCartItemPatchSchema = z.object({
+  itemId: positiveNumber,
+  quantity: z.coerce.number().positive(),
+});
+
+export const buyerCartItemDeleteSchema = z.object({
+  itemId: positiveNumber,
+});
+
+export const buyerOrderCheckoutFromCartSchema = z.object({
+  checkoutFromCart: z.literal(true),
+  memo: z.string().max(1000).optional().nullable(),
 });
 
 export const createCountryOrderDraftSchema = z.object({

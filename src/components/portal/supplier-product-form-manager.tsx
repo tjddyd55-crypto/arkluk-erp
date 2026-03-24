@@ -19,6 +19,8 @@ type FormFieldRow = {
   fieldType: "TEXT" | "TEXTAREA" | "NUMBER" | "SELECT" | "BOOLEAN" | "DATE";
   isRequired: boolean;
   isEnabled: boolean;
+  isPrimaryName: boolean;
+  isPrimaryPrice: boolean;
   sortOrder: number;
   placeholderText: string;
   helpText: string;
@@ -41,6 +43,8 @@ type ProductFormResponse = {
     placeholder_text: string | null;
     help_text: string | null;
     validation_json: unknown;
+    is_primary_name?: boolean;
+    is_primary_price?: boolean;
   }>;
 };
 
@@ -94,6 +98,8 @@ function buildSaveFields(rows: FormFieldRow[]) {
       fieldType: row.fieldType,
       isRequired: row.isRequired,
       isEnabled: row.isEnabled,
+      isPrimaryName: row.isPrimaryName,
+      isPrimaryPrice: row.isPrimaryPrice,
       sortOrder: row.sortOrder,
       placeholderText: row.placeholderText.trim() || null,
       helpText: row.helpText.trim() || null,
@@ -110,6 +116,8 @@ function mapField(field: ProductFormResponse["fields"][number]): FormFieldRow {
     fieldType: field.field_type,
     isRequired: field.is_required,
     isEnabled: field.is_enabled,
+    isPrimaryName: field.is_primary_name ?? false,
+    isPrimaryPrice: field.is_primary_price ?? false,
     sortOrder: field.sort_order,
     placeholderText: field.placeholder_text ?? "",
     helpText: field.help_text ?? "",
@@ -150,7 +158,7 @@ export function SupplierProductFormManager() {
   const displayRows = useMemo(() => sortRowsForDisplay(rows), [rows]);
 
   const baseColCount = 8;
-  const advancedColCount = 2;
+  const advancedColCount = 4;
   const totalColCount = baseColCount + (showAdvancedSettings ? advancedColCount : 0);
 
   useEffect(() => {
@@ -256,6 +264,8 @@ export function SupplierProductFormManager() {
           fieldType: newFieldType,
           isRequired: false,
           isEnabled: true,
+          isPrimaryName: false,
+          isPrimaryPrice: false,
           sortOrder: nextSort,
           placeholderText: "",
           helpText: "",
@@ -392,7 +402,7 @@ export function SupplierProductFormManager() {
                 checked={showAdvancedSettings}
                 onChange={(e) => setShowAdvancedSettings(e.target.checked)}
               />
-              고급 설정 (내부키·validation)
+              고급 설정 (내부키·validation·바이어 대표필드)
             </label>
           </div>
 
@@ -458,6 +468,12 @@ export function SupplierProductFormManager() {
                     <>
                       <th className="border-b border-slate-200 px-2 py-2">validation (JSON)</th>
                       <th className="border-b border-slate-200 px-2 py-2">내부키</th>
+                      <th className="border-b border-slate-200 px-2 py-2 text-center" title="바이어 상품 목록 대표명">
+                        대표명
+                      </th>
+                      <th className="border-b border-slate-200 px-2 py-2 text-center" title="바이어 상품 목록 대표 단가">
+                        대표가
+                      </th>
                     </>
                   ) : null}
                   <th className="border-b border-slate-200 px-2 py-2 text-center">비활성화</th>
@@ -583,6 +599,30 @@ export function SupplierProductFormManager() {
                             >
                               {row.fieldKey || "— (저장 시 부여)"}
                             </span>
+                          </td>
+                          <td className="border-b border-slate-100 px-2 py-2 text-center">
+                            <input
+                              type="checkbox"
+                              checked={row.isPrimaryName}
+                              onChange={(e) =>
+                                stateIdx >= 0 &&
+                                updateField(stateIdx, { isPrimaryName: e.target.checked })
+                              }
+                              disabled={stateIdx < 0}
+                              title="바이어 목록 대표 표시명"
+                            />
+                          </td>
+                          <td className="border-b border-slate-100 px-2 py-2 text-center">
+                            <input
+                              type="checkbox"
+                              checked={row.isPrimaryPrice}
+                              onChange={(e) =>
+                                stateIdx >= 0 &&
+                                updateField(stateIdx, { isPrimaryPrice: e.target.checked })
+                              }
+                              disabled={stateIdx < 0}
+                              title="바이어 목록 대표 단가(숫자 필드 권장)"
+                            />
                           </td>
                         </>
                       ) : null}

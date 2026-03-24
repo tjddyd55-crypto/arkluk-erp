@@ -36,7 +36,9 @@ const koreaSupplyAdminMenu: MenuItem[] = [
 
 const buyerMenu: MenuItem[] = [
   { href: "/buyer", labelKey: "dashboard" },
-  { href: "/buyer/orders", labelKey: "my_orders" },
+  { href: "/buyer/shop", labelKey: "buyer_shop_order" },
+  { href: "/buyer/cart", labelKey: "buyer_cart_menu" },
+  { href: "/buyer/orders", labelKey: "buyer_order_history" },
   { href: "/buyer/profile", labelKey: "profile" },
 ];
 

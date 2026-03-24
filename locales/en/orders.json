@@ -11,5 +11,21 @@
   "order_created": "Order created",
   "order_failed": "Order failed",
   "buyer": "Buyer",
-  "country": "Country"
+  "country": "Country",
+  "buyer_shop_order": "Order products",
+  "buyer_cart_menu": "Cart",
+  "buyer_order_history": "Order history",
+  "buyer_shop_hint": "Pick a supplier to see products rendered from that supplier's form. Only primary fields are shown in the list.",
+  "buyer_cart_hint": "Items are grouped by supplier. Checkout creates one combined order.",
+  "buyer_selected_supplier": "Supplier",
+  "buyer_form_label": "Form",
+  "buyer_qty": "Qty",
+  "buyer_add_cart": "Add to cart",
+  "buyer_invalid_qty": "Quantity must be a number ≥ 1.",
+  "buyer_added_to_cart": "Added to cart.",
+  "buyer_cart_empty": "Your cart is empty.",
+  "buyer_unit_price": "Unit price",
+  "buyer_cart_total": "Total",
+  "buyer_place_order": "Place order",
+  "buyer_checkout_done": "Order created."
 }

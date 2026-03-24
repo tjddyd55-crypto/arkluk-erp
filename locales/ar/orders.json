@@ -11,5 +11,21 @@
   "order_created": "تم إنشاء الطلب",
   "order_failed": "فشل الطلب",
   "buyer": "المشتري",
-  "country": "الدولة"
+  "country": "الدولة",
+  "buyer_shop_order": "طلب منتجات",
+  "buyer_cart_menu": "سلة التسوق",
+  "buyer_order_history": "سجل الطلبات",
+  "buyer_shop_hint": "اختر مورداً لعرض المنتجات حسب نموذجه. تُعرض الحقول الأساسية فقط في القائمة.",
+  "buyer_cart_hint": "العناصر مجمّعة حسب المورد. يمكن إنشاء طلب واحد.",
+  "buyer_selected_supplier": "المورد المحدد",
+  "buyer_form_label": "النموذج",
+  "buyer_qty": "الكمية",
+  "buyer_add_cart": "أضف إلى السلة",
+  "buyer_invalid_qty": "يجب أن تكون الكمية رقماً ≥ 1.",
+  "buyer_added_to_cart": "تمت الإضافة إلى السلة.",
+  "buyer_cart_empty": "السلة فارغة.",
+  "buyer_unit_price": "سعر الوحدة",
+  "buyer_cart_total": "الإجمالي",
+  "buyer_place_order": "تأكيد الطلب",
+  "buyer_checkout_done": "تم إنشاء الطلب."
 }

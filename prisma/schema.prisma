@@ -230,6 +230,7 @@ model Supplier {
   users                       User[]
   categories                  Category[]
   products                    Product[]
+  cart_items                  CartItem[]
   order_items                 OrderItem[]
   order_assignments           OrderAssignment[]
   order_suppliers             OrderSupplier[]
@@ -306,6 +307,7 @@ model Product {
   updated_at        DateTime   @updatedAt
   supplier          Supplier   @relation(fields: [supplier_id], references: [id])
   category          Category   @relation(fields: [category_id], references: [id])
+  cart_items        CartItem[]
   order_items       OrderItem[]
   quote_items       QuoteItem[]
   approval_logs     ProductApprovalLog[]
@@ -361,6 +363,10 @@ model SupplierProductField {
   field_type       SupplierProductFieldType
   is_required      Boolean   @default(false)
   is_enabled       Boolean   @default(true)
+  /** 바이어 카탈로그·장바구니 리스트 대표 표시명 */
+  is_primary_name  Boolean   @default(false)
+  /** 바이어 카탈로그·장바구니 리스트 대표 단가 (NUMBER 필드만 유효) */
+  is_primary_price Boolean   @default(false)
   sort_order       Int       @default(0)
   placeholder_text String?
   help_text        String?
@@ -445,9 +451,39 @@ model User {
   created_supplier_product_forms SupplierProductForm[] @relation("SupplierProductFormCreatedBy")
   updated_supplier_product_forms SupplierProductForm[] @relation("SupplierProductFormUpdatedBy")
   reviewed_supplier_product_field_requests SupplierProductFieldRequest[] @relation("SupplierProductFieldRequestReviewedBy")
+  buyer_cart        Cart?
 
   @@index([role, is_active])
   @@index([country_id])
+  @@index([supplier_id])
+}
+
+model Cart {
+  id         Int        @id @default(autoincrement())
+  buyer_id   Int        @unique
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+  buyer      User       @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
+  items      CartItem[]
+
+  @@index([buyer_id])
+}
+
+model CartItem {
+  id             Int      @id @default(autoincrement())
+  cart_id        Int
+  product_id     Int
+  supplier_id    Int
+  quantity       Decimal  @db.Decimal(18, 3)
+  price_snapshot Decimal  @db.Decimal(18, 2)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+  cart           Cart     @relation(fields: [cart_id], references: [id], onDelete: Cascade)
+  product        Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  supplier       Supplier @relation(fields: [supplier_id], references: [id], onDelete: Cascade)
+
+  @@unique([cart_id, product_id])
+  @@index([cart_id])
   @@index([supplier_id])
 }
 

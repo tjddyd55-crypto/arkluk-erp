@@ -11,5 +11,21 @@
   "order_created": "Захиалга үүссэн",
   "order_failed": "Захиалга амжилтгүй",
   "buyer": "Худалдан авагч",
-  "country": "Улс"
+  "country": "Улс",
+  "buyer_shop_order": "Бараа захиалах",
+  "buyer_cart_menu": "Сагс",
+  "buyer_order_history": "Захиалгын түүх",
+  "buyer_shop_hint": "Нийлүүлэгчийг сонгоход тухайн маягтын дагуу бараа харагдана. Жагсаалтад зөвхөн үндсэн талбарууд.",
+  "buyer_cart_hint": "Нийлүүлэгчээр бүлэглэгдсэн. Нэг захиалгаар төлөх боломжтой.",
+  "buyer_selected_supplier": "Сонгосон нийлүүлэгч",
+  "buyer_form_label": "Маягт",
+  "buyer_qty": "Тоо",
+  "buyer_add_cart": "Сагсанд нэмэх",
+  "buyer_invalid_qty": "Тоо нь 1-ээс багагүй тоо байх ёстой.",
+  "buyer_added_to_cart": "Сагсанд нэмэгдлээ.",
+  "buyer_cart_empty": "Сагс хоосон байна.",
+  "buyer_unit_price": "Нэгж үнэ",
+  "buyer_cart_total": "Нийт",
+  "buyer_place_order": "Захиалах",
+  "buyer_checkout_done": "Захиалга үүслээ."
 }

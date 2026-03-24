@@ -34,6 +34,14 @@ import {
   upsertPurchaseOrderRecord,
 } from "@/server/services/purchase-order-service";
 
+type OrderLineSnapshots = {
+  productCode: string;
+  productName: string;
+  spec: string;
+  unit: string;
+  unitPrice: Prisma.Decimal | string | number;
+};
+
 type CreateOrderInput = {
   buyerId: number;
   projectId?: number | null;
@@ -42,6 +50,8 @@ type CreateOrderInput = {
     productId: number;
     qty: number;
     memo?: string | null;
+    /** 동적 필드 기반 스냅샷(장바구니 등). 없으면 기존 Product 컬럼 사용 */
+    lineSnapshots?: OrderLineSnapshots;
   }>;
 };
 
@@ -227,6 +237,11 @@ export async function createOrder(input: CreateOrderInput) {
 
       supplierIds.add(product.supplier_id);
 
+      const snap = item.lineSnapshots;
+      const unitPriceDec = snap
+        ? new Prisma.Decimal(snap.unitPrice)
+        : product.price;
+
       await tx.orderItem.create({
         data: {
           order_id: order.id,
@@ -234,13 +249,13 @@ export async function createOrder(input: CreateOrderInput) {
           status: OrderItemStatus.CREATED,
           category_id: product.category_id,
           product_id: product.id,
-          product_code_snapshot: product.product_code,
-          product_name_snapshot: product.product_name,
-          spec_snapshot: product.spec,
-          unit_snapshot: product.unit,
-          price_snapshot: product.price,
+          product_code_snapshot: snap?.productCode ?? product.product_code,
+          product_name_snapshot: snap?.productName ?? product.product_name,
+          spec_snapshot: snap?.spec ?? product.spec,
+          unit_snapshot: snap?.unit ?? product.unit,
+          price_snapshot: unitPriceDec,
           qty: new Prisma.Decimal(item.qty),
-          amount: calcAmount(product.price, item.qty),
+          amount: calcAmount(unitPriceDec, item.qty),
           memo: item.memo ?? null,
         },
       });

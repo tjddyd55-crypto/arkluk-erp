@@ -11,5 +11,21 @@
   "order_created": "주문 생성 완료",
   "order_failed": "주문 처리 실패",
   "buyer": "바이어",
-  "country": "국가"
+  "country": "국가",
+  "buyer_shop_order": "상품 주문하기",
+  "buyer_cart_menu": "장바구니",
+  "buyer_order_history": "주문 내역",
+  "buyer_shop_hint": "공급사를 선택하면 해당 폼 구조에 맞는 상품만 표시됩니다. 목록에는 대표 필드만 보입니다.",
+  "buyer_cart_hint": "공급사별로 묶어 확인한 뒤 통합 주문할 수 있습니다.",
+  "buyer_selected_supplier": "선택 공급사",
+  "buyer_form_label": "적용 폼",
+  "buyer_qty": "수량",
+  "buyer_add_cart": "장바구니 담기",
+  "buyer_invalid_qty": "수량은 1 이상의 숫자여야 합니다.",
+  "buyer_added_to_cart": "장바구니에 담았습니다.",
+  "buyer_cart_empty": "장바구니가 비어 있습니다.",
+  "buyer_unit_price": "단가",
+  "buyer_cart_total": "합계",
+  "buyer_place_order": "주문하기",
+  "buyer_checkout_done": "주문이 생성되었습니다."
 }

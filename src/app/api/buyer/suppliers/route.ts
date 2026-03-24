@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ProductStatus } from "@prisma/client";
+import { ProductStatus, SupplierStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, ok } from "@/lib/http";
@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const suppliers = await prisma.supplier.findMany({
       where: {
         is_active: true,
+        status: SupplierStatus.ACTIVE,
         products: {
           some: {
             is_active: true,
