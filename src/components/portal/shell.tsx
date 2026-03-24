@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
+import { BuyerSideNav } from "@/components/portal/buyer-side-nav";
 import { NotificationBell } from "@/components/portal/notification-bell";
 import { useTranslation } from "@/hooks/useTranslation";
 import { loadLanguage, type SupportedLanguage } from "@/lib/i18n";
@@ -34,14 +35,6 @@ const koreaSupplyAdminMenu: MenuItem[] = [
   { href: "/admin/translations", labelKey: "translations" },
 ];
 
-const buyerMenu: MenuItem[] = [
-  { href: "/buyer", labelKey: "dashboard" },
-  { href: "/buyer/shop", labelKey: "buyer_shop_order" },
-  { href: "/buyer/cart", labelKey: "buyer_cart_menu" },
-  { href: "/buyer/orders", labelKey: "buyer_order_history" },
-  { href: "/buyer/profile", labelKey: "profile" },
-];
-
 const supplierMenu: MenuItem[] = [
   { href: "/supplier", labelKey: "dashboard" },
   { href: "/supplier/orders", labelKey: "my_orders" },
@@ -50,7 +43,7 @@ const supplierMenu: MenuItem[] = [
 ];
 
 function getMenu(pathname: string, role: string | null) {
-  if (pathname.startsWith("/buyer")) return buyerMenu;
+  if (pathname.startsWith("/buyer")) return [];
   if (pathname.startsWith("/supplier")) return supplierMenu;
   if (role === "SUPER_ADMIN") {
     return superAdminMenu;
@@ -67,6 +60,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<string | null>(null);
   const { t, language, setLanguage, isRTL } = useTranslation();
   const menu = getMenu(pathname, role);
+  const isBuyerPortal = pathname.startsWith("/buyer");
 
   useEffect(() => {
     async function loadMe() {
@@ -110,19 +104,23 @@ export function PortalShell({ children }: { children: ReactNode }) {
       <aside className={`w-60 border-slate-200 bg-white p-4 ${isRTL ? "border-l" : "border-r"}`}>
         <h1 className="text-lg font-bold">{t("app_name")}</h1>
         <nav className="mt-4 space-y-1">
-          {menu.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`block rounded px-3 py-2 text-sm ${
-                pathname === item.href
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              {t(item.labelKey)}
-            </Link>
-          ))}
+          {isBuyerPortal ? (
+            <BuyerSideNav />
+          ) : (
+            menu.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`block rounded px-3 py-2 text-sm ${
+                  pathname === item.href
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                {t(item.labelKey)}
+              </Link>
+            ))
+          )}
         </nav>
         <button
           onClick={onLogout}

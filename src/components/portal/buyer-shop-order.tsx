@@ -1,14 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { useTranslation } from "@/hooks/useTranslation";
-
-type SupplierRow = {
-  id: number;
-  supplier_name: string;
-  company_name: string | null;
-};
 
 type ProductRow = {
   id: number;
@@ -23,57 +18,32 @@ type ProductsPayload = {
   products: ProductRow[];
 };
 
+function parseSupplierId(raw: string | null): number | null {
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) return null;
+  return n;
+}
+
 export function BuyerShopOrder() {
   const { t } = useTranslation();
-  const [suppliers, setSuppliers] = useState<SupplierRow[]>([]);
-  const [supplierId, setSupplierId] = useState<number | "">("");
+  const searchParams = useSearchParams();
+  const supplierId = parseSupplierId(searchParams.get("supplierId"));
+
   const [payload, setPayload] = useState<ProductsPayload | null>(null);
   const [quantities, setQuantities] = useState<Record<number, string>>({});
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const supplierLabel = useMemo(() => {
-    if (supplierId === "") return "";
-    const s = suppliers.find((x) => x.id === supplierId);
-    return s ? (s.company_name ?? s.supplier_name) : "";
-  }, [supplierId, suppliers]);
-
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/buyer/suppliers");
-        const result = await res.json();
-        if (!res.ok || !result.success) {
-          throw new Error(result.message ?? t("error"));
-        }
-        if (!cancelled) {
-          const rows = (result.data as SupplierRow[]) ?? [];
-          setSuppliers(rows);
-          if (rows.length > 0) {
-            setSupplierId(rows[0].id);
-          }
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : t("error"));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [t]);
-
-  useEffect(() => {
-    if (supplierId === "") {
+    if (supplierId == null) {
       setPayload(null);
+      setQuantities({});
+      setExpandedId(null);
+      setError(null);
+      setLoadingProducts(false);
       return;
     }
     let cancelled = false;
@@ -130,38 +100,16 @@ export function BuyerShopOrder() {
     }
   }
 
-  if (loading) {
-    return <p className="text-sm text-slate-500">{t("loading")}</p>;
+  if (supplierId == null) {
+    return (
+      <p className="rounded border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600">
+        {t("buyer_pick_supplier_menu")}
+      </p>
+    );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-600">{t("suppliers")}</label>
-          <select
-            className="min-w-[14rem] rounded border border-slate-300 px-2 py-2 text-sm"
-            value={supplierId === "" ? "" : String(supplierId)}
-            onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : "")}
-          >
-            {suppliers.length === 0 ? (
-              <option value="">{t("no_data")}</option>
-            ) : (
-              suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.company_name ?? s.supplier_name}
-                </option>
-              ))
-            )}
-          </select>
-        </div>
-        {supplierLabel ? (
-          <p className="text-sm text-slate-600">
-            {t("buyer_selected_supplier")}: <span className="font-medium">{supplierLabel}</span>
-          </p>
-        ) : null}
-      </div>
-
       {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
 
@@ -193,7 +141,9 @@ export function BuyerShopOrder() {
                     <p className="text-sm text-slate-600">
                       {p.unitPrice != null ? `${p.unitPrice.toLocaleString()}` : "—"}
                     </p>
-                    <p className="text-xs text-slate-400">{expandedId === p.id ? "▼" : "▶"} 상세</p>
+                    <p className="text-xs text-slate-400">
+                      {expandedId === p.id ? "▼" : "▶"} {t("buyer_detail")}
+                    </p>
                   </div>
                 </button>
                 {expandedId === p.id ? (
@@ -230,7 +180,7 @@ export function BuyerShopOrder() {
             ))}
           </ul>
           {payload.products.length === 0 ? (
-            <p className="text-sm text-slate-500">{t("no_data")}</p>
+            <p className="text-sm text-slate-600">{t("buyer_no_products")}</p>
           ) : null}
         </div>
       )}
