@@ -41,9 +41,17 @@ async function upsertForm(
 ) {
   const user = await requireAuth(request, [...ADMIN_ROLES]);
   const supplierId = await parseSupplierId(params);
-  const parsed = supplierProductFormSaveSchema.safeParse(await request.json());
+  const body = await request.json();
+  const parsed = supplierProductFormSaveSchema.safeParse(body);
   if (!parsed.success) {
-    throw new HttpError(400, "폼 저장 요청 값이 올바르지 않습니다.");
+    const detail = parsed.error.issues
+      .slice(0, 3)
+      .map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`)
+      .join(" · ");
+    throw new HttpError(
+      400,
+      detail ? `폼 저장 요청 값이 올바르지 않습니다. (${detail})` : "폼 저장 요청 값이 올바르지 않습니다.",
+    );
   }
 
   const saved = await saveSupplierProductForm({

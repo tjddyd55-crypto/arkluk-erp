@@ -126,22 +126,43 @@ export const supplierDynamicProductPatchSchema = z.object({
   formValues: z.record(z.string(), z.unknown()).optional(),
 });
 
+/** Prisma Json / JSON.parse 결과에 맞춤(객체·배열·원시·null). */
+const prismaJsonValueSchema = z.union([
+  z.record(z.string(), z.unknown()),
+  z.array(z.unknown()),
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.null(),
+]);
+
 export const supplierProductFormFieldSchema = z.object({
   id: z.coerce.number().int().positive().optional(),
   /** 신규 필드는 생략(서버 자동 생성). 기존 필드는 매칭용으로만 전송, 수정 불가. */
-  fieldKey: z.string().trim().max(100).optional(),
+  fieldKey: z.preprocess(
+    (v) => (v === null || v === "" ? undefined : v),
+    z.string().trim().max(100).optional(),
+  ),
   fieldLabel: z.string().trim().min(1).max(150),
   fieldType: supplierProductFieldTypeSchema,
   isRequired: z.boolean().optional(),
   isEnabled: z.boolean().optional(),
-  sortOrder: z.coerce.number().int().optional(),
+  sortOrder: z.preprocess((v) => {
+    if (v === null || v === undefined || v === "") return undefined;
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? Math.trunc(n) : undefined;
+  }, z.number().int().optional()),
   placeholderText: z.string().trim().max(200).optional().nullable(),
   helpText: z.string().trim().max(500).optional().nullable(),
-  validationJson: z.record(z.string(), z.unknown()).optional().nullable(),
+  validationJson: prismaJsonValueSchema.optional().nullable(),
 });
 
 export const supplierProductFormSaveSchema = z.object({
-  name: z.string().trim().min(1).max(120).optional(),
+  /** 빈 문자열은 서버에서 생략(기존 폼 이름 유지) */
+  name: z.preprocess(
+    (v) => (v === null || v === undefined || (typeof v === "string" && v.trim() === "") ? undefined : v),
+    z.string().trim().min(1).max(120).optional(),
+  ),
   isActive: z.boolean().optional(),
   fields: z.array(supplierProductFormFieldSchema).min(1),
 });
