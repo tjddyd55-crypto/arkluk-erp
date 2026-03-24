@@ -1041,7 +1041,7 @@ async function sendPurchaseOrderToSingleSupplier(
     attachments: [
       {
         filename: purchaseOrderFile.fileName,
-        path: purchaseOrderFile.filePath,
+        content: purchaseOrderFile.pdfBuffer,
         contentType: "application/pdf",
       },
     ],

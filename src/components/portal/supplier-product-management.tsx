@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { resolvePublicMediaUrl } from "@/lib/media-url";
+
 type Category = {
   id: number;
   category_name: string;
@@ -386,7 +388,8 @@ export function SupplierProductManagement() {
       if (!response.ok || !result.success) {
         throw new Error(result.message ?? "이미지 업로드 실패");
       }
-      setForm((prev) => ({ ...prev, imageUrl: result.data.imageUrl as string }));
+      const path = result.data.path as string;
+      setForm((prev) => ({ ...prev, imageUrl: path }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "이미지 업로드 실패");
     } finally {
@@ -694,7 +697,7 @@ export function SupplierProductManagement() {
               {form.imageUrl ? (
                 <div className="mt-2 flex items-center gap-2">
                   <img
-                    src={form.imageUrl}
+                    src={resolvePublicMediaUrl(form.imageUrl) || form.imageUrl}
                     alt="상품 이미지 미리보기"
                     className="h-12 w-12 rounded border border-slate-200 object-cover"
                   />
@@ -757,12 +760,20 @@ export function SupplierProductManagement() {
                         type="button"
                         onClick={() =>
                           setPreviewImageUrl(
-                            product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? null,
+                            resolvePublicMediaUrl(
+                              product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? null,
+                            ) ||
+                              (product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? null),
                           )
                         }
                       >
                         <img
-                          src={product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? ""}
+                          src={
+                            resolvePublicMediaUrl(
+                              product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? "",
+                            ) ||
+                            (product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? "")
+                          }
                           alt="상품 썸네일"
                           className="h-10 w-10 rounded border border-slate-200 object-cover"
                         />

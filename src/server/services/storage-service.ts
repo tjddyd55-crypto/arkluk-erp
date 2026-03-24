@@ -1,0 +1,232 @@
+import { createReadStream, existsSync } from "fs";
+import { readFile } from "fs/promises";
+import path from "path";
+import { Readable } from "stream";
+import { unlink } from "fs/promises";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
+
+import { env } from "@/lib/env";
+
+let r2Client: S3Client | null = null;
+
+/** DB·레거시 경로를 R2 Object Key로 정규화한다 (선행 storage/, 슬래시 제거). */
+export function normalizeStorageKey(storedPath: string): string {
+  let s = storedPath.trim().replace(/\\/g, "/");
+  while (s.startsWith("/")) {
+    s = s.slice(1);
+  }
+  return s.replace(/^storage\//, "");
+}
+
+function localFileAbsolutePath(storedPath: string): string {
+  const normalized = storedPath.trim().replace(/\\/g, "/");
+  const segments = normalized.split("/").filter(Boolean);
+  return path.join(process.cwd(), ...segments);
+}
+
+export function isR2Configured(): boolean {
+  return Boolean(
+    env.R2_ENDPOINT?.trim() &&
+      env.R2_ACCESS_KEY_ID?.trim() &&
+      env.R2_SECRET_ACCESS_KEY?.trim() &&
+      env.R2_BUCKET_NAME?.trim(),
+  );
+}
+
+function getR2Client(): S3Client {
+  if (!isR2Configured()) {
+    throw new Error("R2 환경변수가 설정되지 않았습니다.");
+  }
+  if (!r2Client) {
+    r2Client = new S3Client({
+      region: "auto",
+      endpoint: env.R2_ENDPOINT!.trim(),
+      credentials: {
+        accessKeyId: env.R2_ACCESS_KEY_ID!.trim(),
+        secretAccessKey: env.R2_SECRET_ACCESS_KEY!.trim(),
+      },
+    });
+  }
+  return r2Client;
+}
+
+export async function saveFile(
+  buffer: Buffer,
+  objectPath: string,
+  contentType?: string,
+): Promise<string> {
+  const key = normalizeStorageKey(objectPath);
+  const client = getR2Client();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: env.R2_BUCKET_NAME!.trim(),
+      Key: key,
+      Body: buffer,
+      ContentType: contentType ?? "application/octet-stream",
+    }),
+  );
+  return key;
+}
+
+/** R2 객체 삭제. 로컬 레거시 파일만 있는 환경에서는 해당 경로 파일을 제거한다. */
+export async function deleteFile(objectPath: string): Promise<void> {
+  const key = normalizeStorageKey(objectPath);
+  if (!key) {
+    return;
+  }
+  if (isR2Configured()) {
+    await getR2Client().send(
+      new DeleteObjectCommand({
+        Bucket: env.R2_BUCKET_NAME!.trim(),
+        Key: key,
+      }),
+    );
+    return;
+  }
+  const abs = localFileAbsolutePath(objectPath);
+  try {
+    await unlink(abs);
+  } catch (err: unknown) {
+    const code = err && typeof err === "object" && "code" in err ? (err as NodeJS.ErrnoException).code : undefined;
+    if (code !== "ENOENT") {
+      throw err;
+    }
+  }
+}
+
+export type PresignedPutObjectInput = {
+  key: string;
+  contentType: string;
+  expiresInSeconds?: number;
+};
+
+export type PresignedPutObjectResult = {
+  uploadUrl: string;
+  expiresAt: Date;
+};
+
+/**
+ * 향후 클라이언트 직접 PUT 업로드용 presigned URL.
+ * 구현 시 `@aws-sdk/s3-request-presigner` 등으로 채운다.
+ */
+export async function createPresignedPutObjectUrl(
+  _input: PresignedPutObjectInput,
+): Promise<PresignedPutObjectResult> {
+  throw new Error(
+    "createPresignedPutObjectUrl: 아직 구현되지 않았습니다. 서버 saveFile 경로를 사용하세요.",
+  );
+}
+
+/** R2(또는 호환 S3) 객체 스트림. 호출 측에서 본문 소비 실패 시 스트림 정리 필요. */
+export async function getFileStream(objectPath: string) {
+  const key = normalizeStorageKey(objectPath);
+  const client = getR2Client();
+  const res = await client.send(
+    new GetObjectCommand({
+      Bucket: env.R2_BUCKET_NAME!.trim(),
+      Key: key,
+    }),
+  );
+  return res.Body ?? null;
+}
+
+export async function getFileBuffer(objectPath: string): Promise<Buffer> {
+  const key = normalizeStorageKey(objectPath);
+  const client = getR2Client();
+  const res = await client.send(
+    new GetObjectCommand({
+      Bucket: env.R2_BUCKET_NAME!.trim(),
+      Key: key,
+    }),
+  );
+  if (!res.Body) {
+    throw new Error("빈 스토리지 응답입니다.");
+  }
+  return Buffer.from(await res.Body.transformToByteArray());
+}
+
+export async function existsFile(objectPath: string): Promise<boolean> {
+  if (isR2Configured()) {
+    try {
+      const key = normalizeStorageKey(objectPath);
+      await getR2Client().send(
+        new HeadObjectCommand({
+          Bucket: env.R2_BUCKET_NAME!.trim(),
+          Key: key,
+        }),
+      );
+      return true;
+    } catch {
+      /* R2에 없으면 로컬 확인 */
+    }
+  }
+  return existsSync(localFileAbsolutePath(objectPath));
+}
+
+export function getFileUrl(objectPath: string): string {
+  const base = (env.R2_PUBLIC_URL ?? "").trim().replace(/\/+$/, "");
+  const key = normalizeStorageKey(objectPath);
+  if (!base) {
+    return key;
+  }
+  return `${base}/${key}`;
+}
+
+/**
+ * R2 우선, 없으면 서버 로컬 레거시 경로(storage/..., public/...).
+ * 신규 저장은 R2만 사용한다.
+ */
+export async function readStoredFileBuffer(
+  storedPath: string | null | undefined,
+): Promise<Buffer | null> {
+  if (!storedPath?.trim()) {
+    return null;
+  }
+  if (isR2Configured()) {
+    try {
+      return await getFileBuffer(storedPath);
+    } catch {
+      /* 키 없음 등 → 로컬 */
+    }
+  }
+  const abs = localFileAbsolutePath(storedPath);
+  if (!existsSync(abs)) {
+    return null;
+  }
+  try {
+    return await readFile(abs);
+  } catch {
+    return null;
+  }
+}
+
+/** 다운로드용 Node Readable (R2 스트림 또는 로컬 파일). 없으면 null. */
+export async function openStoredFileReadStream(
+  storedPath: string,
+): Promise<NodeJS.ReadableStream | null> {
+  if (isR2Configured()) {
+    try {
+      const body = await getFileStream(storedPath);
+      if (body && typeof (body as NodeJS.ReadableStream).pipe === "function") {
+        return body as NodeJS.ReadableStream;
+      }
+    } catch {
+      /* 로컬 시도 */
+    }
+  }
+  const abs = localFileAbsolutePath(storedPath);
+  if (!existsSync(abs)) {
+    return null;
+  }
+  return createReadStream(abs);
+}
+
+export function storedFileStreamToWebBody(stream: NodeJS.ReadableStream): ReadableStream<Uint8Array> {
+  return Readable.toWeb(stream as Readable) as ReadableStream<Uint8Array>;
+}

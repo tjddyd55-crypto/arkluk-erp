@@ -1,6 +1,5 @@
-import { createWriteStream } from "fs";
-import { mkdir } from "fs/promises";
-import path from "path";
+import { PassThrough } from "stream";
+import { finished } from "stream/promises";
 
 import PDFDocument from "pdfkit";
 import { Prisma } from "@prisma/client";
@@ -8,13 +7,12 @@ import { Prisma } from "@prisma/client";
 import { env } from "@/lib/env";
 import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
-
-const PURCHASE_ORDER_DIR = path.join(process.cwd(), "storage", "purchase-orders");
+import { saveFile } from "@/server/services/storage-service";
 
 type PurchaseOrderFileInfo = {
-  filePath: string;
   fileName: string;
   fileUrl: string;
+  pdfBuffer: Buffer;
 };
 
 type ResolvedTemplate = {
@@ -123,97 +121,99 @@ export async function generatePurchaseOrderPDF(
     throw new HttpError(404, "공급사 정보를 찾을 수 없습니다.");
   }
 
-  await mkdir(PURCHASE_ORDER_DIR, { recursive: true });
   const template = await resolvePurchaseOrderTemplate(supplierId);
 
   const fileName = `PO_${supplierId}_${order.order_no}.pdf`;
-  const filePath = path.join(PURCHASE_ORDER_DIR, fileName);
-  const fileUrl = path.join("storage", "purchase-orders", fileName).replaceAll("\\", "/");
+  const safeNo = order.order_no.replace(/[^\w.-]+/g, "_");
+  const objectKey = `purchase-orders/PO_${supplierId}_${safeNo}_${Date.now()}.pdf`;
 
-  await new Promise<void>((resolve, reject) => {
-    const doc = new PDFDocument({
-      size: "A4",
-      margin: 40,
-    });
-    const stream = createWriteStream(filePath);
+  const out = new PassThrough();
+  const chunks: Buffer[] = [];
+  out.on("data", (chunk: Buffer) => {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  });
 
-    doc.pipe(stream);
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: 40,
+  });
+  doc.pipe(out);
 
-    doc.fontSize(20).text(template.titleEn, { align: "center" });
-    doc.moveDown(0.3);
-    doc.fontSize(14).text(template.titleKo, { align: "center" });
-    doc.moveDown(1);
+  doc.fontSize(20).text(template.titleEn, { align: "center" });
+  doc.moveDown(0.3);
+  doc.fontSize(14).text(template.titleKo, { align: "center" });
+  doc.moveDown(1);
 
-    doc.fontSize(11).text(`발주번호: ${order.order_no}`);
-    doc.text(`발주일: ${formatYmd(new Date())}`);
-    doc.text(`공급사: ${supplier.supplier_name}`);
-    doc.text(`발주처: ${template.buyerName}`);
-    doc.moveDown(1);
+  doc.fontSize(11).text(`발주번호: ${order.order_no}`);
+  doc.text(`발주일: ${formatYmd(new Date())}`);
+  doc.text(`공급사: ${supplier.supplier_name}`);
+  doc.text(`발주처: ${template.buyerName}`);
+  doc.moveDown(1);
 
-    const columnWidths = [35, 130, 95, 55, 55, 65, 85];
-    const rowHeight = 34;
-    let y = doc.y;
+  const columnWidths = [35, 130, 95, 55, 55, 65, 85];
+  const rowHeight = 34;
+  let y = doc.y;
 
-    drawRow(
-      doc,
-      ["No", "제품명", "규격", "단위", "수량", "단가", "비고"],
-      columnWidths,
-      y,
-      rowHeight,
-    );
-    y += rowHeight;
+  drawRow(
+    doc,
+    ["No", "제품명", "규격", "단위", "수량", "단가", "비고"],
+    columnWidths,
+    y,
+    rowHeight,
+  );
+  y += rowHeight;
 
-    order.order_items.forEach((item, idx) => {
-      if (y + rowHeight > doc.page.height - 60) {
-        doc.addPage();
-        y = 60;
-        drawRow(
-          doc,
-          ["No", "제품명", "규격", "단위", "수량", "단가", "비고"],
-          columnWidths,
-          y,
-          rowHeight,
-        );
-        y += rowHeight;
-      }
-
+  order.order_items.forEach((item, idx) => {
+    if (y + rowHeight > doc.page.height - 60) {
+      doc.addPage();
+      y = 60;
       drawRow(
         doc,
-        [
-          String(idx + 1),
-          item.product_name_snapshot,
-          item.spec_snapshot,
-          item.unit_snapshot,
-          item.qty.toString(),
-          item.price_snapshot.toString(),
-          item.memo ?? "",
-        ],
+        ["No", "제품명", "규격", "단위", "수량", "단가", "비고"],
         columnWidths,
         y,
         rowHeight,
       );
       y += rowHeight;
-    });
-
-    const totalAmount = order.order_items.reduce(
-      (sum, item) => sum.add(item.amount),
-      new Prisma.Decimal(0),
-    );
-    doc.moveDown(2);
-    doc.fontSize(11).text(`합계 금액: ${totalAmount.toString()}`, { align: "right" });
-    if (template.footerNote) {
-      doc.moveDown(1);
-      doc.fontSize(9).fillColor("#666").text(template.footerNote, { align: "left" });
-      doc.fillColor("#000");
     }
 
-    doc.end();
-
-    stream.on("finish", () => resolve());
-    stream.on("error", (error) => reject(error));
+    drawRow(
+      doc,
+      [
+        String(idx + 1),
+        item.product_name_snapshot,
+        item.spec_snapshot,
+        item.unit_snapshot,
+        item.qty.toString(),
+        item.price_snapshot.toString(),
+        item.memo ?? "",
+      ],
+      columnWidths,
+      y,
+      rowHeight,
+    );
+    y += rowHeight;
   });
 
-  return { filePath, fileName, fileUrl };
+  const totalAmount = order.order_items.reduce(
+    (sum, item) => sum.add(item.amount),
+    new Prisma.Decimal(0),
+  );
+  doc.moveDown(2);
+  doc.fontSize(11).text(`합계 금액: ${totalAmount.toString()}`, { align: "right" });
+  if (template.footerNote) {
+    doc.moveDown(1);
+    doc.fontSize(9).fillColor("#666").text(template.footerNote, { align: "left" });
+    doc.fillColor("#000");
+  }
+
+  doc.end();
+  await finished(out);
+  const pdfBuffer = Buffer.concat(chunks);
+
+  await saveFile(pdfBuffer, objectKey, "application/pdf");
+
+  return { fileName, fileUrl: objectKey, pdfBuffer };
 }
 
 export async function upsertPurchaseOrderRecord(

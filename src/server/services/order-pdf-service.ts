@@ -5,7 +5,11 @@ import { OsPdfStatus, Prisma } from "@prisma/client";
 
 import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
-import { existsPdf, readPdf, savePdf } from "@/server/services/pdf-storage-service";
+import {
+  openStoredFileReadStream,
+  readStoredFileBuffer,
+  saveFile,
+} from "@/server/services/storage-service";
 
 /** 발주서 PDF는 OrderItem 스냅샷만 사용한다 (주문 시점 증거). live Product.name/price 미사용. */
 
@@ -26,22 +30,8 @@ export function poRefForSupplier(
   return `PO-${year}-${orderNo.replace(/^ORD-?/i, "")}-S${orderSupplierId}`;
 }
 
-function storageRelPath(...segments: string[]) {
-  return segments.join("/");
-}
-
 export async function readStoredPdfBuffer(relPath: string | null): Promise<Buffer | null> {
-  if (!relPath?.trim()) {
-    return null;
-  }
-  if (!existsPdf(relPath)) {
-    return null;
-  }
-  try {
-    return await readPdf(relPath);
-  } catch {
-    return null;
-  }
+  return readStoredFileBuffer(relPath);
 }
 
 function pdfErrorMessage(error: unknown) {
@@ -59,7 +49,6 @@ export async function persistOrderPoPdfs(orderId: number): Promise<void> {
       id: true,
       order_no: true,
       created_at: true,
-      combined_po_pdf_path: true,
     },
   });
   if (!order) {
@@ -72,17 +61,15 @@ export async function persistOrderPoPdfs(orderId: number): Promise<void> {
   }
 
   const year = new Date(order.created_at).getFullYear();
-  const combinedFile = `order-${orderId}-combined.pdf`;
-  const combinedRel = storageRelPath("storage", "order-pdfs", String(year), combinedFile);
+  const combinedRel = `order-pdfs/${year}/order-${orderId}-combined-${Date.now()}.pdf`;
 
   try {
     const { buffer } = await generateBuyerOrderCombinedPdfBuffer(orderId);
-    const targetRel = order.combined_po_pdf_path ?? combinedRel;
-    await savePdf(targetRel, buffer);
+    await saveFile(buffer, combinedRel, "application/pdf");
     await prisma.order.update({
       where: { id: orderId },
       data: {
-        combined_po_pdf_path: targetRel,
+        combined_po_pdf_path: combinedRel,
         combined_pdf_status: OsPdfStatus.SUCCESS,
         combined_pdf_last_error: null,
         combined_pdf_generated_at: new Date(),
@@ -102,27 +89,24 @@ export async function persistOrderPoPdfs(orderId: number): Promise<void> {
     where: { order_id: orderId },
     select: {
       id: true,
-      supplier_po_pdf_path: true,
       po_snapshot_ref: true,
     },
   });
 
   for (const os of orderSuppliers) {
     const poRef = poRefForSupplier(order.order_no, os.id, new Date(order.created_at));
-    const sectionFile = `order-${orderId}-supplier-${os.id}.pdf`;
-    const sectionRel = storageRelPath("storage", "order-pdfs", String(year), sectionFile);
+    const sectionRel = `order-pdfs/${year}/order-${orderId}-supplier-${os.id}-${Date.now()}.pdf`;
 
     try {
       const { buffer } = await generateBuyerOrderSupplierPdfBuffer({
         orderId,
         orderSupplierId: os.id,
       });
-      const targetRel = os.supplier_po_pdf_path ?? sectionRel;
-      await savePdf(targetRel, buffer);
+      await saveFile(buffer, sectionRel, "application/pdf");
       await prisma.orderSupplier.update({
         where: { id: os.id },
         data: {
-          supplier_po_pdf_path: targetRel,
+          supplier_po_pdf_path: sectionRel,
           po_snapshot_ref: os.po_snapshot_ref ?? poRef,
           pdf_status: OsPdfStatus.SUCCESS,
           pdf_last_error: null,
@@ -155,12 +139,7 @@ export async function regenerateSupplierSectionPdf(orderSupplierId: number): Pro
   const orderId = os.order_id;
   const year = new Date(os.order.created_at).getFullYear();
   /** 기존 파일을 덮어쓰지 않고 버전 파일로 새로 저장 (증거 보존). */
-  const sectionRel = storageRelPath(
-    "storage",
-    "order-pdfs",
-    String(year),
-    `order-${orderId}-supplier-${os.id}-${Date.now()}.pdf`,
-  );
+  const sectionRel = `order-pdfs/${year}/order-${orderId}-supplier-${os.id}-${Date.now()}.pdf`;
   const poRef = poRefForSupplier(os.order.order_no, os.id, new Date(os.order.created_at));
 
   try {
@@ -168,7 +147,7 @@ export async function regenerateSupplierSectionPdf(orderSupplierId: number): Pro
       orderId,
       orderSupplierId: os.id,
     });
-    await savePdf(sectionRel, buffer);
+    await saveFile(buffer, sectionRel, "application/pdf");
     await prisma.orderSupplier.update({
       where: { id: os.id },
       data: {
@@ -200,10 +179,10 @@ export async function resolveBuyerOrderCombinedPdf(orderId: number): Promise<{
     select: { combined_po_pdf_path: true, order_no: true },
   });
   if (row?.combined_po_pdf_path) {
-    const fromDisk = await readStoredPdfBuffer(row.combined_po_pdf_path);
-    if (fromDisk) {
+    const stored = await readStoredPdfBuffer(row.combined_po_pdf_path);
+    if (stored) {
       const safeNo = row.order_no.replace(/[^\w.-]+/g, "_");
-      return { buffer: fromDisk, fileName: `PO_${safeNo}_ALL.pdf` };
+      return { buffer: stored, fileName: `PO_${safeNo}_ALL.pdf` };
     }
   }
   return generateBuyerOrderCombinedPdfBuffer(orderId);
@@ -221,15 +200,15 @@ export async function resolveBuyerOrderSupplierPdf(params: {
     return generateBuyerOrderSupplierPdfBuffer(params);
   }
   if (os.supplier_po_pdf_path) {
-    const fromDisk = await readStoredPdfBuffer(os.supplier_po_pdf_path);
-    if (fromDisk) {
+    const stored = await readStoredPdfBuffer(os.supplier_po_pdf_path);
+    if (stored) {
       const order = await prisma.order.findUnique({
         where: { id: params.orderId },
         select: { order_no: true },
       });
       const safeNo = order?.order_no.replace(/[^\w.-]+/g, "_") ?? String(params.orderId);
       return {
-        buffer: fromDisk,
+        buffer: stored,
         fileName: `PO_${safeNo}_supplier_${os.supplier_id}.pdf`,
       };
     }
@@ -252,6 +231,53 @@ export async function resolveSupplierOrderPdf(params: {
     orderId: params.orderId,
     orderSupplierId: os.id,
   });
+}
+
+/** 저장된 통합 PDF가 있으면 스트림으로 열고, 없으면 null (실시간 생성 경로로 넘김). */
+export async function tryOpenStoredCombinedPdfStream(orderId: number): Promise<{
+  stream: NodeJS.ReadableStream;
+  fileName: string;
+} | null> {
+  const row = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { combined_po_pdf_path: true, order_no: true },
+  });
+  if (!row?.combined_po_pdf_path) {
+    return null;
+  }
+  const stream = await openStoredFileReadStream(row.combined_po_pdf_path);
+  if (!stream) {
+    return null;
+  }
+  const safeNo = row.order_no.replace(/[^\w.-]+/g, "_");
+  return { stream, fileName: `PO_${safeNo}_ALL.pdf` };
+}
+
+/** 저장된 공급사 구간 PDF가 있으면 스트림으로 연다. */
+export async function tryOpenStoredSupplierSectionPdfStream(params: {
+  orderId: number;
+  orderSupplierId: number;
+}): Promise<{ stream: NodeJS.ReadableStream; fileName: string } | null> {
+  const os = await prisma.orderSupplier.findUnique({
+    where: { id: params.orderSupplierId },
+    select: { order_id: true, supplier_po_pdf_path: true, supplier_id: true },
+  });
+  if (!os || os.order_id !== params.orderId || !os.supplier_po_pdf_path) {
+    return null;
+  }
+  const stream = await openStoredFileReadStream(os.supplier_po_pdf_path);
+  if (!stream) {
+    return null;
+  }
+  const order = await prisma.order.findUnique({
+    where: { id: params.orderId },
+    select: { order_no: true },
+  });
+  const safeNo = order?.order_no.replace(/[^\w.-]+/g, "_") ?? String(params.orderId);
+  return {
+    stream,
+    fileName: `PO_${safeNo}_supplier_${os.supplier_id}.pdf`,
+  };
 }
 
 function drawRow(

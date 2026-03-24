@@ -19,6 +19,7 @@
     "monitoring:cron": "tsx src/server/jobs/order-monitoring-job.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1015.0",
     "@prisma/client": "^6.19.2",
     "bcryptjs": "^3.0.3",
     "google-translate-api-x": "^10.7.2",

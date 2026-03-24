@@ -1,10 +1,9 @@
-import { readFile } from "fs/promises";
-import path from "path";
 import { NextRequest } from "next/server";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
+import { readStoredFileBuffer } from "@/server/services/storage-service";
 
 function toMimeType(type: string) {
   if (type === "PDF") return "application/pdf";
@@ -41,10 +40,12 @@ export async function GET(
       throw new HttpError(404, "파일을 찾을 수 없습니다.");
     }
 
-    const absolutePath = path.join(process.cwd(), invoiceFile.file_url);
-    const fileBuffer = await readFile(absolutePath);
+    const fileBuffer = await readStoredFileBuffer(invoiceFile.file_url);
+    if (!fileBuffer) {
+      throw new HttpError(404, "첨부파일을 찾을 수 없습니다.");
+    }
 
-    return new Response(fileBuffer, {
+    return new Response(new Uint8Array(fileBuffer), {
       status: 200,
       headers: {
         "Content-Type": toMimeType(invoiceFile.file_type),

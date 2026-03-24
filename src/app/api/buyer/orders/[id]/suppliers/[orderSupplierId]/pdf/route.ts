@@ -4,8 +4,12 @@ import { PoPdfDownloadType, Role } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
-import { resolveBuyerOrderSupplierPdf } from "@/server/services/order-pdf-service";
+import {
+  resolveBuyerOrderSupplierPdf,
+  tryOpenStoredSupplierSectionPdfStream,
+} from "@/server/services/order-pdf-service";
 import { logPoPdfDownload } from "@/server/services/po-pdf-download-log-service";
+import { storedFileStreamToWebBody } from "@/server/services/storage-service";
 
 export async function GET(
   request: NextRequest,
@@ -31,7 +35,7 @@ export async function GET(
       throw new HttpError(404, "주문을 찾을 수 없습니다.");
     }
 
-    const { buffer, fileName } = await resolveBuyerOrderSupplierPdf({
+    const streamed = await tryOpenStoredSupplierSectionPdfStream({
       orderId,
       orderSupplierId,
     });
@@ -43,6 +47,20 @@ export async function GET(
       role: user.role,
       downloadType: PoPdfDownloadType.SUPPLIER_SECTION,
       request,
+    });
+
+    if (streamed) {
+      return new Response(storedFileStreamToWebBody(streamed.stream), {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="${streamed.fileName}"`,
+        },
+      });
+    }
+
+    const { buffer, fileName } = await resolveBuyerOrderSupplierPdf({
+      orderId,
+      orderSupplierId,
     });
 
     return new NextResponse(new Uint8Array(buffer), {

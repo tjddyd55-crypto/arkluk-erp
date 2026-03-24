@@ -1,6 +1,4 @@
 import { createHash } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
@@ -12,8 +10,8 @@ import { env } from "@/lib/env";
 import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit-log";
+import { saveFile } from "@/server/services/storage-service";
 
-const INVOICE_STORAGE_DIR = path.join(process.cwd(), "storage", "invoices");
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 
 type SyncResult = {
@@ -67,10 +65,6 @@ function sanitizeFilename(fileName: string) {
 function extractOrderNoCandidates(text: string) {
   const matches = text.match(ORDER_NO_REGEX) ?? [];
   return [...new Set(matches.map((match) => match.toUpperCase()))];
-}
-
-async function ensureStorageDir() {
-  await mkdir(INVOICE_STORAGE_DIR, { recursive: true });
 }
 
 async function extractAttachmentText(buffer: Buffer, type: InvoiceFileType) {
@@ -218,7 +212,6 @@ function validateImapConfig() {
 
 export async function syncInvoiceEmails(options?: { actorId?: number; limit?: number }) {
   validateImapConfig();
-  await ensureStorageDir();
 
   const result: SyncResult = {
     fetched: 0,
@@ -359,14 +352,18 @@ export async function syncInvoiceEmails(options?: { actorId?: number; limit?: nu
               attachment.filename ?? `${fileType.toLowerCase()}_file`,
             );
             const fileName = `${matchedSupplierId ?? 0}_${Date.now()}_${safeOriginal}`;
-            const fullPath = path.join(INVOICE_STORAGE_DIR, fileName);
-            await writeFile(fullPath, attachment.content);
+            const objectKey = `invoices/${fileName}`;
+            const mime =
+              fileType === "PDF"
+                ? "application/pdf"
+                : attachment.contentType?.trim() || "application/xml";
+            await saveFile(attachment.content, objectKey, mime);
 
             await tx.invoiceFile.create({
               data: {
                 invoice_id: createdInvoice.id,
                 file_name: safeOriginal,
-                file_url: path.join("storage", "invoices", fileName).replaceAll("\\", "/"),
+                file_url: objectKey,
                 file_type: fileType,
               },
             });

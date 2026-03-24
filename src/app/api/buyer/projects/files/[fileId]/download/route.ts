@@ -1,10 +1,9 @@
-import { readFile } from "fs/promises";
-import path from "path";
 import { NextRequest } from "next/server";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
+import { readStoredFileBuffer } from "@/server/services/storage-service";
 
 function toMimeType(type: string) {
   const upper = type.toUpperCase();
@@ -43,10 +42,12 @@ export async function GET(
       throw new HttpError(404, "프로젝트 파일을 찾을 수 없습니다.");
     }
 
-    const absolutePath = path.join(process.cwd(), projectFile.file_url);
-    const fileBuffer = await readFile(absolutePath);
+    const fileBuffer = await readStoredFileBuffer(projectFile.file_url);
+    if (!fileBuffer) {
+      throw new HttpError(404, "프로젝트 파일을 찾을 수 없습니다.");
+    }
 
-    return new Response(fileBuffer, {
+    return new Response(new Uint8Array(fileBuffer), {
       status: 200,
       headers: {
         "Content-Type": toMimeType(projectFile.file_type),

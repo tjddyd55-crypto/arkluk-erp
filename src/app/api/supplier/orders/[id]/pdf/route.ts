@@ -4,8 +4,12 @@ import { OrderSupplierStatus, PoPdfDownloadType } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
-import { resolveSupplierOrderPdf } from "@/server/services/order-pdf-service";
+import {
+  resolveSupplierOrderPdf,
+  tryOpenStoredSupplierSectionPdfStream,
+} from "@/server/services/order-pdf-service";
 import { logPoPdfDownload } from "@/server/services/po-pdf-download-log-service";
+import { storedFileStreamToWebBody } from "@/server/services/storage-service";
 
 export async function GET(
   request: NextRequest,
@@ -51,9 +55,9 @@ export async function GET(
       });
     }
 
-    const { buffer, fileName } = await resolveSupplierOrderPdf({
+    const streamed = await tryOpenStoredSupplierSectionPdfStream({
       orderId,
-      supplierId: user.supplierId,
+      orderSupplierId: orderSupplier.id,
     });
 
     await logPoPdfDownload({
@@ -63,6 +67,20 @@ export async function GET(
       role: user.role,
       downloadType: PoPdfDownloadType.SUPPLIER_SECTION,
       request,
+    });
+
+    if (streamed) {
+      return new Response(storedFileStreamToWebBody(streamed.stream), {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="${streamed.fileName}"`,
+        },
+      });
+    }
+
+    const { buffer, fileName } = await resolveSupplierOrderPdf({
+      orderId,
+      supplierId: user.supplierId,
     });
 
     return new NextResponse(new Uint8Array(buffer), {

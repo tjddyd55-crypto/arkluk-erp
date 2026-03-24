@@ -13,7 +13,7 @@ import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/server/services/mail-service";
 import { persistOrderPoPdfs, poRefForSupplier } from "@/server/services/order-pdf-service";
-import { existsPdf, readPdf } from "@/server/services/pdf-storage-service";
+import { existsFile, readStoredFileBuffer } from "@/server/services/storage-service";
 import { syncOrderAggregateStatus } from "@/server/services/order-status-sync-service";
 
 export function parseKoreaOpsEmails(): string[] {
@@ -112,7 +112,7 @@ export async function sendSupplierAutoPoEmail(
     return { success: false, errorMessage: "공급사 이메일이 없습니다.", mocked: false };
   }
 
-  if (!row.supplier_po_pdf_path || !existsPdf(row.supplier_po_pdf_path)) {
+  if (!row.supplier_po_pdf_path || !(await existsFile(row.supplier_po_pdf_path))) {
     await prisma.orderSupplier.update({
       where: { id: orderSupplierId },
       data: {
@@ -123,7 +123,17 @@ export async function sendSupplierAutoPoEmail(
     return { success: false, errorMessage: "PDF 파일을 찾을 수 없습니다.", mocked: false };
   }
 
-  const buffer = await readPdf(row.supplier_po_pdf_path);
+  const buffer = await readStoredFileBuffer(row.supplier_po_pdf_path);
+  if (!buffer) {
+    await prisma.orderSupplier.update({
+      where: { id: orderSupplierId },
+      data: {
+        email_status: OsEmailStatus.FAILED,
+        email_last_error: "저장된 PDF 파일을 읽을 수 없습니다.",
+      },
+    });
+    return { success: false, errorMessage: "PDF 파일을 읽을 수 없습니다.", mocked: false };
+  }
   const poRef =
     row.po_snapshot_ref?.trim() ||
     poRefForSupplier(row.order.order_no, row.id, new Date(row.order.created_at));
@@ -238,11 +248,14 @@ async function executeOrderSupplierPoPdfEmailResend(params: {
   if (!row.supplier_po_pdf_path) {
     throw new HttpError(500, "저장된 발주서 PDF가 없습니다. 잠시 후 다시 시도해 주세요.");
   }
-  if (!existsPdf(row.supplier_po_pdf_path)) {
+  if (!(await existsFile(row.supplier_po_pdf_path))) {
     throw new HttpError(500, "발주서 PDF 파일을 찾을 수 없습니다.");
   }
 
-  const buffer = await readPdf(row.supplier_po_pdf_path);
+  const buffer = await readStoredFileBuffer(row.supplier_po_pdf_path);
+  if (!buffer) {
+    throw new HttpError(500, "발주서 PDF 파일을 읽을 수 없습니다.");
+  }
   const poRef =
     row.po_snapshot_ref?.trim() ||
     poRefForSupplier(row.order.order_no, row.id, new Date(row.order.created_at));
@@ -375,11 +388,14 @@ export async function emailBuyerOrderCombinedPoPdf(params: {
   if (!order.combined_po_pdf_path) {
     throw new HttpError(500, "저장된 통합 발주서 PDF가 없습니다.");
   }
-  if (!existsPdf(order.combined_po_pdf_path)) {
+  if (!(await existsFile(order.combined_po_pdf_path))) {
     throw new HttpError(500, "통합 발주서 PDF 파일을 찾을 수 없습니다.");
   }
 
-  const buffer = await readPdf(order.combined_po_pdf_path);
+  const buffer = await readStoredFileBuffer(order.combined_po_pdf_path);
+  if (!buffer) {
+    throw new HttpError(500, "통합 발주서 PDF 파일을 읽을 수 없습니다.");
+  }
   const safeFile = order.order_no.replace(/[^\w.-]+/g, "_");
   const subject = `[통합 발주서] ${order.order_no}`;
   const text = [

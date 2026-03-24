@@ -68,6 +68,27 @@ const envSchema = z.object({
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
     z.string().optional(),
   ),
+  R2_ENDPOINT: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().optional(),
+  ),
+  R2_ACCESS_KEY_ID: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().optional(),
+  ),
+  R2_SECRET_ACCESS_KEY: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().optional(),
+  ),
+  R2_BUCKET_NAME: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().optional(),
+  ),
+  /** 공개 버킷/커스텀 도메인 베이스 URL (끝 슬래시 없음 권장) */
+  R2_PUBLIC_URL: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().optional(),
+  ),
 });
 
 const parsed = envSchema.safeParse({
@@ -87,6 +108,11 @@ const parsed = envSchema.safeParse({
   SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL,
   OUR_COMPANY_NAME: process.env.OUR_COMPANY_NAME,
   KOREA_OPS_EMAIL: process.env.KOREA_OPS_EMAIL,
+  R2_ENDPOINT: process.env.R2_ENDPOINT,
+  R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+  R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+  R2_BUCKET_NAME: process.env.R2_BUCKET_NAME,
+  R2_PUBLIC_URL: process.env.R2_PUBLIC_URL,
 });
 
 if (!parsed.success) {

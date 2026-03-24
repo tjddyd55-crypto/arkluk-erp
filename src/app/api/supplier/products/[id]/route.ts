@@ -15,6 +15,7 @@ import {
   validateAndNormalizeDynamicValues,
 } from "@/server/services/supplier-dynamic-product-service";
 import { getSupplierActiveProductForm } from "@/server/services/supplier-product-form-service";
+import { deleteSupplierProductImageIfOwned } from "@/server/services/supplier-product-image-storage";
 
 function mergeLegacyPatchValues(
   formValues: Record<string, unknown>,
@@ -200,6 +201,16 @@ export async function PATCH(
       afterData: updated,
     });
 
+    const prevImage = before.image_url;
+    const nextImage = nextImageUrl ?? null;
+    if ((prevImage ?? "") !== (nextImage ?? "")) {
+      try {
+        await deleteSupplierProductImageIfOwned(supplierId, prevImage);
+      } catch {
+        /* 스토리지 삭제 실패는 상품 수정 결과를 막지 않음 */
+      }
+    }
+
     return ok(updated);
   } catch (error) {
     return handleRouteError(error);
@@ -230,6 +241,8 @@ export async function DELETE(
       throw new HttpError(404, "상품을 찾을 수 없습니다.");
     }
 
+    const imagePathBeforeDelete = before.image_url;
+
     await prisma.$transaction(async (tx) => {
       await tx.productApprovalLog.deleteMany({
         where: { product_id: productId },
@@ -249,6 +262,12 @@ export async function DELETE(
       targetId: productId,
       beforeData: before,
     });
+
+    try {
+      await deleteSupplierProductImageIfOwned(supplierId, imagePathBeforeDelete);
+    } catch {
+      /* 스토리지 삭제 실패는 삭제 응답을 막지 않음 */
+    }
 
     return ok({ deleted: true });
   } catch (error) {
