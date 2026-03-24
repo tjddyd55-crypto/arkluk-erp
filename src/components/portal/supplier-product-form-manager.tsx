@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { SUPPLIER_PRODUCT_FIELD_DEFAULT_LABEL_BY_KEY } from "@/lib/supplier-product-field-defaults";
+
 type Supplier = {
   id: number;
   supplier_name: string;
@@ -51,22 +53,12 @@ const FIELD_TYPE_OPTIONS: Array<{ value: FormFieldRow["fieldType"]; label: strin
   { value: "DATE", label: "날짜" },
 ];
 
-const DEFAULT_FIELD_LABEL_BY_KEY: Record<string, string> = {
-  sku: "상품코드",
-  name: "상품명",
-  specification: "규격",
-  price: "단가",
-  currency: "통화",
-  description: "상품 설명",
-  unit: "단위",
-};
-
 function getFallbackFieldLabel(fieldKey: string, isEnabled: boolean) {
-  const normalizedKey = fieldKey.trim();
+  const normalizedKey = fieldKey.trim().toLowerCase();
   if (isEnabled || normalizedKey === "") {
     return "";
   }
-  return DEFAULT_FIELD_LABEL_BY_KEY[normalizedKey] ?? normalizedKey;
+  return SUPPLIER_PRODUCT_FIELD_DEFAULT_LABEL_BY_KEY[normalizedKey] ?? fieldKey.trim();
 }
 
 function resolveRowFieldLabel(row: Pick<FormFieldRow, "fieldLabel" | "fieldKey" | "isEnabled">) {

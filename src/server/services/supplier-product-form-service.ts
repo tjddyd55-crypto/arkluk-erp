@@ -4,6 +4,7 @@ import { Prisma, SupplierProductFieldType } from "@prisma/client";
 
 import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
+import { SUPPLIER_PRODUCT_FIELD_DEFAULT_LABEL_BY_KEY } from "@/lib/supplier-product-field-defaults";
 
 export const CORE_PRODUCT_FIELD_KEYS = ["sku", "name", "specification", "price"] as const;
 export const DEFAULT_SUPPLIER_PRODUCT_FORM_NAME = "기본 상품 등록 폼";
@@ -299,8 +300,6 @@ export async function saveSupplierProductForm(input: {
   isActive?: boolean;
   fields: ProductFormFieldInput[];
 }) {
-  const normalizedFields = validateFieldSet(input.fields);
-
   return prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true } });
     if (!supplier) {
@@ -308,6 +307,28 @@ export async function saveSupplierProductForm(input: {
     }
 
     const form = await ensureSupplierActiveProductForm(input.supplierId, input.actorId, tx);
+
+    const existingFields = await tx.supplierProductField.findMany({
+      where: { form_id: form.id },
+      select: { id: true, field_key: true },
+    });
+    const existingById = new Map(existingFields.map((f) => [f.id, f]));
+    const existingByKey = new Map(existingFields.map((f) => [f.field_key, f]));
+
+    const enrichedFields: ProductFormFieldInput[] = input.fields.map((field) => {
+      if (field.fieldKey != null && String(field.fieldKey).trim() !== "") {
+        return field;
+      }
+      if (field.id != null) {
+        const row = existingById.get(field.id);
+        if (row) {
+          return { ...field, fieldKey: row.field_key };
+        }
+      }
+      return field;
+    });
+
+    const normalizedFields = validateFieldSet(enrichedFields);
 
     const updatedForm = await tx.supplierProductForm.update({
       where: { id: form.id },
@@ -317,13 +338,6 @@ export async function saveSupplierProductForm(input: {
         updated_by: input.actorId,
       },
     });
-
-    const existingFields = await tx.supplierProductField.findMany({
-      where: { form_id: form.id },
-      select: { id: true, field_key: true },
-    });
-    const existingById = new Map(existingFields.map((f) => [f.id, f]));
-    const existingByKey = new Map(existingFields.map((f) => [f.field_key, f]));
     const keepFieldIds = new Set<number>();
     const usedKeysForNew = new Set(existingFields.map((f) => f.field_key));
 

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { SUPPLIER_PRODUCT_FIELD_DEFAULT_LABEL_BY_KEY } from "@/lib/supplier-product-field-defaults";
+
 const positiveNumber = z.coerce.number().positive();
 const translationLanguageSchema = z.enum(["ko", "en", "mn", "ar"]);
 export const supplierProductFieldTypeSchema = z.enum([
@@ -143,7 +145,8 @@ export const supplierProductFormFieldSchema = z.object({
     (v) => (v === null || v === "" ? undefined : v),
     z.string().trim().max(100).optional(),
   ),
-  fieldLabel: z.string().trim().min(1).max(150),
+  /** 비활성(숨김) 필드는 서버에서 field_key 기준으로 보정될 수 있어 빈 값 허용 */
+  fieldLabel: z.string().trim().max(150),
   fieldType: supplierProductFieldTypeSchema,
   isRequired: z.boolean().optional(),
   isEnabled: z.boolean().optional(),
@@ -157,15 +160,72 @@ export const supplierProductFormFieldSchema = z.object({
   validationJson: prismaJsonValueSchema.optional().nullable(),
 });
 
-export const supplierProductFormSaveSchema = z.object({
-  /** 빈 문자열은 서버에서 생략(기존 폼 이름 유지) */
-  name: z.preprocess(
-    (v) => (v === null || v === undefined || (typeof v === "string" && v.trim() === "") ? undefined : v),
-    z.string().trim().min(1).max(120).optional(),
-  ),
-  isActive: z.boolean().optional(),
-  fields: z.array(supplierProductFormFieldSchema).min(1),
-});
+function normalizeFieldKeyForLabelCoerce(fieldKey: string) {
+  const normalized = fieldKey
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return normalized || fieldKey.trim().toLowerCase();
+}
+
+function coerceSupplierProductFormFieldForParse(field: unknown): unknown {
+  if (!field || typeof field !== "object") return field;
+  const f = field as Record<string, unknown>;
+  const label = typeof f.fieldLabel === "string" ? f.fieldLabel.trim() : "";
+  const isEnabled = f.isEnabled !== false;
+  const keyRaw = f.fieldKey;
+  const key = typeof keyRaw === "string" ? keyRaw.trim() : "";
+
+  if (label.length >= 1) {
+    return { ...f, fieldLabel: label };
+  }
+  if (!isEnabled && key.length > 0) {
+    const nk = normalizeFieldKeyForLabelCoerce(key);
+    const fallback = SUPPLIER_PRODUCT_FIELD_DEFAULT_LABEL_BY_KEY[nk] ?? key;
+    return { ...f, fieldLabel: fallback };
+  }
+  return { ...f, fieldLabel: label };
+}
+
+function coerceSupplierProductFormSaveBody(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const body = raw as { fields?: unknown };
+  if (!Array.isArray(body.fields)) return raw;
+  return {
+    ...body,
+    fields: body.fields.map(coerceSupplierProductFormFieldForParse),
+  };
+}
+
+const supplierProductFormSaveBodySchema = z
+  .object({
+    /** 빈 문자열은 서버에서 생략(기존 폼 이름 유지) */
+    name: z.preprocess(
+      (v) => (v === null || v === undefined || (typeof v === "string" && v.trim() === "") ? undefined : v),
+      z.string().trim().min(1).max(120).optional(),
+    ),
+    isActive: z.boolean().optional(),
+    fields: z.array(supplierProductFormFieldSchema).min(1),
+  })
+  .superRefine((data, ctx) => {
+    data.fields.forEach((field, index) => {
+      if (field.isEnabled !== false && field.fieldLabel.trim().length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "표시명을 입력해 주세요.",
+          path: ["fields", index, "fieldLabel"],
+        });
+      }
+    });
+  });
+
+/** 저장 본문: 숨김 필드 + 빈 표시명 + field_key 있음 → 기본 표시명으로 보정 후 Zod 검증 */
+export const supplierProductFormSaveSchema = z.preprocess(
+  coerceSupplierProductFormSaveBody,
+  supplierProductFormSaveBodySchema,
+);
 
 export const supplierProductFieldRequestCreateSchema = z.object({
   requestTitle: z.string().trim().min(1).max(150),
