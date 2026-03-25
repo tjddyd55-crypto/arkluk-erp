@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-import { resolvePublicMediaUrl } from "@/lib/media-url";
+import { resolvePublicMediaUrl } from "@/lib/utils/media-url";
 
 type Category = {
   id: number;
@@ -696,11 +696,18 @@ export function SupplierProductManagement() {
               </div>
               {form.imageUrl ? (
                 <div className="mt-2 flex items-center gap-2">
-                  <img
-                    src={resolvePublicMediaUrl(form.imageUrl) || form.imageUrl}
-                    alt="상품 이미지 미리보기"
-                    className="h-12 w-12 rounded border border-slate-200 object-cover"
-                  />
+                  {(() => {
+                    const previewSrc = resolvePublicMediaUrl(form.imageUrl);
+                    return previewSrc ? (
+                      <img
+                        src={previewSrc}
+                        alt="상품 이미지 미리보기"
+                        className="h-12 w-12 rounded border border-slate-200 object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-amber-700">CDN 미설정(NEXT_PUBLIC_R2_PUBLIC_URL)</span>
+                    );
+                  })()}
                   <span className="text-xs text-slate-500">{form.imageUrl}</span>
                 </div>
               ) : (
@@ -756,28 +763,30 @@ export function SupplierProductManagement() {
                 <tr key={product.id}>
                   <td className="border border-slate-200 px-2 py-1">
                     {product.image_url || product.thumbnail_url || product.product_image_url ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreviewImageUrl(
-                            resolvePublicMediaUrl(
-                              product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? null,
-                            ) ||
-                              (product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? null),
-                          )
-                        }
-                      >
-                        <img
-                          src={
-                            resolvePublicMediaUrl(
-                              product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? "",
-                            ) ||
-                            (product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? "")
-                          }
-                          alt="상품 썸네일"
-                          className="h-10 w-10 rounded border border-slate-200 object-cover"
-                        />
-                      </button>
+                      (() => {
+                        const raw =
+                          product.image_url ??
+                          product.thumbnail_url ??
+                          product.product_image_url ??
+                          "";
+                        const thumbSrc = resolvePublicMediaUrl(raw);
+                        return thumbSrc ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewImageUrl(raw || null)}
+                          >
+                            <img
+                              src={thumbSrc}
+                              alt="상품 썸네일"
+                              className="h-10 w-10 rounded border border-slate-200 object-cover"
+                            />
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400" title={raw || undefined}>
+                            CDN?
+                          </span>
+                        );
+                      })()
                     ) : (
                       <span className="text-xs text-slate-400">-</span>
                     )}
@@ -923,7 +932,7 @@ export function SupplierProductManagement() {
         </div>
       </div>
 
-      {previewImageUrl ? (
+      {previewImageUrl && resolvePublicMediaUrl(previewImageUrl) ? (
         <div
           className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
           onClick={() => setPreviewImageUrl(null)}
@@ -936,7 +945,11 @@ export function SupplierProductManagement() {
             >
               X
             </button>
-            <img src={previewImageUrl} alt="상품 이미지 확대" className="max-h-[85vh] rounded object-contain" />
+            <img
+              src={resolvePublicMediaUrl(previewImageUrl)}
+              alt="상품 이미지 확대"
+              className="max-h-[85vh] rounded object-contain"
+            />
           </div>
         </div>
       ) : null}

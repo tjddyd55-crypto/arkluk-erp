@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { useTranslation } from "@/hooks/useTranslation";
-import { resolvePublicMediaUrl } from "@/lib/media-url";
+import { resolvePublicMediaUrl } from "@/lib/utils/media-url";
 
 type ProductStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
 
@@ -153,16 +153,15 @@ export function BuyerShopOrder() {
                   onClick={() => setExpandedId((id) => (id === p.id ? null : p.id))}
                 >
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded border border-slate-100 bg-slate-50">
-                    {p.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={resolvePublicMediaUrl(p.image_url) || p.image_url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-slate-400">—</div>
-                    )}
+                    {(() => {
+                      const imgSrc = p.image_url ? resolvePublicMediaUrl(p.image_url) : "";
+                      return imgSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={imgSrc} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-xs text-slate-400">—</div>
+                      );
+                    })()}
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
                     <span
