@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma, ProductStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
@@ -16,6 +16,196 @@ import {
 } from "@/server/services/supplier-dynamic-product-service";
 import { getSupplierActiveProductForm } from "@/server/services/supplier-product-form-service";
 import { deleteSupplierProductImageIfOwned } from "@/server/services/supplier-product-image-storage";
+
+const PRODUCT_PATCH_INCLUDE = {
+  field_values: {
+    include: {
+      field: {
+        select: { id: true, form_id: true, field_key: true },
+      },
+    },
+  },
+} as const;
+
+function comparableFieldText(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return String(value).trim();
+}
+
+function resolveNextImageUrl(
+  dynamicSuccess: boolean,
+  dynamicImage: string | null | undefined,
+  legacyThumb: string | null | undefined,
+  beforeImage: string | null,
+): string | null {
+  if (dynamicSuccess) {
+    return dynamicImage === undefined ? beforeImage : dynamicImage;
+  }
+  return legacyThumb === undefined ? beforeImage : legacyThumb;
+}
+
+/** PATCH 비교용 스냅샷(저장 예정 값과 동일한 규칙으로 정규화) */
+type SupplierProductPatchDiffSnapshot = {
+  categoryId: number;
+  countryCode: string;
+  sourceLanguage: string;
+  sku: string;
+  name: string;
+  description: string;
+  specification: string;
+  price: string;
+  currency: string;
+  unit: string;
+  thumbnail: string;
+  dynamicFields: Record<string, string>;
+};
+
+function canonicalProductDescriptionFromBefore(
+  row: Prisma.ProductGetPayload<{ include: typeof PRODUCT_PATCH_INCLUDE }>,
+): string {
+  return (
+    comparableFieldText(row.description_original) ||
+    comparableFieldText(row.description) ||
+    comparableFieldText(row.memo)
+  );
+}
+
+function buildDynamicFieldMapFromNormalized(
+  formFields: Array<{ field_key: string; is_enabled: boolean }>,
+  values: Record<string, string | null | undefined>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of formFields.filter((x) => x.is_enabled)) {
+    out[f.field_key] = comparableFieldText(values[f.field_key]);
+  }
+  return out;
+}
+
+function buildDynamicFieldMapFromExisting(
+  formFields: Array<{ field_key: string; is_enabled: boolean }>,
+  existingValues: Record<string, unknown>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of formFields.filter((x) => x.is_enabled)) {
+    out[f.field_key] = comparableFieldText(existingValues[f.field_key]);
+  }
+  return out;
+}
+
+function buildExistingPatchSnapshot(
+  before: Prisma.ProductGetPayload<{ include: typeof PRODUCT_PATCH_INCLUDE }>,
+  existingValues: Record<string, unknown>,
+  formFields: Array<{ field_key: string; is_enabled: boolean }>,
+): SupplierProductPatchDiffSnapshot {
+  const beforePrimaryImage = before.image_url ?? before.thumbnail_url ?? before.product_image_url ?? null;
+  return {
+    categoryId: before.category_id,
+    countryCode: before.country_code,
+    sourceLanguage: before.source_language,
+    sku: before.sku ?? before.product_code,
+    name: before.name_original,
+    description: canonicalProductDescriptionFromBefore(before),
+    specification: before.specification ?? before.spec,
+    price: before.price.toString(),
+    currency: String(before.currency).toUpperCase(),
+    unit: before.unit,
+    thumbnail: comparableFieldText(beforePrimaryImage),
+    dynamicFields: buildDynamicFieldMapFromExisting(formFields, existingValues),
+  };
+}
+
+function buildNextPatchSnapshot(input: {
+  nextCategoryId: number;
+  nextCountryCode: string;
+  nextSourceLanguage: Prisma.ProductGetPayload<{ include: typeof PRODUCT_PATCH_INCLUDE }>["source_language"];
+  normalized: ReturnType<typeof validateAndNormalizeDynamicValues>;
+  nextImageUrl: string | null;
+  formFields: Array<{ field_key: string; is_enabled: boolean }>;
+}): SupplierProductPatchDiffSnapshot {
+  const { nextCategoryId, nextCountryCode, nextSourceLanguage, normalized, nextImageUrl, formFields } = input;
+  return {
+    categoryId: nextCategoryId,
+    countryCode: nextCountryCode,
+    sourceLanguage: nextSourceLanguage,
+    sku: normalized.productCore.sku,
+    name: normalized.productCore.name,
+    description: comparableFieldText(normalized.productCore.description),
+    specification: normalized.productCore.specification,
+    price: new Prisma.Decimal(normalized.productCore.price).toString(),
+    currency: normalized.productCore.currency,
+    unit: normalized.productCore.unit,
+    thumbnail: comparableFieldText(nextImageUrl),
+    dynamicFields: buildDynamicFieldMapFromNormalized(formFields, normalized.normalizedValues),
+  };
+}
+
+function patchPriceUnchanged(existingPrice: Prisma.Decimal, nextPriceStr: string): boolean {
+  try {
+    return existingPrice.equals(new Prisma.Decimal(nextPriceStr));
+  } catch {
+    return false;
+  }
+}
+
+/** 기존 행·적용 예정 값 스냅샷을 비교해 변경 필드 키를 계산한다. */
+function getSupplierProductPatchDiff(
+  existing: SupplierProductPatchDiffSnapshot,
+  next: SupplierProductPatchDiffSnapshot,
+  existingPriceDecimal: Prisma.Decimal,
+): { hasChanged: boolean; changedFields: string[] } {
+  const changedFields: string[] = [];
+
+  if (existing.categoryId !== next.categoryId) {
+    changedFields.push("categoryId");
+  }
+  if (existing.countryCode !== next.countryCode) {
+    changedFields.push("countryCode");
+  }
+  if (existing.sourceLanguage !== next.sourceLanguage) {
+    changedFields.push("sourceLanguage");
+  }
+  if (existing.sku !== next.sku) {
+    changedFields.push("sku");
+  }
+  if (existing.name !== next.name) {
+    changedFields.push("name");
+  }
+  if (existing.description !== next.description) {
+    changedFields.push("description");
+  }
+  if (existing.specification !== next.specification) {
+    changedFields.push("specification");
+  }
+  if (!patchPriceUnchanged(existingPriceDecimal, next.price)) {
+    changedFields.push("price");
+  }
+  if (existing.currency !== next.currency) {
+    changedFields.push("currency");
+  }
+  if (existing.unit !== next.unit) {
+    changedFields.push("unit");
+  }
+  if (existing.thumbnail !== next.thumbnail) {
+    changedFields.push("thumbnail");
+  }
+
+  const dynamicKeys = new Set([
+    ...Object.keys(existing.dynamicFields),
+    ...Object.keys(next.dynamicFields),
+  ]);
+  for (const key of dynamicKeys) {
+    const a = existing.dynamicFields[key] ?? "";
+    const b = next.dynamicFields[key] ?? "";
+    if (a !== b) {
+      changedFields.push(`field:${key}`);
+    }
+  }
+
+  changedFields.sort();
+  return { hasChanged: changedFields.length > 0, changedFields };
+}
 
 function mergeLegacyPatchValues(
   formValues: Record<string, unknown>,
@@ -37,6 +227,8 @@ function mergeLegacyPatchValues(
   if (legacy.currency !== undefined) next.currency = legacy.currency;
   return next;
 }
+
+// TODO: 향후 필드별 승인 정책 적용 가능 (예: 가격 변경만 재승인, 이미지 변경은 즉시 반영)
 
 export async function PATCH(
   request: NextRequest,
@@ -65,28 +257,11 @@ export async function PATCH(
 
     const before = await prisma.product.findFirst({
       where: { id: productId, supplier_id: supplierId },
-      include: {
-        field_values: {
-          include: {
-            field: {
-              select: { id: true, form_id: true, field_key: true },
-            },
-          },
-        },
-      },
+      include: PRODUCT_PATCH_INCLUDE,
     });
     if (!before) {
       throw new HttpError(404, "상품을 찾을 수 없습니다.");
     }
-
-    let nextStatus: ProductStatus = before.status;
-    if (before.status === ProductStatus.APPROVED) {
-      nextStatus = ProductStatus.PENDING;
-    } else if (before.status === ProductStatus.REJECTED) {
-      nextStatus = ProductStatus.DRAFT;
-    }
-    const clearRejection =
-      before.status === ProductStatus.APPROVED || before.status === ProductStatus.REJECTED;
 
     const categoryId = dynamicParsed.success ? dynamicParsed.data.categoryId : legacyData?.categoryId;
 
@@ -125,10 +300,40 @@ export async function PATCH(
       values: mergedValues,
     });
 
-    if (
-      normalized.productCore.sku !== before.sku &&
-      normalized.productCore.sku !== before.product_code
-    ) {
+    const beforePrimaryImage = before.image_url ?? before.thumbnail_url ?? before.product_image_url ?? null;
+    const nextImageUrl = resolveNextImageUrl(
+      dynamicParsed.success,
+      dynamicParsed.success ? dynamicParsed.data.imageUrl : undefined,
+      legacyData?.thumbnailUrl,
+      beforePrimaryImage,
+    );
+    const nextSourceLanguage = dynamicParsed.success
+      ? (dynamicParsed.data.sourceLanguage ?? before.source_language)
+      : (legacyData?.sourceLanguage ?? before.source_language);
+    const nextCategoryId = categoryId ?? before.category_id;
+
+    const existingPatchSnapshot = buildExistingPatchSnapshot(before, existingValues, currentForm.fields);
+    const nextPatchSnapshot = buildNextPatchSnapshot({
+      nextCategoryId,
+      nextCountryCode: supplier.country_code,
+      nextSourceLanguage,
+      normalized,
+      nextImageUrl,
+      formFields: currentForm.fields,
+    });
+    const { hasChanged, changedFields } = getSupplierProductPatchDiff(
+      existingPatchSnapshot,
+      nextPatchSnapshot,
+      before.price,
+    );
+
+    if (!hasChanged) {
+      return NextResponse.json({ success: true, unchanged: true });
+    }
+
+    const beforeSku = before.sku ?? before.product_code;
+    const skuChanged = normalized.productCore.sku !== beforeSku;
+    if (skuChanged) {
       const duplicate = await prisma.product.findFirst({
         where: {
           supplier_id: supplierId,
@@ -144,20 +349,20 @@ export async function PATCH(
       }
     }
 
-    const nextImageUrl = dynamicParsed.success
-      ? (dynamicParsed.data.imageUrl === undefined ? before.image_url : dynamicParsed.data.imageUrl)
-      : (legacyData?.thumbnailUrl === undefined
-          ? before.image_url
-          : legacyData.thumbnailUrl);
-    const nextSourceLanguage = dynamicParsed.success
-      ? (dynamicParsed.data.sourceLanguage ?? before.source_language)
-      : (legacyData?.sourceLanguage ?? before.source_language);
+    let nextStatus: ProductStatus = before.status;
+    if (before.status === ProductStatus.APPROVED) {
+      nextStatus = ProductStatus.PENDING;
+    } else if (before.status === ProductStatus.REJECTED) {
+      nextStatus = ProductStatus.DRAFT;
+    }
+    const clearRejection =
+      before.status === ProductStatus.APPROVED || before.status === ProductStatus.REJECTED;
 
     const updated = await prisma.$transaction(async (tx) => {
       const next = await tx.product.update({
         where: { id: productId },
         data: {
-          category_id: categoryId ?? before.category_id,
+          category_id: nextCategoryId,
           country_code: supplier.country_code,
           name_original: normalized.productCore.name,
           description_original: normalized.productCore.description,
@@ -198,18 +403,29 @@ export async function PATCH(
       sourceLanguage: updated.source_language,
     });
 
+    const afterSnapshot = await prisma.product.findFirst({
+      where: { id: productId, supplier_id: supplierId },
+      include: PRODUCT_PATCH_INCLUDE,
+    });
+    if (!afterSnapshot) {
+      throw new HttpError(500, "상품 저장 후 조회에 실패했습니다.");
+    }
+
     await createAuditLog({
       actorId: user.id,
-      actionType: "SUPPLIER_UPDATE_PRODUCT",
+      actionType: "PRODUCT_UPDATED",
       targetType: "PRODUCT",
       targetId: productId,
       beforeData: before,
-      afterData: updated,
+      afterData: {
+        product: afterSnapshot,
+        changedFields,
+      },
     });
 
-    const prevImage = before.image_url;
+    const prevImage = before.image_url ?? before.thumbnail_url ?? before.product_image_url ?? null;
     const nextImage = nextImageUrl ?? null;
-    if ((prevImage ?? "") !== (nextImage ?? "")) {
+    if (comparableFieldText(prevImage) !== comparableFieldText(nextImage)) {
       try {
         await deleteSupplierProductImageIfOwned(supplierId, prevImage);
       } catch {

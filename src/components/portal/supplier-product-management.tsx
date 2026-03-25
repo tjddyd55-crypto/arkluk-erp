@@ -279,6 +279,11 @@ export function SupplierProductManagement() {
         throw new Error(result.message ?? "상품 저장 실패");
       }
 
+      if (editingId !== null && result.unchanged === true) {
+        setMessage("변경된 내용이 없습니다.");
+        return;
+      }
+
       const originStatus =
         editingId === null ? null : products.find((p) => p.id === editingId)?.status ?? null;
       setMessage(
@@ -563,9 +568,7 @@ export function SupplierProductManagement() {
             {editingId === null ? "상품 초안 등록" : "상품 수정"}
           </h3>
           {editingId !== null && products.find((p) => p.id === editingId)?.status === "APPROVED" ? (
-            <p className="mt-1 text-xs text-amber-800">
-              승인된 상품을 수정하면 다시 승인 대기(PENDING) 상태로 변경됩니다.
-            </p>
+            <p className="mt-1 text-xs text-amber-800">수정 시 재승인 상태로 변경됩니다.</p>
           ) : null}
           <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-[1fr_120px_100px]">
             <input
