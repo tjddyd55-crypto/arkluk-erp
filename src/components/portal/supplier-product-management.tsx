@@ -194,10 +194,6 @@ export function SupplierProductManagement() {
   }
 
   function openEdit(product: ProductRow) {
-    if (product.status !== "DRAFT" && product.status !== "REJECTED") {
-      setError("DRAFT 또는 REJECTED 상태 상품만 수정할 수 있습니다.");
-      return;
-    }
     const nextFormValues =
       productForm?.fields.reduce<Record<string, string>>((acc, field) => {
         const dynamicValue = product.dynamic_values?.[field.fieldKey];
@@ -283,7 +279,15 @@ export function SupplierProductManagement() {
         throw new Error(result.message ?? "상품 저장 실패");
       }
 
-      setMessage(editingId === null ? "상품 초안이 생성되었습니다." : "상품 초안이 수정되었습니다.");
+      const originStatus =
+        editingId === null ? null : products.find((p) => p.id === editingId)?.status ?? null;
+      setMessage(
+        editingId === null
+          ? "상품 초안이 생성되었습니다."
+          : originStatus === "APPROVED"
+            ? "수정이 반영되었으며, 승인 대기(PENDING) 상태로 변경되었습니다."
+            : "상품이 수정되었습니다.",
+      );
       setFormOpen(false);
       setEditingId(null);
       setForm({ ...INITIAL_FORM, formValues: {} });
@@ -556,8 +560,13 @@ export function SupplierProductManagement() {
       {formOpen ? (
         <div className="rounded border border-slate-200 bg-slate-50 p-3">
           <h3 className="text-sm font-semibold text-slate-900">
-            {editingId === null ? "상품 초안 등록" : "상품 초안 수정"}
+            {editingId === null ? "상품 초안 등록" : "상품 수정"}
           </h3>
+          {editingId !== null && products.find((p) => p.id === editingId)?.status === "APPROVED" ? (
+            <p className="mt-1 text-xs text-amber-800">
+              승인된 상품을 수정하면 다시 승인 대기(PENDING) 상태로 변경됩니다.
+            </p>
+          ) : null}
           <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-[1fr_120px_100px]">
             <input
               className="rounded border border-slate-300 px-2 py-1 text-sm"
@@ -818,7 +827,6 @@ export function SupplierProductManagement() {
                         type="button"
                         className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-50"
                         onClick={() => openEdit(product)}
-                        disabled={product.status !== "DRAFT" && product.status !== "REJECTED"}
                       >
                         수정
                       </button>

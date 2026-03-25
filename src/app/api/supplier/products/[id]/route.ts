@@ -78,9 +78,15 @@ export async function PATCH(
     if (!before) {
       throw new HttpError(404, "상품을 찾을 수 없습니다.");
     }
-    if (before.status !== ProductStatus.DRAFT && before.status !== ProductStatus.REJECTED) {
-      throw new HttpError(400, "DRAFT 또는 REJECTED 상태 상품만 수정할 수 있습니다.");
+
+    let nextStatus: ProductStatus = before.status;
+    if (before.status === ProductStatus.APPROVED) {
+      nextStatus = ProductStatus.PENDING;
+    } else if (before.status === ProductStatus.REJECTED) {
+      nextStatus = ProductStatus.DRAFT;
     }
+    const clearRejection =
+      before.status === ProductStatus.APPROVED || before.status === ProductStatus.REJECTED;
 
     const categoryId = dynamicParsed.success ? dynamicParsed.data.categoryId : legacyData?.categoryId;
 
@@ -170,8 +176,8 @@ export async function PATCH(
           currency: normalized.productCore.currency,
           memo: normalized.productCore.description,
           unit: normalized.productCore.unit,
-          status: ProductStatus.DRAFT,
-          rejection_reason: null,
+          status: nextStatus,
+          ...(clearRejection ? { rejection_reason: null } : {}),
         },
       });
 
