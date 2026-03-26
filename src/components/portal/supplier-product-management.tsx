@@ -74,6 +74,8 @@ type FormState = {
   categoryId: string;
   sourceLanguage: SupportedLanguage;
   imageUrl: string;
+  /** 저장 시 products/ 로 옮길 R2 키 (temp/…). 확정된 상품 이미지는 빈 배열 */
+  pendingImageKeys: string[];
   formValues: Record<string, string>;
 };
 
@@ -81,6 +83,7 @@ const INITIAL_FORM: FormState = {
   categoryId: "",
   sourceLanguage: "ko",
   imageUrl: "",
+  pendingImageKeys: [],
   formValues: {},
 };
 
@@ -142,6 +145,7 @@ export function SupplierProductManagement() {
   const [requestFieldType, setRequestFieldType] = useState<FieldRequest["requested_field_type"]>("TEXT");
   const [requestReason, setRequestReason] = useState("");
   const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
 
   async function loadData() {
     setLoading(true);
@@ -198,6 +202,7 @@ export function SupplierProductManagement() {
         acc[field.fieldKey] = field.fieldKey === "currency" ? "KRW" : "";
         return acc;
       }, {}) ?? {};
+    setDraftId(crypto.randomUUID());
     setForm({ ...INITIAL_FORM, formValues: nextFormValues });
     setEditingId(null);
     setFormOpen(true);
@@ -231,10 +236,12 @@ export function SupplierProductManagement() {
       nextFormValues.description = product.description_original ?? product.description ?? "";
     }
 
+    setDraftId(crypto.randomUUID());
     setForm({
       categoryId: String(product.category_id),
       sourceLanguage: product.source_language ?? "ko",
       imageUrl: product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? "",
+      pendingImageKeys: [],
       formValues: nextFormValues,
     });
     setEditingId(product.id);
@@ -271,12 +278,19 @@ export function SupplierProductManagement() {
 
     setSubmitting(true);
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         categoryId: Number(form.categoryId),
         sourceLanguage: form.sourceLanguage,
         imageUrl: form.imageUrl.trim() || null,
         formValues: form.formValues,
       };
+      if (form.pendingImageKeys.length > 0) {
+        if (!draftId) {
+          throw new Error("초안 ID가 없습니다. 폼을 닫았다가 다시 열어 주세요.");
+        }
+        payload.imageKeys = form.pendingImageKeys;
+        payload.draftId = draftId;
+      }
       const endpoint =
         editingId === null ? "/api/supplier/products" : `/api/supplier/products/${editingId}`;
       const method = editingId === null ? "POST" : "PATCH";
@@ -300,9 +314,24 @@ export function SupplierProductManagement() {
         editingId === null ? null : products.find((p) => p.id === editingId)?.status ?? null;
 
       if (editingId === null) {
-        const created = result.data as { id: number };
+        const created = result.data as {
+          id: number;
+          image_url?: string | null;
+          thumbnail_url?: string | null;
+          product_image_url?: string | null;
+        };
         setEditingId(created.id);
-        setMessage("상품 초안이 생성되었습니다. 필요 시 이미지를 업로드한 뒤 다시 저장해 주세요.");
+        setForm((prev) => ({
+          ...prev,
+          pendingImageKeys: [],
+          imageUrl:
+            created.image_url ??
+            created.thumbnail_url ??
+            created.product_image_url ??
+            prev.imageUrl,
+        }));
+        setDraftId(crypto.randomUUID());
+        setMessage("상품 초안이 생성되었습니다.");
         await loadData();
         return;
       }
@@ -314,6 +343,7 @@ export function SupplierProductManagement() {
       );
       setFormOpen(false);
       setEditingId(null);
+      setDraftId(null);
       setForm({ ...INITIAL_FORM, formValues: {} });
       await loadData();
     } catch (err) {
@@ -404,15 +434,19 @@ export function SupplierProductManagement() {
 
   async function handleUploadImage(file: File) {
     setError(null);
-    if (editingId === null) {
-      setError("이미지를 업로드하려면 먼저 상품을 임시저장해 주세요.");
+    if (!draftId) {
+      setError("초안 ID가 없습니다. 등록 화면을 다시 열어 주세요.");
       return;
     }
     setUploadingImage(true);
     try {
       const data = new FormData();
-      data.append("productId", String(editingId));
       data.append("image", file);
+      if (editingId !== null) {
+        data.append("productId", String(editingId));
+      } else {
+        data.append("draftId", draftId);
+      }
       const response = await fetch("/api/supplier/products/image-upload", {
         method: "POST",
         body: data,
@@ -421,8 +455,14 @@ export function SupplierProductManagement() {
       if (!response.ok || !result.success) {
         throw new Error(result.message ?? "이미지 업로드 실패");
       }
-      const url = (result.data.url ?? result.data.path) as string;
-      setForm((prev) => ({ ...prev, imageUrl: url }));
+      const url = result.data.url as string;
+      const key = result.data.key as string;
+      const isTemp = Boolean(result.data.temp);
+      setForm((prev) => ({
+        ...prev,
+        imageUrl: url,
+        pendingImageKeys: isTemp ? [key] : [],
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "이미지 업로드 실패");
     } finally {
@@ -717,22 +757,35 @@ export function SupplierProductManagement() {
               </div>
             ))}
             <div className="md:col-span-2">
+              <p className="mb-2 text-xs text-slate-600">
+                저장 전에도 이미지를 올릴 수 있습니다(임시 저장 위치). [저장] 시 상품에 연결됩니다.
+                {form.pendingImageKeys.length > 0 ? (
+                  <span className="ml-1 font-medium text-slate-800">(임시 업로드 반영 대기)</span>
+                ) : null}
+              </p>
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.webp"
+                  disabled={!draftId || uploadingImage}
+                  title={
+                    !draftId
+                      ? "폼을 다시 열면 이미지를 선택할 수 있습니다."
+                      : "상품 이미지 파일 선택"
+                  }
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
                       void handleUploadImage(file);
                     }
+                    e.target.value = "";
                   }}
                 />
                 <button
                   type="button"
                   className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
                   disabled={uploadingImage}
-                  onClick={() => setForm((prev) => ({ ...prev, imageUrl: "" }))}
+                  onClick={() => setForm((prev) => ({ ...prev, imageUrl: "", pendingImageKeys: [] }))}
                 >
                   {uploadingImage ? "업로드 중..." : "이미지 초기화"}
                 </button>
@@ -776,6 +829,7 @@ export function SupplierProductManagement() {
                 setFormOpen(false);
                 setForm({ ...INITIAL_FORM, formValues: {} });
                 setEditingId(null);
+                setDraftId(null);
               }}
             >
               취소

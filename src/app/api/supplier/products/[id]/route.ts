@@ -20,6 +20,7 @@ import {
 } from "@/server/services/supplier-dynamic-product-service";
 import { getSupplierActiveProductForm } from "@/server/services/supplier-product-form-service";
 import { deleteSupplierProductImageIfOwned } from "@/server/services/supplier-product-image-storage";
+import { moveTempSupplierProductImageKeysToProduct } from "@/server/services/storage-service";
 
 const PRODUCT_PATCH_INCLUDE = {
   field_values: {
@@ -308,12 +309,36 @@ export async function PATCH(
     });
 
     const beforePrimaryImage = before.image_url ?? before.thumbnail_url ?? before.product_image_url ?? null;
-    const nextImageUrl = resolveNextImageUrl(
-      dynamicParsed.success,
-      dynamicParsed.success ? dynamicParsed.data.imageUrl : undefined,
-      legacyData?.thumbnailUrl,
-      beforePrimaryImage,
-    );
+
+    const patchImageKeys = dynamicParsed.success ? dynamicParsed.data.imageKeys : undefined;
+    const patchDraftId = dynamicParsed.success ? dynamicParsed.data.draftId : undefined;
+    let movedPrimaryUrl: string | null | undefined;
+    if (patchImageKeys?.length && patchDraftId) {
+      try {
+        const { primaryPublicUrl } = await moveTempSupplierProductImageKeysToProduct(
+          supplierId,
+          patchDraftId,
+          productId,
+          patchImageKeys,
+        );
+        movedPrimaryUrl = primaryPublicUrl;
+      } catch (err) {
+        throw new HttpError(
+          400,
+          err instanceof Error ? err.message : "임시 이미지를 상품에 연결하지 못했습니다.",
+        );
+      }
+    }
+
+    const nextImageUrl =
+      movedPrimaryUrl !== undefined
+        ? movedPrimaryUrl
+        : resolveNextImageUrl(
+            dynamicParsed.success,
+            dynamicParsed.success ? dynamicParsed.data.imageUrl : undefined,
+            legacyData?.thumbnailUrl,
+            beforePrimaryImage,
+          );
     const nextSourceLanguage = dynamicParsed.success
       ? (dynamicParsed.data.sourceLanguage ?? before.source_language)
       : (legacyData?.sourceLanguage ?? before.source_language);

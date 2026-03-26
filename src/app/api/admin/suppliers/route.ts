@@ -29,7 +29,7 @@ function resolveSupplierStatus(
     return SupplierStatus.SUSPENDED;
   }
   if (inputIsActive === undefined) {
-    return SupplierStatus.PENDING;
+    return SupplierStatus.ACTIVE;
   }
   return inputIsActive ? SupplierStatus.ACTIVE : SupplierStatus.INACTIVE;
 }

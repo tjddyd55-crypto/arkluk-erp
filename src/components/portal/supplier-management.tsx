@@ -57,7 +57,7 @@ const INITIAL_FORM: FormState = {
   contactEmail: "",
   contactPhone: "",
   address: "",
-  status: "PENDING",
+  status: "ACTIVE",
   orderEmail: "",
   loginId: "",
   password: "",

@@ -277,7 +277,8 @@ model Supplier {
   contact_email               String?
   contact_phone               String?
   address                     String?
-  status                      SupplierStatus  @default(PENDING)
+  /** 신규 공급사는 기본 ACTIVE(자동 승인·가동). PENDING은 명시적 보류용 */
+  status                      SupplierStatus  @default(ACTIVE)
   supplier_code               String?         @unique
   supplier_name               String
   order_email                 String

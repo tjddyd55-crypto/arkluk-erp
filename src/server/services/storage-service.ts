@@ -4,6 +4,7 @@ import path from "path";
 import { Readable } from "stream";
 import { unlink } from "fs/promises";
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -107,6 +108,108 @@ export async function saveSupplierProductImage(
 ): Promise<string> {
   const key = buildSupplierProductImageObjectKey(productId, fileName);
   return saveFile(buffer, key, contentType);
+}
+
+/** 초안 업로드용 draftId (UUID) 세그먼트 검증 */
+export function assertSafeSupplierProductDraftId(draftId: string): string {
+  const s = draftId.trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)) {
+    throw new Error("유효하지 않은 draftId(UUID)입니다.");
+  }
+  return s;
+}
+
+export function buildTempSupplierProductImagePrefix(supplierId: number, draftId: string): string {
+  const id = assertSafeSupplierProductDraftId(draftId);
+  if (!Number.isInteger(supplierId) || supplierId <= 0) {
+    throw new Error("유효하지 않은 공급사 ID입니다.");
+  }
+  return `temp/supplier/${supplierId}/${id}`;
+}
+
+/** 상품 저장 전 임시 업로드: `temp/supplier/{supplierId}/{draftId}/{fileName}` */
+export async function saveSupplierProductTempImage(
+  buffer: Buffer,
+  supplierId: number,
+  draftId: string,
+  fileName: string,
+  contentType: string,
+): Promise<string> {
+  const prefix = buildTempSupplierProductImagePrefix(supplierId, draftId);
+  const base = fileName.trim().replace(/\\/g, "/");
+  if (!base || base.includes("/") || base.includes("..")) {
+    throw new Error("유효하지 않은 파일명입니다.");
+  }
+  const key = `${prefix}/${base}`;
+  return saveFile(buffer, key, contentType);
+}
+
+function encodeCopySourceObjectKey(key: string): string {
+  return key
+    .split("/")
+    .filter(Boolean)
+    .map((seg) => encodeURIComponent(seg))
+    .join("/");
+}
+
+export async function copyR2ObjectWithinBucket(sourceKey: string, destinationKey: string): Promise<void> {
+  const bucket = env.R2_BUCKET_NAME!.trim();
+  const srcKey = normalizeStorageKey(sourceKey);
+  const dstKey = normalizeStorageKey(destinationKey);
+  if (!srcKey || !dstKey) {
+    throw new Error("복사할 객체 키가 비어 있습니다.");
+  }
+  const client = getR2Client();
+  const copySource = `${bucket}/${encodeCopySourceObjectKey(srcKey)}`;
+  await client.send(
+    new CopyObjectCommand({
+      Bucket: bucket,
+      Key: dstKey,
+      CopySource: copySource,
+      MetadataDirective: "COPY",
+    }),
+  );
+}
+
+export type MoveTempProductImagesResult = {
+  primaryPublicUrl: string | null;
+  finalKeys: string[];
+};
+
+/**
+ * 임시 키들을 `products/{productId}/images/` 로 복사한 뒤 임시 객체를 삭제한다.
+ * 첫 번째 키의 공개 URL을 대표 이미지로 쓴다.
+ */
+export async function moveTempSupplierProductImageKeysToProduct(
+  supplierId: number,
+  draftId: string,
+  productId: number,
+  rawKeys: string[],
+): Promise<MoveTempProductImagesResult> {
+  if (!rawKeys.length) {
+    return { primaryPublicUrl: null, finalKeys: [] };
+  }
+  if (!Number.isInteger(productId) || productId <= 0) {
+    throw new Error("유효하지 않은 상품 ID입니다.");
+  }
+  const expectedPrefix = `${buildTempSupplierProductImagePrefix(supplierId, draftId)}/`;
+  const finalKeys: string[] = [];
+  for (const raw of rawKeys) {
+    const key = resolveR2ObjectKey(raw);
+    if (!key.startsWith(expectedPrefix)) {
+      throw new Error("임시 이미지 키가 이 초안(draftId) 또는 공급사와 일치하지 않습니다.");
+    }
+    const fileName = key.slice(expectedPrefix.length);
+    if (!fileName || fileName.includes("/")) {
+      throw new Error("잘못된 임시 이미지 키입니다.");
+    }
+    const destKey = buildSupplierProductImageObjectKey(productId, fileName);
+    await copyR2ObjectWithinBucket(key, destKey);
+    await deleteFile(key);
+    finalKeys.push(destKey);
+  }
+  const primaryPublicUrl = finalKeys.length > 0 ? getFileUrl(finalKeys[0]!) : null;
+  return { primaryPublicUrl, finalKeys };
 }
 
 /**

@@ -35,6 +35,9 @@ function matchProductImageKey(key: string): number | null {
 }
 
 async function isOwnedProductImageKey(supplierId: number, key: string): Promise<boolean> {
+  if (key.startsWith(`temp/supplier/${supplierId}/`)) {
+    return true;
+  }
   const productId = matchProductImageKey(key);
   if (productId !== null) {
     const row = await prisma.product.findFirst({

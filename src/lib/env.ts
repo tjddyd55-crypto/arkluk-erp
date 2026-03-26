@@ -125,4 +125,14 @@ if (!parsed.success) {
   throw new Error(`환경변수 검증 실패: ${parsed.error.message}`);
 }
 
-export const env = parsed.data;
+const envData = parsed.data;
+const hasR2PublicUrl = Boolean(
+  envData.R2_PUBLIC_URL?.trim() || envData.NEXT_PUBLIC_R2_PUBLIC_URL?.trim(),
+);
+if (!hasR2PublicUrl) {
+  throw new Error(
+    "R2 PUBLIC URL NOT CONFIGURED: R2_PUBLIC_URL 또는 NEXT_PUBLIC_R2_PUBLIC_URL 중 하나 이상을 설정하세요. (예: https://pub-xxxx.r2.dev, 끝 슬래시 없음)",
+  );
+}
+
+export const env = envData;

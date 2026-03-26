@@ -119,20 +119,45 @@ export const supplierProductSubmitSchema = z.object({
 });
 
 /** productCategory 등 알 수 없는 필드는 Zod 기본 동작으로 무시(스트립)된다. 값은 항상 supplier.productCategory에서만 쓴다. */
-export const supplierDynamicProductUpsertSchema = z.object({
-  categoryId: positiveNumber,
-  sourceLanguage: translationLanguageSchema.optional(),
-  imageUrl: z.string().trim().max(500).optional().nullable(),
-  formValues: z.record(z.string(), z.unknown()),
-});
+export const supplierDynamicProductUpsertSchema = z
+  .object({
+    categoryId: positiveNumber,
+    sourceLanguage: translationLanguageSchema.optional(),
+    imageUrl: z.string().trim().max(500).optional().nullable(),
+    /** 상품 저장 시 temp/ 키를 products/{id}/images/ 로 옮길 때 사용 */
+    draftId: z.string().uuid().optional(),
+    imageKeys: z.array(z.string().trim().min(1).max(500)).max(10).optional(),
+    formValues: z.record(z.string(), z.unknown()),
+  })
+  .superRefine((data, ctx) => {
+    if (data.imageKeys?.length && !data.draftId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "imageKeys가 있으면 draftId(UUID)가 필요합니다.",
+        path: ["draftId"],
+      });
+    }
+  });
 
 /** productCategory 요청값은 무시된다. */
-export const supplierDynamicProductPatchSchema = z.object({
-  categoryId: positiveNumber.optional(),
-  sourceLanguage: translationLanguageSchema.optional(),
-  imageUrl: z.string().trim().max(500).optional().nullable(),
-  formValues: z.record(z.string(), z.unknown()).optional(),
-});
+export const supplierDynamicProductPatchSchema = z
+  .object({
+    categoryId: positiveNumber.optional(),
+    sourceLanguage: translationLanguageSchema.optional(),
+    imageUrl: z.string().trim().max(500).optional().nullable(),
+    draftId: z.string().uuid().optional(),
+    imageKeys: z.array(z.string().trim().min(1).max(500)).max(10).optional(),
+    formValues: z.record(z.string(), z.unknown()).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.imageKeys?.length && !data.draftId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "imageKeys가 있으면 draftId(UUID)가 필요합니다.",
+        path: ["draftId"],
+      });
+    }
+  });
 
 /** Prisma Json / JSON.parse 결과에 맞춤(객체·배열·원시·null). */
 const prismaJsonValueSchema = z.union([
