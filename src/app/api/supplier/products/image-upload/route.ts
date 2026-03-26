@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import path from "path";
 import { NextRequest } from "next/server";
 
+import { env } from "@/lib/env";
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
@@ -11,7 +12,7 @@ import {
   SUPPLIER_PRODUCT_IMAGE_EXT_SET,
   SUPPLIER_PRODUCT_IMAGE_MAX_BYTES,
 } from "@/server/storage/storage-upload-policy";
-import { getFileUrl, saveArkluxSupplierProductImage } from "@/server/services/storage-service";
+import { getFileUrl, saveSupplierProductImage } from "@/server/services/storage-service";
 
 export const runtime = "nodejs";
 
@@ -23,19 +24,24 @@ export async function POST(request: NextRequest) {
       throw new HttpError(403, "공급사 계정만 이미지를 업로드할 수 있습니다.");
     }
 
-    const supplier = await prisma.supplier.findUnique({
-      where: { id: supplierId },
-      select: { company_code: true },
-    });
-    const companyCode = supplier?.company_code?.trim() ?? "";
-    if (!companyCode) {
+    const formData = await request.formData();
+    const productIdRaw = formData.get("productId");
+    const productId = Number(typeof productIdRaw === "string" ? productIdRaw.trim() : NaN);
+    if (!Number.isInteger(productId) || productId <= 0) {
       throw new HttpError(
         400,
-        "상품 이미지 업로드를 위해 공급사 회사 코드(company_code)가 등록되어 있어야 합니다.",
+        "유효한 상품 ID(productId)가 필요합니다. 상품을 먼저 임시저장한 뒤 이미지를 업로드해 주세요.",
       );
     }
 
-    const formData = await request.formData();
+    const product = await prisma.product.findFirst({
+      where: { id: productId, supplier_id: supplierId },
+      select: { id: true },
+    });
+    if (!product) {
+      throw new HttpError(404, "상품을 찾을 수 없거나 권한이 없습니다.");
+    }
+
     const image = formData.get("image");
     if (!(image instanceof File)) {
       throw new HttpError(400, "이미지 파일이 필요합니다.");
@@ -62,22 +68,27 @@ export async function POST(request: NextRequest) {
     const fileName = `${Date.now()}-${randomUUID()}.${ext}`;
     const imageBuffer = Buffer.from(await image.arrayBuffer());
 
-    let pathStored: string;
+    let key: string;
     try {
-      pathStored = await saveArkluxSupplierProductImage(
-        imageBuffer,
-        companyCode,
-        fileName,
-        contentType,
-      );
+      key = await saveSupplierProductImage(imageBuffer, productId, fileName, contentType);
     } catch (err) {
       const message = err instanceof Error ? err.message : "이미지를 저장할 수 없습니다.";
       throw new HttpError(400, message);
     }
 
+    const url = getFileUrl(key);
+    if (!env.R2_PUBLIC_URL?.trim() || !/^https?:\/\//i.test(url)) {
+      throw new HttpError(
+        500,
+        "R2_PUBLIC_URL 환경변수가 없어 공개 URL을 만들 수 없습니다. 배포 환경에 R2 공개 도메인을 설정해 주세요.",
+      );
+    }
+
     return ok({
-      path: pathStored,
-      previewUrl: getFileUrl(pathStored),
+      key,
+      url,
+      path: url,
+      previewUrl: url,
       size: image.size,
     });
   } catch (error) {

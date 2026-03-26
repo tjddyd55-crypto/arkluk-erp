@@ -471,7 +471,11 @@ export async function DELETE(
       throw new HttpError(404, "상품을 찾을 수 없습니다.");
     }
 
-    const imagePathBeforeDelete = before.image_url;
+    const imagePathsBeforeDelete = [
+      before.image_url,
+      before.thumbnail_url,
+      before.product_image_url,
+    ].filter((v): v is string => Boolean(v?.trim()));
 
     await prisma.$transaction(async (tx) => {
       await tx.productApprovalLog.deleteMany({
@@ -493,10 +497,12 @@ export async function DELETE(
       beforeData: before,
     });
 
-    try {
-      await deleteSupplierProductImageIfOwned(supplierId, imagePathBeforeDelete);
-    } catch {
-      /* 스토리지 삭제 실패는 삭제 응답을 막지 않음 */
+    for (const imagePath of imagePathsBeforeDelete) {
+      try {
+        await deleteSupplierProductImageIfOwned(supplierId, imagePath);
+      } catch {
+        /* 스토리지 삭제 실패는 삭제 응답을 막지 않음 */
+      }
     }
 
     return ok({ deleted: true });

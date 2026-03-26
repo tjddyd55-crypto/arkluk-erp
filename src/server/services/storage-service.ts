@@ -25,6 +25,36 @@ export function normalizeStorageKey(storedPath: string): string {
   return s.replace(/^storage\//, "");
 }
 
+/**
+ * DB에 저장된 값(상대 키 또는 R2 공개 URL)을 R2 Object Key로 통일한다.
+ * 로컬 레거시 경로는 normalizeStorageKey와 동일하게 처리한다.
+ */
+export function resolveR2ObjectKey(storedPath: string): string {
+  const s = storedPath.trim();
+  if (!s) {
+    return "";
+  }
+  if (/^https?:\/\//i.test(s)) {
+    const bases = [env.R2_PUBLIC_URL, process.env.NEXT_PUBLIC_R2_PUBLIC_URL]
+      .filter((b): b is string => Boolean(b?.trim()))
+      .map((b) => b.trim().replace(/\/+$/, ""));
+    const lower = s.toLowerCase();
+    for (const base of bases) {
+      const prefix = `${base.toLowerCase()}/`;
+      if (lower.startsWith(prefix)) {
+        return normalizeStorageKey(s.slice(base.length + 1));
+      }
+    }
+    try {
+      const path = new URL(s).pathname.replace(/^\/+/, "");
+      return normalizeStorageKey(path);
+    } catch {
+      return normalizeStorageKey(s);
+    }
+  }
+  return normalizeStorageKey(s);
+}
+
 /** 플랫폼 정적 자산 R2 키 프리픽스 (버킷은 R2_BUCKET_NAME, 예: platform-assets). */
 export const ARKLUX_PLATFORM_PREFIX = "arklux";
 
@@ -54,6 +84,29 @@ export function buildArkluxAssetObjectKey(companyCode: string, fileName: string)
     throw new Error("유효하지 않은 파일명입니다.");
   }
   return `${ARKLUX_PLATFORM_PREFIX}/${code}/${base}`;
+}
+
+/** 공급사 상품 이미지 R2 키: `products/{productId}/images/{fileName}` */
+export function buildSupplierProductImageObjectKey(productId: number, fileName: string): string {
+  if (!Number.isInteger(productId) || productId <= 0) {
+    throw new Error("유효하지 않은 상품 ID입니다.");
+  }
+  const base = fileName.trim().replace(/\\/g, "/");
+  if (!base || base.includes("/") || base.includes("..")) {
+    throw new Error("유효하지 않은 파일명입니다.");
+  }
+  return `products/${productId}/images/${base}`;
+}
+
+/** 상품별 이미지: `products/{productId}/images/...` 키로 저장하고 동일 키 문자열을 반환한다. */
+export async function saveSupplierProductImage(
+  buffer: Buffer,
+  productId: number,
+  fileName: string,
+  contentType: string,
+): Promise<string> {
+  const key = buildSupplierProductImageObjectKey(productId, fileName);
+  return saveFile(buffer, key, contentType);
 }
 
 /**
@@ -197,7 +250,7 @@ export async function createPresignedGetObjectUrl(
 
 /** R2(또는 호환 S3) 객체 스트림. 호출 측에서 본문 소비 실패 시 스트림 정리 필요. */
 export async function getFileStream(objectPath: string) {
-  const key = normalizeStorageKey(objectPath);
+  const key = resolveR2ObjectKey(objectPath);
   const client = getR2Client();
   const res = await client.send(
     new GetObjectCommand({
@@ -209,7 +262,7 @@ export async function getFileStream(objectPath: string) {
 }
 
 export async function getFileBuffer(objectPath: string): Promise<Buffer> {
-  const key = normalizeStorageKey(objectPath);
+  const key = resolveR2ObjectKey(objectPath);
   const client = getR2Client();
   const res = await client.send(
     new GetObjectCommand({
@@ -226,7 +279,7 @@ export async function getFileBuffer(objectPath: string): Promise<Buffer> {
 export async function existsFile(objectPath: string): Promise<boolean> {
   if (isR2Configured()) {
     try {
-      const key = normalizeStorageKey(objectPath);
+      const key = resolveR2ObjectKey(objectPath);
       await getR2Client().send(
         new HeadObjectCommand({
           Bucket: env.R2_BUCKET_NAME!.trim(),
@@ -243,7 +296,7 @@ export async function existsFile(objectPath: string): Promise<boolean> {
 
 export function getFileUrl(objectPath: string): string {
   const base = (env.R2_PUBLIC_URL ?? "").trim().replace(/\/+$/, "");
-  const key = normalizeStorageKey(objectPath);
+  const key = resolveR2ObjectKey(objectPath);
   if (!base) {
     return key;
   }

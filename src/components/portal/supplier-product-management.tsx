@@ -300,12 +300,19 @@ export function SupplierProductManagement() {
 
       const originStatus =
         editingId === null ? null : products.find((p) => p.id === editingId)?.status ?? null;
+
+      if (editingId === null) {
+        const created = result.data as { id: number };
+        setEditingId(created.id);
+        setMessage("상품 초안이 생성되었습니다. 필요 시 이미지를 업로드한 뒤 다시 저장해 주세요.");
+        await loadData();
+        return;
+      }
+
       setMessage(
-        editingId === null
-          ? "상품 초안이 생성되었습니다."
-          : originStatus === "APPROVED"
-            ? "수정이 반영되었으며, 승인 대기(PENDING) 상태로 변경되었습니다."
-            : "상품이 수정되었습니다.",
+        originStatus === "APPROVED"
+          ? "수정이 반영되었으며, 승인 대기(PENDING) 상태로 변경되었습니다."
+          : "상품이 수정되었습니다.",
       );
       setFormOpen(false);
       setEditingId(null);
@@ -399,9 +406,14 @@ export function SupplierProductManagement() {
 
   async function handleUploadImage(file: File) {
     setError(null);
+    if (editingId === null) {
+      setError("이미지를 업로드하려면 먼저 상품을 임시저장해 주세요.");
+      return;
+    }
     setUploadingImage(true);
     try {
       const data = new FormData();
+      data.append("productId", String(editingId));
       data.append("image", file);
       const response = await fetch("/api/supplier/products/image-upload", {
         method: "POST",
@@ -411,8 +423,8 @@ export function SupplierProductManagement() {
       if (!response.ok || !result.success) {
         throw new Error(result.message ?? "이미지 업로드 실패");
       }
-      const path = result.data.path as string;
-      setForm((prev) => ({ ...prev, imageUrl: path }));
+      const url = (result.data.url ?? result.data.path) as string;
+      setForm((prev) => ({ ...prev, imageUrl: url }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "이미지 업로드 실패");
     } finally {

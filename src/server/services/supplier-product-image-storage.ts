@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import {
   ARKLUX_PLATFORM_PREFIX,
   deleteFile,
-  normalizeStorageKey,
+  resolveR2ObjectKey,
 } from "@/server/services/storage-service";
 
 function legacyProductImagePrefix(supplierId: number): string {
@@ -26,21 +26,23 @@ async function getSupplierCompanyCode(supplierId: number): Promise<string | null
   return trySafeCompanyCodeSegment(row?.company_code);
 }
 
-/**
- * 레거시 product-images/{supplierId}/ 또는 신규 arklux/{company_code}/ 소유 키인지.
- */
-export async function isSupplierOwnedProductImagePath(
-  supplierId: number,
-  storedPath: string | null | undefined,
-): Promise<boolean> {
-  if (!storedPath?.trim()) {
-    return false;
+function matchProductImageKey(key: string): number | null {
+  const m = /^products\/(\d+)\/images\//.exec(key);
+  if (!m) {
+    return null;
   }
-  const p = storedPath.trim();
-  if (/^https?:\/\//i.test(p) || p.startsWith("/")) {
-    return false;
+  return Number(m[1]);
+}
+
+async function isOwnedProductImageKey(supplierId: number, key: string): Promise<boolean> {
+  const productId = matchProductImageKey(key);
+  if (productId !== null) {
+    const row = await prisma.product.findFirst({
+      where: { id: productId, supplier_id: supplierId },
+      select: { id: true },
+    });
+    return Boolean(row);
   }
-  const key = normalizeStorageKey(p);
   if (key.startsWith(legacyProductImagePrefix(supplierId))) {
     return true;
   }
@@ -49,6 +51,24 @@ export async function isSupplierOwnedProductImagePath(
     return false;
   }
   return key.startsWith(`${ARKLUX_PLATFORM_PREFIX}/${companyCode}/`);
+}
+
+/**
+ * 레거시 product-images/{supplierId}/, arklux/{company_code}/, products/{id}/images/ 소유 여부.
+ * DB에 R2 공개 URL이 저장된 경우에도 동일하게 판별한다.
+ */
+export async function isSupplierOwnedProductImagePath(
+  supplierId: number,
+  storedPath: string | null | undefined,
+): Promise<boolean> {
+  if (!storedPath?.trim()) {
+    return false;
+  }
+  const key = resolveR2ObjectKey(storedPath);
+  if (!key) {
+    return false;
+  }
+  return isOwnedProductImageKey(supplierId, key);
 }
 
 export async function deleteSupplierProductImageIfOwned(
@@ -61,7 +81,7 @@ export async function deleteSupplierProductImageIfOwned(
   await deleteFile(storedPath!);
 }
 
-/** API에서 명시 삭제: 레거시 product-images/{supplierId}/ 또는 arklux/{company_code}/ 만 허용. */
+/** API에서 명시 삭제: products/{id}/images/, 레거시 product-images/{supplierId}/, arklux/{company_code}/ */
 export async function deleteSupplierProductImageByPathForApi(
   supplierId: number,
   pathInput: string,
@@ -70,34 +90,24 @@ export async function deleteSupplierProductImageByPathForApi(
   if (!p) {
     throw new HttpError(400, "path가 필요합니다.");
   }
-  if (/^https?:\/\//i.test(p) || p.startsWith("/")) {
-    throw new HttpError(400, "스토리지 객체 경로만 삭제할 수 있습니다.");
-  }
-  const key = normalizeStorageKey(p);
-
-  if (key.startsWith(legacyProductImagePrefix(supplierId))) {
-    await deleteFile(p);
-    return;
+  const key = resolveR2ObjectKey(p);
+  if (!key) {
+    throw new HttpError(400, "유효하지 않은 경로입니다.");
   }
 
-  if (key.startsWith(`${ARKLUX_PLATFORM_PREFIX}/`)) {
-    const companyCode = await getSupplierCompanyCode(supplierId);
-    if (!companyCode) {
-      throw new HttpError(
-        400,
-        "공급사 회사 코드(company_code)가 없어 arklux 경로를 삭제할 수 없습니다.",
-      );
+  const owned = await isOwnedProductImageKey(supplierId, key);
+  if (!owned) {
+    if (key.startsWith("product-images/")) {
+      throw new HttpError(403, "이 경로를 삭제할 권한이 없습니다.");
     }
-    if (key.startsWith(`${ARKLUX_PLATFORM_PREFIX}/${companyCode}/`)) {
-      await deleteFile(p);
-      return;
+    if (key.startsWith(`${ARKLUX_PLATFORM_PREFIX}/`)) {
+      throw new HttpError(403, "이 경로를 삭제할 권한이 없습니다.");
     }
-    throw new HttpError(403, "이 경로를 삭제할 권한이 없습니다.");
+    if (matchProductImageKey(key) !== null) {
+      throw new HttpError(403, "이 경로를 삭제할 권한이 없습니다.");
+    }
+    throw new HttpError(400, "상품 이미지 스토리지 경로가 아닙니다.");
   }
 
-  if (key.startsWith("product-images/")) {
-    throw new HttpError(403, "이 경로를 삭제할 권한이 없습니다.");
-  }
-
-  throw new HttpError(400, "상품 이미지 스토리지 경로가 아닙니다. (arklux/{company_code}/... 또는 레거시 경로)");
+  await deleteFile(p);
 }
