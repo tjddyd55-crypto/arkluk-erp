@@ -228,7 +228,8 @@ function mergeLegacyPatchValues(
   return next;
 }
 
-// TODO: 향후 필드별 승인 정책 적용 가능 (예: 가격 변경만 재승인, 이미지 변경은 즉시 반영)
+// TODO: 향후 필드별 승인 정책 적용 가능
+// (예: 가격 변경만 재승인, 이미지 변경은 즉시 반영)
 
 export async function PATCH(
   request: NextRequest,
@@ -403,11 +404,11 @@ export async function PATCH(
       sourceLanguage: updated.source_language,
     });
 
-    const afterSnapshot = await prisma.product.findFirst({
-      where: { id: productId, supplier_id: supplierId },
+    const afterSnapshot = await prisma.product.findUnique({
+      where: { id: productId },
       include: PRODUCT_PATCH_INCLUDE,
     });
-    if (!afterSnapshot) {
+    if (!afterSnapshot || afterSnapshot.supplier_id !== supplierId) {
       throw new HttpError(500, "상품 저장 후 조회에 실패했습니다.");
     }
 
