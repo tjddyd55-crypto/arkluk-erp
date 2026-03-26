@@ -3,7 +3,7 @@ import { Prisma, ProductStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
-import { parseProductCategoryParam, productCategoryForWrite } from "@/lib/product-category-policy";
+import { productCategoryForWrite } from "@/lib/product-category-policy";
 import { prisma } from "@/lib/prisma";
 import {
   supplierDynamicProductUpsertSchema,
@@ -22,11 +22,9 @@ export async function GET(request: NextRequest) {
       throw new HttpError(400, "공급사 계정 정보가 올바르지 않습니다.");
     }
 
-    const lineFilter = parseProductCategoryParam(request.nextUrl.searchParams.get("category"));
     const products = await prisma.product.findMany({
       where: {
         supplier_id: supplierId,
-        ...(lineFilter ? { productCategory: lineFilter } : {}),
       },
       include: {
         category: true,

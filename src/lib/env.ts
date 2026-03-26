@@ -84,8 +84,13 @@ const envSchema = z.object({
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
     z.string().optional(),
   ),
-  /** 공개 버킷/커스텀 도메인 베이스 URL (끝 슬래시 없음 권장) */
+  /** 공개 버킷/커스텀 도메인 베이스 URL (끝 슬래시 없음 권장). 서버·업로드 응답용. */
   R2_PUBLIC_URL: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().optional(),
+  ),
+  /** 브라우저에서 상대 미디어 키 보정용. 배포 시 R2_PUBLIC_URL과 동일 값 권장. */
+  NEXT_PUBLIC_R2_PUBLIC_URL: z.preprocess(
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
     z.string().optional(),
   ),
@@ -113,6 +118,7 @@ const parsed = envSchema.safeParse({
   R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
   R2_BUCKET_NAME: process.env.R2_BUCKET_NAME,
   R2_PUBLIC_URL: process.env.R2_PUBLIC_URL,
+  NEXT_PUBLIC_R2_PUBLIC_URL: process.env.NEXT_PUBLIC_R2_PUBLIC_URL,
 });
 
 if (!parsed.success) {

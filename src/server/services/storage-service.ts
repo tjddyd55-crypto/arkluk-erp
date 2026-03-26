@@ -35,7 +35,7 @@ export function resolveR2ObjectKey(storedPath: string): string {
     return "";
   }
   if (/^https?:\/\//i.test(s)) {
-    const bases = [env.R2_PUBLIC_URL, process.env.NEXT_PUBLIC_R2_PUBLIC_URL]
+    const bases = [env.R2_PUBLIC_URL, env.NEXT_PUBLIC_R2_PUBLIC_URL]
       .filter((b): b is string => Boolean(b?.trim()))
       .map((b) => b.trim().replace(/\/+$/, ""));
     const lower = s.toLowerCase();
@@ -295,7 +295,7 @@ export async function existsFile(objectPath: string): Promise<boolean> {
 }
 
 export function getFileUrl(objectPath: string): string {
-  const base = (env.R2_PUBLIC_URL ?? "").trim().replace(/\/+$/, "");
+  const base = (env.R2_PUBLIC_URL ?? env.NEXT_PUBLIC_R2_PUBLIC_URL ?? "").trim().replace(/\/+$/, "");
   const key = resolveR2ObjectKey(objectPath);
   if (!base) {
     return key;

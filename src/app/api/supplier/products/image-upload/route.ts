@@ -25,6 +25,12 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
+
+    const image = formData.get("image");
+    if (!(image instanceof File)) {
+      throw new HttpError(400, "이미지 파일이 필요합니다.");
+    }
+
     const productIdRaw = formData.get("productId");
     const productId = Number(typeof productIdRaw === "string" ? productIdRaw.trim() : NaN);
     if (!Number.isInteger(productId) || productId <= 0) {
@@ -42,10 +48,6 @@ export async function POST(request: NextRequest) {
       throw new HttpError(404, "상품을 찾을 수 없거나 권한이 없습니다.");
     }
 
-    const image = formData.get("image");
-    if (!(image instanceof File)) {
-      throw new HttpError(400, "이미지 파일이 필요합니다.");
-    }
     if (image.size <= 0 || image.size > SUPPLIER_PRODUCT_IMAGE_MAX_BYTES) {
       throw new HttpError(
         400,
@@ -77,18 +79,17 @@ export async function POST(request: NextRequest) {
     }
 
     const url = getFileUrl(key);
-    if (!env.R2_PUBLIC_URL?.trim() || !/^https?:\/\//i.test(url)) {
+    const publicBase = (env.R2_PUBLIC_URL ?? env.NEXT_PUBLIC_R2_PUBLIC_URL ?? "").trim();
+    if (!publicBase || !/^https?:\/\//i.test(url)) {
       throw new HttpError(
         500,
-        "R2_PUBLIC_URL 환경변수가 없어 공개 URL을 만들 수 없습니다. 배포 환경에 R2 공개 도메인을 설정해 주세요.",
+        "R2 공개 도메인이 설정되지 않았습니다. R2_PUBLIC_URL과 NEXT_PUBLIC_R2_PUBLIC_URL을 동일한 베이스(예: https://pub-xxxx.r2.dev)로 설정해 주세요.",
       );
     }
 
     return ok({
       key,
       url,
-      path: url,
-      previewUrl: url,
       size: image.size,
     });
   } catch (error) {

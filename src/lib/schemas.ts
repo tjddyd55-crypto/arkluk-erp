@@ -118,6 +118,7 @@ export const supplierProductSubmitSchema = z.object({
   submit: z.literal(true).optional().default(true),
 });
 
+/** productCategory 등 알 수 없는 필드는 Zod 기본 동작으로 무시(스트립)된다. 값은 항상 supplier.productCategory에서만 쓴다. */
 export const supplierDynamicProductUpsertSchema = z.object({
   categoryId: positiveNumber,
   sourceLanguage: translationLanguageSchema.optional(),
@@ -125,6 +126,7 @@ export const supplierDynamicProductUpsertSchema = z.object({
   formValues: z.record(z.string(), z.unknown()),
 });
 
+/** productCategory 요청값은 무시된다. */
 export const supplierDynamicProductPatchSchema = z.object({
   categoryId: positiveNumber.optional(),
   sourceLanguage: translationLanguageSchema.optional(),

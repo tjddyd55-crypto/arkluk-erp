@@ -122,7 +122,6 @@ export function SupplierProductManagement() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [productForm, setProductForm] = useState<ProductFormSchema | null>(null);
-  const [lineTab, setLineTab] = useState<"ALL" | ProductLine>("ALL");
   const [fieldRequests, setFieldRequests] = useState<FieldRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,9 +147,8 @@ export function SupplierProductManagement() {
     setLoading(true);
     setError(null);
     try {
-      const productQs = lineTab === "ALL" ? "" : `?category=${lineTab}`;
       const [productsResponse, categoriesResponse, productFormResponse, fieldRequestResponse] = await Promise.all([
-        fetch(`/api/supplier/products${productQs}`),
+        fetch("/api/supplier/products"),
         fetch("/api/supplier/products/categories"),
         fetch("/api/supplier/product-form"),
         fetch("/api/supplier/product-field-requests"),
@@ -192,7 +190,7 @@ export function SupplierProductManagement() {
 
   useEffect(() => {
     void loadData();
-  }, [lineTab]);
+  }, []);
 
   function openCreate() {
     const nextFormValues =
@@ -553,34 +551,14 @@ export function SupplierProductManagement() {
 
       {productForm ? (
         <p className="rounded bg-slate-50 p-2 text-xs text-slate-600">
-          현재 적용 폼: {productForm.name} · 사업자 상품 유형:{" "}
+          현재 적용 폼: {productForm.name} ·{" "}
           <span className="font-medium text-slate-800">
-            {PRODUCT_LINE_LABEL[productForm.supplierProductCategory]}
-          </span>{" "}
-          (등록 상품은 항상 이 유형으로 저장됩니다. 유형 변경은 관리자에게 요청하세요.)
+            현재 사업자 유형: {PRODUCT_LINE_LABEL[productForm.supplierProductCategory]}
+          </span>
+          . 등록·수정되는 모든 상품은 이 유형으로 자동 저장되며, 화면에서 선택할 수 없습니다. 유형 변경은 관리자에게
+          요청하세요.
         </p>
       ) : null}
-
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
-        {(
-          [
-            { key: "ALL" as const, label: "전체" },
-            { key: "CONSTRUCTION" as const, label: "건축자재" },
-            { key: "GENERAL" as const, label: "기타상품" },
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`rounded px-3 py-1 text-sm ${
-              lineTab === tab.key ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700"
-            }`}
-            onClick={() => setLineTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
 
       {message ? (
         <p className="whitespace-pre-line rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p>
@@ -770,7 +748,9 @@ export function SupplierProductManagement() {
                         className="h-12 w-12 rounded border border-slate-200 object-cover"
                       />
                     ) : (
-                      <span className="text-xs text-amber-700">CDN 미설정(NEXT_PUBLIC_R2_PUBLIC_URL)</span>
+                      <span className="text-xs text-amber-700">
+                        R2 베이스 미설정(R2_PUBLIC_URL / NEXT_PUBLIC_R2_PUBLIC_URL)
+                      </span>
                     );
                   })()}
                   <span className="text-xs text-slate-500">{form.imageUrl}</span>
@@ -812,8 +792,7 @@ export function SupplierProductManagement() {
             <thead>
               <tr className="bg-slate-50">
                 <th className="border border-slate-200 px-2 py-1 text-left">이미지</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상품 유형</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">카테고리</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">사내 분류</th>
                 {listMainFields.map((field) => (
                   <th key={field.id} className="border border-slate-200 px-2 py-1 text-left">
                     {field.label}
@@ -849,16 +828,13 @@ export function SupplierProductManagement() {
                           </button>
                         ) : (
                           <span className="text-xs text-slate-400" title={raw || undefined}>
-                            CDN?
+                            URL?
                           </span>
                         );
                       })()
                     ) : (
                       <span className="text-xs text-slate-400">-</span>
                     )}
-                  </td>
-                  <td className="border border-slate-200 px-2 py-1 text-xs whitespace-nowrap">
-                    {PRODUCT_LINE_LABEL[product.productCategory] ?? product.productCategory}
                   </td>
                   <td className="border border-slate-200 px-2 py-1">
                     {product.category?.category_name ?? "-"}
@@ -916,7 +892,7 @@ export function SupplierProductManagement() {
                 <tr>
                   <td
                     className="border border-slate-200 px-2 py-3 text-center text-slate-500"
-                    colSpan={10 + listMainFields.length}
+                    colSpan={6 + listMainFields.length}
                   >
                     등록된 상품이 없습니다.
                   </td>
