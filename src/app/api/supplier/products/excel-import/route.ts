@@ -172,8 +172,6 @@ export async function POST(request: NextRequest) {
             specification: normalized.productCore.specification,
             product_code: normalized.productCore.sku,
             product_name: normalized.productCore.name,
-            product_image_url: imageUrlValue,
-            thumbnail_url: imageUrlValue,
             image_url: imageUrlValue,
             spec: normalized.productCore.specification,
             unit: normalized.productCore.unit,

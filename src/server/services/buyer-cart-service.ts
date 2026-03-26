@@ -376,8 +376,6 @@ export async function getBuyerProductsPayload(supplierId: number, buyerId: numbe
       product_name: true,
       product_code: true,
       image_url: true,
-      thumbnail_url: true,
-      product_image_url: true,
       field_values: { select: { field_id: true, value_text: true } },
     },
     orderBy: [{ sort_order: "asc" }, { id: "asc" }],
@@ -404,7 +402,7 @@ export async function getBuyerProductsPayload(supplierId: number, buyerId: numbe
       status: p.status,
       isActive: p.is_active,
       orderable,
-      image_url: p.image_url ?? p.thumbnail_url ?? p.product_image_url,
+      image_url: p.image_url,
       displayName: resolveBuyerCatalogDisplayName(fieldRows, valueByKey, {
         product_name: p.product_name,
         product_code: p.product_code,

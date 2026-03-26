@@ -13,8 +13,6 @@ import { createAuditLog } from "@/server/services/audit-log";
 import { generateProductTranslations } from "@/server/services/product-translation-service";
 import { validateAndNormalizeDynamicValues, upsertSupplierProductFieldValues } from "@/server/services/supplier-dynamic-product-service";
 import { getSupplierActiveProductForm } from "@/server/services/supplier-product-form-service";
-import { moveTempSupplierProductImageKeysToProduct } from "@/server/services/storage-service";
-
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth(request, ["SUPPLIER"]);
@@ -81,8 +79,6 @@ export async function POST(request: NextRequest) {
           categoryId: legacyData!.categoryId,
           sourceLanguage: legacyData!.sourceLanguage,
           imageUrl: legacyData!.thumbnailUrl ?? null,
-          draftId: undefined as string | undefined,
-          imageKeys: undefined as string[] | undefined,
           formValues: {
             name: legacyData!.name,
             sku: legacyData!.sku,
@@ -132,11 +128,6 @@ export async function POST(request: NextRequest) {
       values: dynamicPayload.formValues,
     });
 
-    const willAttachTempImages =
-      Array.isArray(dynamicPayload.imageKeys) &&
-      dynamicPayload.imageKeys.length > 0 &&
-      Boolean(dynamicPayload.draftId);
-
     const created = await prisma.$transaction(async (tx) => {
       const newProduct = await tx.product.create({
         data: {
@@ -153,13 +144,11 @@ export async function POST(request: NextRequest) {
           specification: normalized.productCore.specification,
           price: new Prisma.Decimal(normalized.productCore.price),
           currency: normalized.productCore.currency,
-          thumbnail_url: willAttachTempImages ? null : dynamicPayload.imageUrl ?? null,
-          image_url: willAttachTempImages ? null : dynamicPayload.imageUrl ?? null,
+          image_url: dynamicPayload.imageUrl ?? null,
           status: ProductStatus.DRAFT,
           is_active: false,
           product_code: normalized.productCore.sku,
           product_name: normalized.productCore.name,
-          product_image_url: willAttachTempImages ? null : dynamicPayload.imageUrl ?? null,
           spec: normalized.productCore.specification,
           unit: normalized.productCore.unit,
           memo: normalized.productCore.description ?? null,
@@ -176,54 +165,26 @@ export async function POST(request: NextRequest) {
       return newProduct;
     });
 
-    let resultProduct = created;
-    if (willAttachTempImages && dynamicPayload.draftId) {
-      try {
-        const { primaryPublicUrl } = await moveTempSupplierProductImageKeysToProduct(
-          supplierId,
-          dynamicPayload.draftId,
-          created.id,
-          dynamicPayload.imageKeys!,
-        );
-        const finalUrl = primaryPublicUrl ?? dynamicPayload.imageUrl ?? null;
-        if (finalUrl) {
-          resultProduct = await prisma.product.update({
-            where: { id: created.id },
-            data: {
-              image_url: finalUrl,
-              thumbnail_url: finalUrl,
-              product_image_url: finalUrl,
-            },
-          });
-        }
-      } catch (err) {
-        throw new HttpError(
-          400,
-          err instanceof Error ? err.message : "임시 이미지를 상품에 연결하지 못했습니다.",
-        );
-      }
-    }
-
     await generateProductTranslations({
-      productId: resultProduct.id,
-      nameOriginal: resultProduct.name_original,
-      descriptionOriginal: resultProduct.description_original,
-      sourceLanguage: resultProduct.source_language,
+      productId: created.id,
+      nameOriginal: created.name_original,
+      descriptionOriginal: created.description_original,
+      sourceLanguage: created.source_language,
     });
 
     await createAuditLog({
       actorId: user.id,
       actionType: "SUPPLIER_CREATE_PRODUCT_DRAFT",
       targetType: "PRODUCT",
-      targetId: resultProduct.id,
+      targetId: created.id,
       afterData: {
-        status: resultProduct.status,
-        sku: resultProduct.sku,
+        status: created.status,
+        sku: created.sku,
         formId: form.id,
       },
     });
 
-    return ok(resultProduct, { status: 201 });
+    return ok(created, { status: 201 });
   } catch (error) {
     return handleRouteError(error);
   }

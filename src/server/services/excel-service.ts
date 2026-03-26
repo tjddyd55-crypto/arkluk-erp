@@ -145,7 +145,7 @@ export async function upsertProductsFromExcel(actorId: number, buffer: Buffer) {
         specification: row.spec,
         product_code: row.productCode,
         product_name: row.productName,
-        thumbnail_url: null,
+        image_url: null,
         currency: "KRW",
         status: ProductStatus.APPROVED,
         spec: row.spec,

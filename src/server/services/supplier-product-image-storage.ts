@@ -35,9 +35,6 @@ function matchProductImageKey(key: string): number | null {
 }
 
 async function isOwnedProductImageKey(supplierId: number, key: string): Promise<boolean> {
-  if (key.startsWith(`temp/supplier/${supplierId}/`)) {
-    return true;
-  }
   const productId = matchProductImageKey(key);
   if (productId !== null) {
     const row = await prisma.product.findFirst({
@@ -54,34 +51,6 @@ async function isOwnedProductImageKey(supplierId: number, key: string): Promise<
     return false;
   }
   return key.startsWith(`${ARKLUX_PLATFORM_PREFIX}/${companyCode}/`);
-}
-
-/**
- * 레거시 product-images/{supplierId}/, arklux/{company_code}/, products/{id}/images/ 소유 여부.
- * DB에 R2 공개 URL이 저장된 경우에도 동일하게 판별한다.
- */
-export async function isSupplierOwnedProductImagePath(
-  supplierId: number,
-  storedPath: string | null | undefined,
-): Promise<boolean> {
-  if (!storedPath?.trim()) {
-    return false;
-  }
-  const key = resolveR2ObjectKey(storedPath);
-  if (!key) {
-    return false;
-  }
-  return isOwnedProductImageKey(supplierId, key);
-}
-
-export async function deleteSupplierProductImageIfOwned(
-  supplierId: number,
-  storedPath: string | null | undefined,
-): Promise<void> {
-  if (!(await isSupplierOwnedProductImagePath(supplierId, storedPath))) {
-    return;
-  }
-  await deleteFile(storedPath!);
 }
 
 /** API에서 명시 삭제: products/{id}/images/, 레거시 product-images/{supplierId}/, arklux/{company_code}/ */

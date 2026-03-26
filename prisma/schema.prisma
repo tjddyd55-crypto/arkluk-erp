@@ -357,12 +357,10 @@ model Product {
   specification     String?
   product_code      String
   product_name      String
-  thumbnail_url     String?
   image_url         String?
   currency          String     @default("KRW")
   status            ProductStatus @default(APPROVED)
   rejection_reason  String?
-  product_image_url String?
   spec              String
   unit              String
   price             Decimal    @db.Decimal(18, 2)

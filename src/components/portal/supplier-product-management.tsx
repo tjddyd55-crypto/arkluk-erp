@@ -2,8 +2,6 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-import { resolvePublicMediaUrl } from "@/lib/utils/media-url";
-
 type Category = {
   id: number;
   category_name: string;
@@ -33,9 +31,7 @@ type ProductRow = {
   currency: string;
   status: ProductStatus;
   rejection_reason: string | null;
-  thumbnail_url: string | null;
   image_url: string | null;
-  product_image_url: string | null;
   category?: Category | null;
   product_name: string;
   product_code: string;
@@ -73,9 +69,8 @@ type ProductFormSchema = {
 type FormState = {
   categoryId: string;
   sourceLanguage: SupportedLanguage;
+  /** DB에 저장된 공개 이미지 URL(표시·전송 시 그대로 사용) */
   imageUrl: string;
-  /** 저장 시 products/ 로 옮길 R2 키 (temp/…). 확정된 상품 이미지는 빈 배열 */
-  pendingImageKeys: string[];
   formValues: Record<string, string>;
 };
 
@@ -83,7 +78,6 @@ const INITIAL_FORM: FormState = {
   categoryId: "",
   sourceLanguage: "ko",
   imageUrl: "",
-  pendingImageKeys: [],
   formValues: {},
 };
 
@@ -145,7 +139,6 @@ export function SupplierProductManagement() {
   const [requestFieldType, setRequestFieldType] = useState<FieldRequest["requested_field_type"]>("TEXT");
   const [requestReason, setRequestReason] = useState("");
   const [requestSubmitting, setRequestSubmitting] = useState(false);
-  const [draftId, setDraftId] = useState<string | null>(null);
 
   async function loadData() {
     setLoading(true);
@@ -202,7 +195,6 @@ export function SupplierProductManagement() {
         acc[field.fieldKey] = field.fieldKey === "currency" ? "KRW" : "";
         return acc;
       }, {}) ?? {};
-    setDraftId(crypto.randomUUID());
     setForm({ ...INITIAL_FORM, formValues: nextFormValues });
     setEditingId(null);
     setFormOpen(true);
@@ -236,12 +228,10 @@ export function SupplierProductManagement() {
       nextFormValues.description = product.description_original ?? product.description ?? "";
     }
 
-    setDraftId(crypto.randomUUID());
     setForm({
       categoryId: String(product.category_id),
       sourceLanguage: product.source_language ?? "ko",
-      imageUrl: product.image_url ?? product.thumbnail_url ?? product.product_image_url ?? "",
-      pendingImageKeys: [],
+      imageUrl: product.image_url ?? "",
       formValues: nextFormValues,
     });
     setEditingId(product.id);
@@ -284,13 +274,6 @@ export function SupplierProductManagement() {
         imageUrl: form.imageUrl.trim() || null,
         formValues: form.formValues,
       };
-      if (form.pendingImageKeys.length > 0) {
-        if (!draftId) {
-          throw new Error("초안 ID가 없습니다. 폼을 닫았다가 다시 열어 주세요.");
-        }
-        payload.imageKeys = form.pendingImageKeys;
-        payload.draftId = draftId;
-      }
       const endpoint =
         editingId === null ? "/api/supplier/products" : `/api/supplier/products/${editingId}`;
       const method = editingId === null ? "POST" : "PATCH";
@@ -317,21 +300,13 @@ export function SupplierProductManagement() {
         const created = result.data as {
           id: number;
           image_url?: string | null;
-          thumbnail_url?: string | null;
-          product_image_url?: string | null;
         };
         setEditingId(created.id);
         setForm((prev) => ({
           ...prev,
-          pendingImageKeys: [],
-          imageUrl:
-            created.image_url ??
-            created.thumbnail_url ??
-            created.product_image_url ??
-            prev.imageUrl,
+          imageUrl: created.image_url ?? prev.imageUrl,
         }));
-        setDraftId(crypto.randomUUID());
-        setMessage("상품 초안이 생성되었습니다.");
+        setMessage("상품 초안이 생성되었습니다. 이제 이미지를 업로드할 수 있습니다.");
         await loadData();
         return;
       }
@@ -343,7 +318,6 @@ export function SupplierProductManagement() {
       );
       setFormOpen(false);
       setEditingId(null);
-      setDraftId(null);
       setForm({ ...INITIAL_FORM, formValues: {} });
       await loadData();
     } catch (err) {
@@ -434,19 +408,15 @@ export function SupplierProductManagement() {
 
   async function handleUploadImage(file: File) {
     setError(null);
-    if (!draftId) {
-      setError("초안 ID가 없습니다. 등록 화면을 다시 열어 주세요.");
+    if (editingId === null) {
+      setError("먼저 [저장]으로 상품 초안을 만든 뒤 이미지를 올려 주세요.");
       return;
     }
     setUploadingImage(true);
     try {
       const data = new FormData();
-      data.append("image", file);
-      if (editingId !== null) {
-        data.append("productId", String(editingId));
-      } else {
-        data.append("draftId", draftId);
-      }
+      data.append("file", file);
+      data.append("productId", String(editingId));
       const response = await fetch("/api/supplier/products/image-upload", {
         method: "POST",
         body: data,
@@ -456,15 +426,41 @@ export function SupplierProductManagement() {
         throw new Error(result.message ?? "이미지 업로드 실패");
       }
       const url = result.data.url as string;
-      const key = result.data.key as string;
-      const isTemp = Boolean(result.data.temp);
       setForm((prev) => ({
         ...prev,
         imageUrl: url,
-        pendingImageKeys: isTemp ? [key] : [],
       }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "이미지 업로드 실패");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  async function handleClearImage() {
+    setError(null);
+    setMessage(null);
+    if (editingId === null) {
+      setForm((prev) => ({ ...prev, imageUrl: "" }));
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const response = await fetch(`/api/supplier/products/${editingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: null }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "이미지 초기화 실패");
+      }
+      setForm((prev) => ({ ...prev, imageUrl: "" }));
+      if (result.unchanged !== true) {
+        await loadData();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "이미지 초기화 실패");
     } finally {
       setUploadingImage(false);
     }
@@ -758,19 +754,18 @@ export function SupplierProductManagement() {
             ))}
             <div className="md:col-span-2">
               <p className="mb-2 text-xs text-slate-600">
-                저장 전에도 이미지를 올릴 수 있습니다(임시 저장 위치). [저장] 시 상품에 연결됩니다.
-                {form.pendingImageKeys.length > 0 ? (
-                  <span className="ml-1 font-medium text-slate-800">(임시 업로드 반영 대기)</span>
-                ) : null}
+                {editingId === null
+                  ? "신규 등록: 먼저 [저장]으로 상품(ID)을 만든 뒤 이미지를 업로드할 수 있습니다."
+                  : "이미지는 R2에 저장되며, DB에는 공개 URL이 그대로 저장됩니다."}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.webp"
-                  disabled={!draftId || uploadingImage}
+                  disabled={editingId === null || uploadingImage}
                   title={
-                    !draftId
-                      ? "폼을 다시 열면 이미지를 선택할 수 있습니다."
+                    editingId === null
+                      ? "상품 저장 후 이미지를 선택할 수 있습니다."
                       : "상품 이미지 파일 선택"
                   }
                   onChange={(e) => {
@@ -785,27 +780,18 @@ export function SupplierProductManagement() {
                   type="button"
                   className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
                   disabled={uploadingImage}
-                  onClick={() => setForm((prev) => ({ ...prev, imageUrl: "", pendingImageKeys: [] }))}
+                  onClick={() => void handleClearImage()}
                 >
-                  {uploadingImage ? "업로드 중..." : "이미지 초기화"}
+                  {uploadingImage ? "처리 중..." : "이미지 초기화"}
                 </button>
               </div>
               {form.imageUrl ? (
                 <div className="mt-2 flex items-center gap-2">
-                  {(() => {
-                    const previewSrc = resolvePublicMediaUrl(form.imageUrl);
-                    return previewSrc ? (
-                      <img
-                        src={previewSrc}
-                        alt="상품 이미지 미리보기"
-                        className="h-12 w-12 rounded border border-slate-200 object-cover"
-                      />
-                    ) : (
-                      <span className="text-xs text-amber-700">
-                        R2 베이스 미설정(R2_PUBLIC_URL / NEXT_PUBLIC_R2_PUBLIC_URL)
-                      </span>
-                    );
-                  })()}
+                  <img
+                    src={form.imageUrl}
+                    alt="상품 이미지 미리보기"
+                    className="h-12 w-12 rounded border border-slate-200 object-cover"
+                  />
                   <span className="text-xs text-slate-500">{form.imageUrl}</span>
                 </div>
               ) : (
@@ -829,7 +815,6 @@ export function SupplierProductManagement() {
                 setFormOpen(false);
                 setForm({ ...INITIAL_FORM, formValues: {} });
                 setEditingId(null);
-                setDraftId(null);
               }}
             >
               취소
@@ -861,31 +846,14 @@ export function SupplierProductManagement() {
               {products.map((product) => (
                 <tr key={product.id}>
                   <td className="border border-slate-200 px-2 py-1">
-                    {product.image_url || product.thumbnail_url || product.product_image_url ? (
-                      (() => {
-                        const raw =
-                          product.image_url ??
-                          product.thumbnail_url ??
-                          product.product_image_url ??
-                          "";
-                        const thumbSrc = resolvePublicMediaUrl(raw);
-                        return thumbSrc ? (
-                          <button
-                            type="button"
-                            onClick={() => setPreviewImageUrl(raw || null)}
-                          >
-                            <img
-                              src={thumbSrc}
-                              alt="상품 썸네일"
-                              className="h-10 w-10 rounded border border-slate-200 object-cover"
-                            />
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-400" title={raw || undefined}>
-                            URL?
-                          </span>
-                        );
-                      })()
+                    {product.image_url?.trim() ? (
+                      <button type="button" onClick={() => setPreviewImageUrl(product.image_url)}>
+                        <img
+                          src={product.image_url}
+                          alt="상품 썸네일"
+                          className="h-10 w-10 rounded border border-slate-200 object-cover"
+                        />
+                      </button>
                     ) : (
                       <span className="text-xs text-slate-400">-</span>
                     )}
@@ -1033,7 +1001,7 @@ export function SupplierProductManagement() {
         </div>
       </div>
 
-      {previewImageUrl && resolvePublicMediaUrl(previewImageUrl) ? (
+      {previewImageUrl ? (
         <div
           className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
           onClick={() => setPreviewImageUrl(null)}
@@ -1047,7 +1015,7 @@ export function SupplierProductManagement() {
               X
             </button>
             <img
-              src={resolvePublicMediaUrl(previewImageUrl)}
+              src={previewImageUrl}
               alt="상품 이미지 확대"
               className="max-h-[85vh] rounded object-contain"
             />

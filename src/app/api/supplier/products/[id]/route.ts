@@ -19,8 +19,6 @@ import {
   validateAndNormalizeDynamicValues,
 } from "@/server/services/supplier-dynamic-product-service";
 import { getSupplierActiveProductForm } from "@/server/services/supplier-product-form-service";
-import { deleteSupplierProductImageIfOwned } from "@/server/services/supplier-product-image-storage";
-import { moveTempSupplierProductImageKeysToProduct } from "@/server/services/storage-service";
 
 const PRODUCT_PATCH_INCLUDE = {
   field_values: {
@@ -104,7 +102,7 @@ function buildExistingPatchSnapshot(
   existingValues: Record<string, unknown>,
   formFields: Array<{ field_key: string; is_enabled: boolean }>,
 ): SupplierProductPatchDiffSnapshot {
-  const beforePrimaryImage = before.image_url ?? before.thumbnail_url ?? before.product_image_url ?? null;
+  const beforePrimaryImage = before.image_url ?? null;
   return {
     categoryId: before.category_id,
     countryCode: before.country_code,
@@ -308,37 +306,14 @@ export async function PATCH(
       values: mergedValues,
     });
 
-    const beforePrimaryImage = before.image_url ?? before.thumbnail_url ?? before.product_image_url ?? null;
+    const beforePrimaryImage = before.image_url ?? null;
 
-    const patchImageKeys = dynamicParsed.success ? dynamicParsed.data.imageKeys : undefined;
-    const patchDraftId = dynamicParsed.success ? dynamicParsed.data.draftId : undefined;
-    let movedPrimaryUrl: string | null | undefined;
-    if (patchImageKeys?.length && patchDraftId) {
-      try {
-        const { primaryPublicUrl } = await moveTempSupplierProductImageKeysToProduct(
-          supplierId,
-          patchDraftId,
-          productId,
-          patchImageKeys,
-        );
-        movedPrimaryUrl = primaryPublicUrl;
-      } catch (err) {
-        throw new HttpError(
-          400,
-          err instanceof Error ? err.message : "임시 이미지를 상품에 연결하지 못했습니다.",
-        );
-      }
-    }
-
-    const nextImageUrl =
-      movedPrimaryUrl !== undefined
-        ? movedPrimaryUrl
-        : resolveNextImageUrl(
-            dynamicParsed.success,
-            dynamicParsed.success ? dynamicParsed.data.imageUrl : undefined,
-            legacyData?.thumbnailUrl,
-            beforePrimaryImage,
-          );
+    const nextImageUrl = resolveNextImageUrl(
+      dynamicParsed.success,
+      dynamicParsed.success ? dynamicParsed.data.imageUrl : undefined,
+      legacyData?.thumbnailUrl,
+      beforePrimaryImage,
+    );
     const nextSourceLanguage = dynamicParsed.success
       ? (dynamicParsed.data.sourceLanguage ?? before.source_language)
       : (legacyData?.sourceLanguage ?? before.source_language);
@@ -406,8 +381,6 @@ export async function PATCH(
           specification: normalized.productCore.specification,
           product_name: normalized.productCore.name,
           product_code: normalized.productCore.sku,
-          product_image_url: nextImageUrl ?? null,
-          thumbnail_url: nextImageUrl ?? null,
           image_url: nextImageUrl ?? null,
           spec: normalized.productCore.specification,
           price: new Prisma.Decimal(normalized.productCore.price),
@@ -456,16 +429,6 @@ export async function PATCH(
       },
     });
 
-    const prevImage = before.image_url ?? before.thumbnail_url ?? before.product_image_url ?? null;
-    const nextImage = nextImageUrl ?? null;
-    if (comparableFieldText(prevImage) !== comparableFieldText(nextImage)) {
-      try {
-        await deleteSupplierProductImageIfOwned(supplierId, prevImage);
-      } catch {
-        /* 스토리지 삭제 실패는 상품 수정 결과를 막지 않음 */
-      }
-    }
-
     return ok(updated);
   } catch (error) {
     return handleRouteError(error);
@@ -496,12 +459,6 @@ export async function DELETE(
       throw new HttpError(404, "상품을 찾을 수 없습니다.");
     }
 
-    const imagePathsBeforeDelete = [
-      before.image_url,
-      before.thumbnail_url,
-      before.product_image_url,
-    ].filter((v): v is string => Boolean(v?.trim()));
-
     await prisma.$transaction(async (tx) => {
       await tx.productApprovalLog.deleteMany({
         where: { product_id: productId },
@@ -521,14 +478,6 @@ export async function DELETE(
       targetId: productId,
       beforeData: before,
     });
-
-    for (const imagePath of imagePathsBeforeDelete) {
-      try {
-        await deleteSupplierProductImageIfOwned(supplierId, imagePath);
-      } catch {
-        /* 스토리지 삭제 실패는 삭제 응답을 막지 않음 */
-      }
-    }
 
     return ok({ deleted: true });
   } catch (error) {

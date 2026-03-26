@@ -84,15 +84,10 @@ const envSchema = z.object({
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
     z.string().optional(),
   ),
-  /** 공개 버킷/커스텀 도메인 베이스 URL (끝 슬래시 없음 권장). 서버·업로드 응답용. */
+  /** 공개 CDN 베이스 URL (끝 슬래시 없음). 상품 이미지 공개 URL 생성에만 사용. */
   R2_PUBLIC_URL: z.preprocess(
-    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-    z.string().optional(),
-  ),
-  /** 브라우저에서 상대 미디어 키 보정용. 배포 시 R2_PUBLIC_URL과 동일 값 권장. */
-  NEXT_PUBLIC_R2_PUBLIC_URL: z.preprocess(
-    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-    z.string().optional(),
+    (value) => (typeof value === "string" ? value.trim() : ""),
+    z.string().min(1, "R2_PUBLIC_URL은 필수입니다. (예: https://cdn.platform-assets.com)"),
   ),
 });
 
@@ -118,21 +113,10 @@ const parsed = envSchema.safeParse({
   R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
   R2_BUCKET_NAME: process.env.R2_BUCKET_NAME,
   R2_PUBLIC_URL: process.env.R2_PUBLIC_URL,
-  NEXT_PUBLIC_R2_PUBLIC_URL: process.env.NEXT_PUBLIC_R2_PUBLIC_URL,
 });
 
 if (!parsed.success) {
   throw new Error(`환경변수 검증 실패: ${parsed.error.message}`);
 }
 
-const envData = parsed.data;
-const hasR2PublicUrl = Boolean(
-  envData.R2_PUBLIC_URL?.trim() || envData.NEXT_PUBLIC_R2_PUBLIC_URL?.trim(),
-);
-if (!hasR2PublicUrl) {
-  throw new Error(
-    "R2 PUBLIC URL NOT CONFIGURED: R2_PUBLIC_URL 또는 NEXT_PUBLIC_R2_PUBLIC_URL 중 하나 이상을 설정하세요. (예: https://pub-xxxx.r2.dev, 끝 슬래시 없음)",
-  );
-}
-
-export const env = envData;
+export const env = parsed.data;
