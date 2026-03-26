@@ -3,6 +3,7 @@ import { Prisma, ProductStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
+import { parseProductCategoryParam, productCategoryForWrite } from "@/lib/product-category-policy";
 import { prisma } from "@/lib/prisma";
 import { productUpsertSchema } from "@/lib/schemas";
 import { toNumber } from "@/lib/utils";
@@ -29,9 +30,12 @@ export async function GET(request: NextRequest) {
     const isActive = request.nextUrl.searchParams.get("isActive");
     const status = resolveProductStatus(request.nextUrl.searchParams.get("status"));
 
+    const productLine = parseProductCategoryParam(request.nextUrl.searchParams.get("category"));
+
     const where: Prisma.ProductWhereInput = {
       ...(supplierId ? { supplier_id: supplierId } : {}),
       ...(categoryId ? { category_id: categoryId } : {}),
+      ...(productLine ? { productCategory: productLine } : {}),
       ...(countryCode ? { country_code: countryCode } : {}),
       ...(isActive ? { is_active: isActive === "true" } : {}),
       ...(status ? { status } : {}),
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
     const supplier = await prisma.supplier.findUnique({
       where: { id: parsed.data.supplierId },
-      select: { country_code: true },
+      select: { country_code: true, productCategory: true },
     });
     if (!supplier) {
       throw new HttpError(400, "공급사를 찾을 수 없습니다.");
@@ -81,6 +85,7 @@ export async function POST(request: NextRequest) {
       data: {
         supplier_id: parsed.data.supplierId,
         category_id: parsed.data.categoryId,
+        productCategory: productCategoryForWrite(supplier.productCategory),
         country_code: parsed.data.countryCode ?? supplier.country_code,
         name_original: parsed.data.productName,
         description_original: parsed.data.memo ?? null,

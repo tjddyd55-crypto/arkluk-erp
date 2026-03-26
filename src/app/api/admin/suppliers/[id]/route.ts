@@ -68,28 +68,42 @@ export async function PATCH(
 
     const resolvedStatus = resolveSupplierStatus(parsed.data.status, parsed.data.isActive);
 
-    const updated = await prisma.supplier.update({
-      where: { id: supplierId },
-      data: {
-        company_name: parsed.data.companyName,
-        country_code: parsed.data.countryCode?.toUpperCase(),
-        business_number: parsed.data.businessNumber,
-        representative_name: parsed.data.representativeName,
-        contact_name: parsed.data.contactName,
-        contact_email: parsed.data.contactEmail?.toLowerCase(),
-        contact_phone: parsed.data.contactPhone,
-        address: parsed.data.address,
-        status: resolvedStatus,
-        supplier_code: parsed.data.supplierCode,
-        supplier_name: parsed.data.supplierName ?? parsed.data.companyName,
-        order_email: parsed.data.orderEmail?.toLowerCase(),
-        cc_email: parsed.data.ccEmail,
-        invoice_sender_email: parsed.data.invoiceSenderEmail
-          ? parsed.data.invoiceSenderEmail.toLowerCase()
-          : parsed.data.invoiceSenderEmail,
-        is_active: isActiveByStatus(resolvedStatus),
-        allow_supplier_product_edit: parsed.data.allowSupplierProductEdit,
-      },
+    const nextProductCategory = parsed.data.productCategory;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const row = await tx.supplier.update({
+        where: { id: supplierId },
+        data: {
+          company_name: parsed.data.companyName,
+          country_code: parsed.data.countryCode?.toUpperCase(),
+          business_number: parsed.data.businessNumber,
+          representative_name: parsed.data.representativeName,
+          contact_name: parsed.data.contactName,
+          contact_email: parsed.data.contactEmail?.toLowerCase(),
+          contact_phone: parsed.data.contactPhone,
+          address: parsed.data.address,
+          status: resolvedStatus,
+          supplier_code: parsed.data.supplierCode,
+          supplier_name: parsed.data.supplierName ?? parsed.data.companyName,
+          order_email: parsed.data.orderEmail?.toLowerCase(),
+          cc_email: parsed.data.ccEmail,
+          invoice_sender_email: parsed.data.invoiceSenderEmail
+            ? parsed.data.invoiceSenderEmail.toLowerCase()
+            : parsed.data.invoiceSenderEmail,
+          is_active: isActiveByStatus(resolvedStatus),
+          allow_supplier_product_edit: parsed.data.allowSupplierProductEdit,
+          ...(nextProductCategory !== undefined ? { productCategory: nextProductCategory } : {}),
+        },
+      });
+
+      if (nextProductCategory !== undefined && nextProductCategory !== before.productCategory) {
+        await tx.product.updateMany({
+          where: { supplier_id: supplierId },
+          data: { productCategory: nextProductCategory },
+        });
+      }
+
+      return row;
     });
 
     const contactEmailLower = parsed.data.contactEmail?.toLowerCase() ?? updated.contact_email;

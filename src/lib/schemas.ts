@@ -4,6 +4,8 @@ import { SUPPLIER_PRODUCT_FIELD_DEFAULT_LABEL_BY_KEY } from "@/lib/supplier-prod
 
 const positiveNumber = z.coerce.number().positive();
 const translationLanguageSchema = z.enum(["ko", "en", "mn", "ar"]);
+
+export const productCategorySchema = z.enum(["CONSTRUCTION", "GENERAL"]);
 export const supplierProductFieldTypeSchema = z.enum([
   "TEXT",
   "TEXTAREA",
@@ -28,6 +30,8 @@ export const countryUpsertSchema = z.object({
 export const supplierUpsertSchema = z.object({
   companyName: z.string().trim().min(2).max(150),
   countryCode: z.string().trim().min(2).max(10).default("KR"),
+  /** 건축자재(CONSTRUCTION) / 기타상품(GENERAL). 미전달 시 CONSTRUCTION */
+  productCategory: productCategorySchema.optional(),
   businessNumber: z.string().trim().min(3).max(40).optional().nullable(),
   representativeName: z.string().trim().min(2).max(100).optional().nullable(),
   contactName: z.string().trim().min(2).max(100).optional().nullable(),

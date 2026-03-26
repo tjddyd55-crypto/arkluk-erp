@@ -3,6 +3,10 @@ import { Prisma, ProductStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
+import {
+  assertSupplierProductCategoryMatch,
+  productCategoryForWrite,
+} from "@/lib/product-category-policy";
 import { prisma } from "@/lib/prisma";
 import {
   supplierDynamicProductPatchSchema,
@@ -280,11 +284,13 @@ export async function PATCH(
     }
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
-      select: { country_code: true },
+      select: { country_code: true, productCategory: true },
     });
     if (!supplier) {
       throw new HttpError(400, "공급사 정보를 찾을 수 없습니다.");
     }
+    assertSupplierProductCategoryMatch(supplier.productCategory, before.productCategory);
+    const line = productCategoryForWrite(supplier.productCategory);
 
     const currentForm = await getSupplierActiveProductForm(supplierId, user.id);
     const existingValues = before.field_values.reduce<Record<string, unknown>>((acc, row) => {
@@ -364,6 +370,7 @@ export async function PATCH(
         where: { id: productId },
         data: {
           category_id: nextCategoryId,
+          productCategory: line,
           country_code: supplier.country_code,
           name_original: normalized.productCore.name,
           description_original: normalized.productCore.description,

@@ -3,6 +3,10 @@ import { ProductApprovalAction, ProductStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
+import {
+  assertSupplierProductCategoryMatch,
+  productCategoryForWrite,
+} from "@/lib/product-category-policy";
 import { prisma } from "@/lib/prisma";
 import { supplierProductSubmitSchema } from "@/lib/schemas";
 import { createAuditLog } from "@/server/services/audit-log";
@@ -38,10 +42,21 @@ export async function POST(
       throw new HttpError(400, "DRAFT 또는 REJECTED 상태 상품만 제출할 수 있습니다.");
     }
 
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: user.supplierId },
+      select: { productCategory: true },
+    });
+    if (!supplier) {
+      throw new HttpError(400, "공급사 정보를 찾을 수 없습니다.");
+    }
+    assertSupplierProductCategoryMatch(supplier.productCategory, before.productCategory);
+    const line = productCategoryForWrite(supplier.productCategory);
+
     const updated = await prisma.$transaction(async (tx) => {
       const next = await tx.product.update({
         where: { id: productId },
         data: {
+          productCategory: line,
           status: ProductStatus.APPROVED,
           is_active: true,
           rejection_reason: null,

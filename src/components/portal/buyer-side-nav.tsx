@@ -119,6 +119,12 @@ export function BuyerSideNav() {
       <Link href="/buyer/cart" className={navLinkClass(pathname === "/buyer/cart")}>
         {t("buyer_cart_menu")}
       </Link>
+      <Link
+        href="/buyer/collaboration/projects"
+        className={navLinkClass(pathname.startsWith("/buyer/collaboration/projects"))}
+      >
+        협업 프로젝트
+      </Link>
       <Link href="/buyer/orders" className={navLinkClass(pathname === "/buyer/orders")}>
         {t("buyer_order_history")}
       </Link>

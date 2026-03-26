@@ -3,6 +3,7 @@ import { ProductApprovalAction, ProductStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
+import { assertSupplierProductCategoryMatch } from "@/lib/product-category-policy";
 import { prisma } from "@/lib/prisma";
 import { bulkProductApproveSchema } from "@/lib/schemas";
 import { createAuditLog } from "@/server/services/audit-log";
@@ -27,6 +28,8 @@ export async function POST(request: NextRequest) {
         status: true,
         is_active: true,
         rejection_reason: true,
+        supplier_id: true,
+        productCategory: true,
       },
     });
     const targetRows = beforeRows.filter((row) => row.status === ProductStatus.PENDING);
@@ -35,6 +38,20 @@ export async function POST(request: NextRequest) {
     }
 
     const targetIds = targetRows.map((row) => row.id);
+
+    const supplierIds = [...new Set(targetRows.map((row) => row.supplier_id))];
+    const supplierLines = await prisma.supplier.findMany({
+      where: { id: { in: supplierIds } },
+      select: { id: true, productCategory: true },
+    });
+    const lineBySupplier = new Map(supplierLines.map((s) => [s.id, s.productCategory]));
+    for (const row of targetRows) {
+      const line = lineBySupplier.get(row.supplier_id);
+      if (line === undefined) {
+        throw new HttpError(400, `공급사를 찾을 수 없습니다. (상품 ${row.id})`);
+      }
+      assertSupplierProductCategoryMatch(line, row.productCategory);
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.product.updateMany({

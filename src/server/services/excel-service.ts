@@ -2,6 +2,10 @@ import * as XLSX from "xlsx";
 import { Prisma, ProductStatus } from "@prisma/client";
 
 import { HttpError } from "@/lib/http";
+import {
+  assertSupplierProductCategoryMatch,
+  productCategoryForWrite,
+} from "@/lib/product-category-policy";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit-log";
 import { generateProductTranslations } from "@/server/services/product-translation-service";
@@ -125,9 +129,12 @@ export async function upsertProductsFromExcel(actorId: number, buffer: Buffer) {
         },
       });
 
+      const line = productCategoryForWrite(supplier.productCategory);
+
       const payload = {
         supplier_id: supplier.id,
         category_id: category.id,
+        productCategory: line,
         country_code: supplier.country_code,
         name_original: row.productName,
         description_original: row.memo || null,
@@ -159,6 +166,7 @@ export async function upsertProductsFromExcel(actorId: number, buffer: Buffer) {
         });
         created += 1;
       } else {
+        assertSupplierProductCategoryMatch(supplier.productCategory, existing.productCategory);
         const updatedProduct = await tx.product.update({
           where: { id: existing.id },
           data: payload,

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { Role, SupplierStatus } from "@prisma/client";
+import { ProductCategory, Role, SupplierStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
           company_name: companyName,
           company_code: companyCode,
           country_code: parsed.data.countryCode.toUpperCase(),
+          productCategory: parsed.data.productCategory ?? ProductCategory.CONSTRUCTION,
           business_number: parsed.data.businessNumber ?? null,
           representative_name: parsed.data.representativeName ?? null,
           contact_name: parsed.data.contactName ?? null,

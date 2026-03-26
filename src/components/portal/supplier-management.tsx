@@ -3,11 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 
 type SupplierStatus = "PENDING" | "ACTIVE" | "INACTIVE" | "SUSPENDED";
+type SupplierProductLine = "CONSTRUCTION" | "GENERAL";
+
+const SUPPLIER_LINE_LABEL: Record<SupplierProductLine, string> = {
+  CONSTRUCTION: "건축자재",
+  GENERAL: "기타상품",
+};
 
 type SupplierUserRow = { login_id: string; id: number };
 
 type Supplier = {
   id: number;
+  productCategory: SupplierProductLine;
   company_name: string;
   company_code: string | null;
   country_code: string;
@@ -27,6 +34,7 @@ type Supplier = {
 type FormState = {
   companyName: string;
   countryCode: string;
+  productCategory: SupplierProductLine;
   businessNumber: string;
   representativeName: string;
   contactName: string;
@@ -42,6 +50,7 @@ type FormState = {
 const INITIAL_FORM: FormState = {
   companyName: "",
   countryCode: "KR",
+  productCategory: "CONSTRUCTION",
   businessNumber: "",
   representativeName: "",
   contactName: "",
@@ -145,6 +154,7 @@ export function SupplierManagement() {
     setForm({
       companyName: supplier.company_name,
       countryCode: supplier.country_code,
+      productCategory: supplier.productCategory ?? "CONSTRUCTION",
       businessNumber: supplier.business_number ?? "",
       representativeName: supplier.representative_name ?? "",
       contactName: supplier.contact_name ?? "",
@@ -224,6 +234,7 @@ export function SupplierManagement() {
       const basePayload = {
         companyName: form.companyName.trim(),
         countryCode: form.countryCode.trim().toUpperCase(),
+        productCategory: form.productCategory,
         businessNumber: normalizeOptional(form.businessNumber),
         representativeName: normalizeOptional(form.representativeName),
         contactName: normalizeOptional(form.contactName),
@@ -309,7 +320,7 @@ export function SupplierManagement() {
     }
   }
 
-  const tableColSpan = showCompanyCodes ? 8 : 7;
+  const tableColSpan = showCompanyCodes ? 9 : 8;
 
   return (
     <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
@@ -462,6 +473,17 @@ export function SupplierManagement() {
               className="rounded border border-slate-300 px-2 py-1 text-sm"
               placeholder="국가코드 (KR)"
             />
+            <select
+              value={form.productCategory}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, productCategory: e.target.value as SupplierProductLine }))
+              }
+              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              title="등록 가능한 상품 라인"
+            >
+              <option value="CONSTRUCTION">상품 유형: 건축자재</option>
+              <option value="GENERAL">상품 유형: 기타상품</option>
+            </select>
             <input
               value={form.businessNumber}
               onChange={(e) => setForm((prev) => ({ ...prev, businessNumber: e.target.value }))}
@@ -572,6 +594,7 @@ export function SupplierManagement() {
                 ) : null}
                 <th className="border border-slate-200 px-2 py-1 text-left">로그인 아이디</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">국가</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">상품 유형</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">담당자</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">연락처</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
@@ -591,6 +614,9 @@ export function SupplierManagement() {
                     {supplier.users?.[0]?.login_id ?? "—"}
                   </td>
                   <td className="border border-slate-200 px-2 py-1">{supplier.country_code}</td>
+                  <td className="border border-slate-200 px-2 py-1 text-xs">
+                    {SUPPLIER_LINE_LABEL[supplier.productCategory] ?? supplier.productCategory}
+                  </td>
                   <td className="border border-slate-200 px-2 py-1">{supplier.contact_name ?? "-"}</td>
                   <td className="border border-slate-200 px-2 py-1">
                     {supplier.contact_email ?? "-"}

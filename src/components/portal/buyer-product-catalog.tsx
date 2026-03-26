@@ -25,10 +25,13 @@ type CatalogResponse = {
   };
 };
 
+type LineTab = "ALL" | "CONSTRUCTION" | "GENERAL";
+
 export function BuyerProductCatalog() {
   const { t } = useTranslation();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierId, setSupplierId] = useState<number | null>(null);
+  const [lineTab, setLineTab] = useState<LineTab>("ALL");
   const [keyword, setKeyword] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +70,7 @@ export function BuyerProductCatalog() {
     }
 
     loadProducts();
-  }, [supplierId, keyword]);
+  }, [supplierId, keyword, lineTab]);
 
   return (
     <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
@@ -98,6 +101,28 @@ export function BuyerProductCatalog() {
             placeholder={t("search")}
           />
         </label>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            { key: "ALL" as const, label: "전체" },
+            { key: "CONSTRUCTION" as const, label: "건축자재" },
+            { key: "GENERAL" as const, label: "기타상품" },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            className={`rounded px-3 py-1 text-sm ${
+              lineTab === tab.key ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700"
+            }`}
+            onClick={() => setLineTab(tab.key)}
+            disabled={!supplierId}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}

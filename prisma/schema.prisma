@@ -59,6 +59,12 @@ enum ProductStatus {
   REJECTED
 }
 
+/** 사업자·상품 라인: 건축자재 vs 기타(일반)상품. Taxonomy `Category` 모델과 별개 */
+enum ProductCategory {
+  CONSTRUCTION
+  GENERAL
+}
+
 enum ProductApprovalAction {
   SUBMIT
   APPROVE
@@ -193,6 +199,38 @@ enum ProjectFileType {
   JPEG
 }
 
+/** 바이어 협업(제안/도면) 프로젝트 — 기존 견적용 Project(ProjectStatus)와 별도 */
+enum CollabProjectStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+enum CollabUploadStatus {
+  UPLOADING
+  COMPLETED
+  FAILED
+  DELETED
+}
+
+enum CollabReplyVisibility {
+  PRIVATE
+}
+
+enum CollabAuthorPartyType {
+  SUPPLIER
+  INTERIOR
+  LIGHTING
+  OTHER
+}
+
+enum CollabParticipantStatus {
+  INVITED
+  ACCEPTED
+  REJECTED
+}
+
 enum SupplierStatus {
   PENDING
   ACTIVE
@@ -247,6 +285,8 @@ model Supplier {
   invoice_sender_email        String?
   is_active                   Boolean         @default(true)
   allow_supplier_product_edit Boolean         @default(false)
+  /** 건축자재 / 기타상품 — 등록 상품은 항상 이 값과 일치 */
+  productCategory ProductCategory @default(CONSTRUCTION) @map("product_category")
   created_at                  DateTime        @default(now())
   updated_at                  DateTime        @updatedAt
   users                       User[]
@@ -266,6 +306,8 @@ model Supplier {
   purchase_order_templates    PurchaseOrderTemplate[]
   product_forms               SupplierProductForm[]
   product_field_requests      SupplierProductFieldRequest[]
+  collab_replies              CollabProjectReply[]
+  collab_participants         CollabProjectParticipant[]
 
   @@index([status, country_code])
 }
@@ -303,6 +345,7 @@ model Product {
   id                Int        @id @default(autoincrement())
   supplier_id       Int
   category_id       Int
+  productCategory ProductCategory @map("product_category")
   country_code      String
   name_original     String
   description_original String?
@@ -340,6 +383,8 @@ model Product {
   @@index([supplier_id, status])
   @@index([country_code, is_active, status])
   @@index([supplier_id, category_id, is_active])
+  @@index([productCategory])
+  @@index([supplier_id, productCategory])
   @@index([product_name])
 }
 
@@ -475,6 +520,11 @@ model User {
   updated_supplier_product_forms SupplierProductForm[] @relation("SupplierProductFormUpdatedBy")
   reviewed_supplier_product_field_requests SupplierProductFieldRequest[] @relation("SupplierProductFieldRequestReviewedBy")
   buyer_cart        Cart?
+  collab_projects_as_buyer              CollabProject[]              @relation("CollabProjectBuyer")
+  collab_projects_created               CollabProject[]              @relation("CollabProjectCreatedBy")
+  collab_project_files_uploaded         CollabProjectFile[]          @relation("CollabProjectFileUploader")
+  collab_replies_authored               CollabProjectReply[]         @relation("CollabReplyAuthor")
+  collab_reply_files_uploaded           CollabProjectReplyFile[]     @relation("CollabReplyFileUploader")
 
   @@index([role, is_active])
   @@index([country_id])
@@ -553,6 +603,7 @@ model Project {
   orders      Order[]
   quotes      Quote[]
   files       ProjectFile[]
+  collab_links CollabProject[] @relation("CollabProjectLegacy")
 
   @@index([buyer_id, country_id, status])
   @@index([created_by, created_at])
@@ -959,6 +1010,118 @@ model PurchaseOrderTemplate {
 
   @@index([supplier_id, is_active])
   @@index([is_default, is_active])
+}
+
+model CollabProject {
+  id                 Int                 @id @default(autoincrement())
+  buyer_id           Int
+  organization_id    Int?
+  title              String
+  description        String              @db.Text
+  status             CollabProjectStatus @default(DRAFT)
+  created_by_user_id Int
+  legacy_project_id  Int?
+  created_at         DateTime            @default(now())
+  updated_at         DateTime            @updatedAt
+  deleted_at         DateTime?
+
+  buyer          User                       @relation("CollabProjectBuyer", fields: [buyer_id], references: [id])
+  creator        User                       @relation("CollabProjectCreatedBy", fields: [created_by_user_id], references: [id])
+  legacy_project Project?                   @relation("CollabProjectLegacy", fields: [legacy_project_id], references: [id])
+  files          CollabProjectFile[]
+  replies        CollabProjectReply[]
+  participants   CollabProjectParticipant[]
+
+  @@index([buyer_id, created_at(sort: Desc)])
+  @@index([status, created_at(sort: Desc)])
+  @@index([organization_id, created_at(sort: Desc)])
+  @@map("collab_projects")
+}
+
+model CollabProjectFile {
+  id                  Int                @id @default(autoincrement())
+  project_id          Int
+  storage_key         String?            @unique
+  original_filename   String
+  mime_type           String
+  size_bytes          BigInt
+  ext                 String?
+  checksum_sha256     String?
+  r2_etag             String?
+  upload_status       CollabUploadStatus @default(UPLOADING)
+  uploaded_by_user_id Int
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+  deleted_at          DateTime?
+
+  project  CollabProject @relation(fields: [project_id], references: [id])
+  uploader User          @relation("CollabProjectFileUploader", fields: [uploaded_by_user_id], references: [id])
+
+  @@index([project_id, created_at(sort: Desc)])
+  @@index([project_id, upload_status])
+  @@map("collab_project_files")
+}
+
+model CollabProjectReply {
+  id                   Int                   @id @default(autoincrement())
+  project_id           Int
+  body                 String                @db.Text
+  author_user_id       Int
+  author_supplier_id   Int?
+  author_party_type    CollabAuthorPartyType?
+  visibility           CollabReplyVisibility @default(PRIVATE)
+  created_at           DateTime              @default(now())
+  updated_at           DateTime              @updatedAt
+  deleted_at           DateTime?
+
+  project         CollabProject            @relation(fields: [project_id], references: [id])
+  author          User                   @relation("CollabReplyAuthor", fields: [author_user_id], references: [id])
+  author_supplier Supplier?              @relation(fields: [author_supplier_id], references: [id])
+  files           CollabProjectReplyFile[]
+
+  @@index([project_id, created_at(sort: Desc)])
+  @@index([author_supplier_id, project_id, created_at(sort: Desc)])
+  @@index([project_id, author_supplier_id])
+  @@map("collab_project_replies")
+}
+
+model CollabProjectReplyFile {
+  id                  Int                @id @default(autoincrement())
+  reply_id            Int
+  storage_key         String?            @unique
+  original_filename   String
+  mime_type           String
+  size_bytes          BigInt
+  ext                 String?
+  checksum_sha256     String?
+  r2_etag             String?
+  upload_status       CollabUploadStatus @default(UPLOADING)
+  uploaded_by_user_id Int
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+  deleted_at          DateTime?
+
+  reply    CollabProjectReply @relation(fields: [reply_id], references: [id])
+  uploader User               @relation("CollabReplyFileUploader", fields: [uploaded_by_user_id], references: [id])
+
+  @@index([reply_id, created_at(sort: Desc)])
+  @@index([reply_id, upload_status])
+  @@map("collab_project_reply_files")
+}
+
+model CollabProjectParticipant {
+  id          Int                     @id @default(autoincrement())
+  project_id  Int
+  supplier_id Int
+  status      CollabParticipantStatus @default(INVITED)
+  created_at  DateTime                @default(now())
+  updated_at  DateTime                @updatedAt
+
+  project  CollabProject @relation(fields: [project_id], references: [id])
+  supplier Supplier      @relation(fields: [supplier_id], references: [id])
+
+  @@unique([project_id, supplier_id])
+  @@map("collab_project_participants")
 }
 
 model AuditLog {

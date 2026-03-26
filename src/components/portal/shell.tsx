@@ -39,6 +39,7 @@ const supplierMenu: MenuItem[] = [
   { href: "/supplier", labelKey: "dashboard" },
   { href: "/supplier/orders", labelKey: "my_orders" },
   { href: "/supplier/products", labelKey: "products" },
+  { href: "/supplier/collaboration/projects", labelKey: "supplier_collab_projects" },
   { href: "/supplier/profile", labelKey: "profile" },
 ];
 

@@ -3,6 +3,10 @@ import { Language, Prisma, ProductStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
+import {
+  assertSupplierProductCategoryMatch,
+  productCategoryForWrite,
+} from "@/lib/product-category-policy";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit-log";
 import { generateProductTranslations } from "@/server/services/product-translation-service";
@@ -107,7 +111,7 @@ export async function POST(request: NextRequest) {
 
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
-      select: { country_code: true },
+      select: { country_code: true, productCategory: true },
     });
     if (!supplier) {
       throw new HttpError(400, "공급사 정보를 찾을 수 없습니다.");
@@ -146,12 +150,18 @@ export async function POST(request: NextRequest) {
                 { product_code: normalized.productCore.sku },
               ],
             },
-            select: { id: true },
+            select: { id: true, productCategory: true },
           });
+
+          const line = productCategoryForWrite(supplier.productCategory);
+          if (existing) {
+            assertSupplierProductCategoryMatch(supplier.productCategory, existing.productCategory);
+          }
 
           const payload = {
             supplier_id: supplierId,
             category_id: categoryId,
+            productCategory: line,
             country_code: supplier.country_code,
             name_original: normalized.productCore.name,
             description_original: normalized.productCore.description,

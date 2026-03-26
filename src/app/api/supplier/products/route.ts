@@ -3,6 +3,7 @@ import { Prisma, ProductStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
+import { parseProductCategoryParam, productCategoryForWrite } from "@/lib/product-category-policy";
 import { prisma } from "@/lib/prisma";
 import {
   supplierDynamicProductUpsertSchema,
@@ -21,8 +22,12 @@ export async function GET(request: NextRequest) {
       throw new HttpError(400, "공급사 계정 정보가 올바르지 않습니다.");
     }
 
+    const lineFilter = parseProductCategoryParam(request.nextUrl.searchParams.get("category"));
     const products = await prisma.product.findMany({
-      where: { supplier_id: supplierId },
+      where: {
+        supplier_id: supplierId,
+        ...(lineFilter ? { productCategory: lineFilter } : {}),
+      },
       include: {
         category: true,
         field_values: {
@@ -88,7 +93,7 @@ export async function POST(request: NextRequest) {
         };
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
-      select: { country_code: true },
+      select: { country_code: true, productCategory: true },
     });
     if (!supplier) {
       throw new HttpError(400, "공급사 정보를 찾을 수 없습니다.");
@@ -131,6 +136,7 @@ export async function POST(request: NextRequest) {
         data: {
           supplier_id: supplierId,
           category_id: dynamicPayload.categoryId,
+          productCategory: productCategoryForWrite(supplier.productCategory),
           country_code: supplier.country_code,
           name_original: normalized.productCore.name,
           description_original: normalized.productCore.description,

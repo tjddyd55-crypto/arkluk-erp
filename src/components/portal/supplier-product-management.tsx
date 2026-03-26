@@ -11,10 +11,17 @@ type Category = {
 
 type ProductStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
 type SupportedLanguage = "ko" | "en" | "mn" | "ar";
+type ProductLine = "CONSTRUCTION" | "GENERAL";
+
+const PRODUCT_LINE_LABEL: Record<ProductLine, string> = {
+  CONSTRUCTION: "건축자재",
+  GENERAL: "기타상품",
+};
 
 type ProductRow = {
   id: number;
   category_id: number;
+  productCategory: ProductLine;
   name_original: string;
   description_original: string | null;
   source_language: SupportedLanguage;
@@ -58,6 +65,7 @@ type ProductFormField = {
 type ProductFormSchema = {
   id: number;
   supplierId: number;
+  supplierProductCategory: ProductLine;
   name: string;
   fields: ProductFormField[];
 };
@@ -114,6 +122,7 @@ export function SupplierProductManagement() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [productForm, setProductForm] = useState<ProductFormSchema | null>(null);
+  const [lineTab, setLineTab] = useState<"ALL" | ProductLine>("ALL");
   const [fieldRequests, setFieldRequests] = useState<FieldRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -139,8 +148,9 @@ export function SupplierProductManagement() {
     setLoading(true);
     setError(null);
     try {
+      const productQs = lineTab === "ALL" ? "" : `?category=${lineTab}`;
       const [productsResponse, categoriesResponse, productFormResponse, fieldRequestResponse] = await Promise.all([
-        fetch("/api/supplier/products"),
+        fetch(`/api/supplier/products${productQs}`),
         fetch("/api/supplier/products/categories"),
         fetch("/api/supplier/product-form"),
         fetch("/api/supplier/product-field-requests"),
@@ -167,7 +177,11 @@ export function SupplierProductManagement() {
 
       setProducts(productsResult.data as ProductRow[]);
       setCategories(categoriesResult.data as Category[]);
-      setProductForm(productFormResult.data as ProductFormSchema);
+      const pf = productFormResult.data as ProductFormSchema;
+      setProductForm({
+        ...pf,
+        supplierProductCategory: pf.supplierProductCategory ?? "CONSTRUCTION",
+      });
       setFieldRequests(fieldRequestResult.data as FieldRequest[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "데이터 조회 실패");
@@ -177,8 +191,8 @@ export function SupplierProductManagement() {
   }
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData();
+  }, [lineTab]);
 
   function openCreate() {
     const nextFormValues =
@@ -527,9 +541,35 @@ export function SupplierProductManagement() {
 
       {productForm ? (
         <p className="rounded bg-slate-50 p-2 text-xs text-slate-600">
-          현재 적용 폼: {productForm.name}
+          현재 적용 폼: {productForm.name} · 사업자 상품 유형:{" "}
+          <span className="font-medium text-slate-800">
+            {PRODUCT_LINE_LABEL[productForm.supplierProductCategory]}
+          </span>{" "}
+          (등록 상품은 항상 이 유형으로 저장됩니다. 유형 변경은 관리자에게 요청하세요.)
         </p>
       ) : null}
+
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
+        {(
+          [
+            { key: "ALL" as const, label: "전체" },
+            { key: "CONSTRUCTION" as const, label: "건축자재" },
+            { key: "GENERAL" as const, label: "기타상품" },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            className={`rounded px-3 py-1 text-sm ${
+              lineTab === tab.key ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700"
+            }`}
+            onClick={() => setLineTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {message ? (
         <p className="whitespace-pre-line rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p>
       ) : null}
@@ -599,8 +639,9 @@ export function SupplierProductManagement() {
               className="rounded border border-slate-300 px-2 py-1 text-sm"
               value={form.categoryId}
               onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}
+              title="귀사 내부 분류(건축자재/기타 사업자 유형과 별개)"
             >
-              <option value="">카테고리 선택</option>
+              <option value="">사내 카테고리 선택</option>
               {categories.map((category) => (
                 <option key={category.id} value={String(category.id)}>
                   {category.category_name}
@@ -759,6 +800,7 @@ export function SupplierProductManagement() {
             <thead>
               <tr className="bg-slate-50">
                 <th className="border border-slate-200 px-2 py-1 text-left">이미지</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">상품 유형</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">카테고리</th>
                 {listMainFields.map((field) => (
                   <th key={field.id} className="border border-slate-200 px-2 py-1 text-left">
@@ -802,6 +844,9 @@ export function SupplierProductManagement() {
                     ) : (
                       <span className="text-xs text-slate-400">-</span>
                     )}
+                  </td>
+                  <td className="border border-slate-200 px-2 py-1 text-xs whitespace-nowrap">
+                    {PRODUCT_LINE_LABEL[product.productCategory] ?? product.productCategory}
                   </td>
                   <td className="border border-slate-200 px-2 py-1">
                     {product.category?.category_name ?? "-"}
@@ -857,7 +902,10 @@ export function SupplierProductManagement() {
               ))}
               {products.length === 0 ? (
                 <tr>
-                  <td className="border border-slate-200 px-2 py-3 text-center text-slate-500" colSpan={9 + listMainFields.length}>
+                  <td
+                    className="border border-slate-200 px-2 py-3 text-center text-slate-500"
+                    colSpan={10 + listMainFields.length}
+                  >
                     등록된 상품이 없습니다.
                   </td>
                 </tr>

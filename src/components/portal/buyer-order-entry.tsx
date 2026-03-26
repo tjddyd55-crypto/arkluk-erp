@@ -35,10 +35,13 @@ type AuthMeResponse = {
   } | null;
 };
 
+type LineTab = "ALL" | "CONSTRUCTION" | "GENERAL";
+
 export function BuyerOrderEntry() {
   const { t } = useTranslation();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierId, setSupplierId] = useState<number | null>(null);
+  const [lineTab, setLineTab] = useState<LineTab>("ALL");
   const [products, setProducts] = useState<Product[]>([]);
   const [qtyMap, setQtyMap] = useState<Record<number, string>>({});
   const [keyword, setKeyword] = useState("");
@@ -88,6 +91,9 @@ export function BuyerOrderEntry() {
       if (keyword.trim()) {
         params.set("keyword", keyword.trim());
       }
+      if (lineTab !== "ALL") {
+        params.set("category", lineTab);
+      }
 
       const response = await fetch(`/api/buyer/catalog?${params.toString()}`);
       const result = (await response.json()) as CatalogResponse;
@@ -98,7 +104,7 @@ export function BuyerOrderEntry() {
       }
     }
     loadCatalog();
-  }, [supplierId, keyword]);
+  }, [supplierId, keyword, lineTab]);
 
   const selectedItems = useMemo(() => {
     return products
@@ -292,6 +298,27 @@ export function BuyerOrderEntry() {
               {t("download")}
             </a>
           ) : null}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {(
+            [
+              { key: "ALL" as const, label: "전체" },
+              { key: "CONSTRUCTION" as const, label: "건축자재" },
+              { key: "GENERAL" as const, label: "기타상품" },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`rounded px-3 py-1 text-xs ${
+                lineTab === tab.key ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700"
+              }`}
+              onClick={() => setLineTab(tab.key)}
+              disabled={!supplierId}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </section>
 

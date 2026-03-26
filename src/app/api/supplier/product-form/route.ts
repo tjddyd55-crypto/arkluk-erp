@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
+import { prisma } from "@/lib/prisma";
 import { getSupplierActiveProductForm } from "@/server/services/supplier-product-form-service";
 
 export async function GET(request: NextRequest) {
@@ -12,10 +13,17 @@ export async function GET(request: NextRequest) {
       throw new HttpError(400, "공급사 계정 정보가 올바르지 않습니다.");
     }
 
-    const form = await getSupplierActiveProductForm(supplierId, user.id);
+    const [form, supplierRow] = await Promise.all([
+      getSupplierActiveProductForm(supplierId, user.id),
+      prisma.supplier.findUnique({
+        where: { id: supplierId },
+        select: { productCategory: true },
+      }),
+    ]);
     return ok({
       id: form.id,
       supplierId: form.supplier_id,
+      supplierProductCategory: supplierRow?.productCategory ?? "CONSTRUCTION",
       name: form.name,
       fields: form.fields
         .filter((field) => field.is_enabled)

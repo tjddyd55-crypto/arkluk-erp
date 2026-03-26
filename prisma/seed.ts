@@ -1,4 +1,4 @@
-import { PrismaClient, Role, SupplierStatus } from "@prisma/client";
+import { PrismaClient, ProductCategory, Role, SupplierStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
@@ -276,6 +276,7 @@ async function main() {
       },
       update: {
         category_id: aPipe.id,
+        productCategory: ProductCategory.CONSTRUCTION,
         country_code: supplierA.country_code,
         name_original: "PVC 배관 50mm",
         source_language: "ko",
@@ -288,6 +289,7 @@ async function main() {
       create: {
         supplier_id: supplierA.id,
         category_id: aPipe.id,
+        productCategory: ProductCategory.CONSTRUCTION,
         country_code: supplierA.country_code,
         name_original: "PVC 배관 50mm",
         source_language: "ko",
@@ -308,6 +310,7 @@ async function main() {
       },
       update: {
         category_id: aTile.id,
+        productCategory: ProductCategory.CONSTRUCTION,
         country_code: supplierA.country_code,
         name_original: "세라믹 타일 화이트",
         source_language: "ko",
@@ -320,6 +323,7 @@ async function main() {
       create: {
         supplier_id: supplierA.id,
         category_id: aTile.id,
+        productCategory: ProductCategory.CONSTRUCTION,
         country_code: supplierA.country_code,
         name_original: "세라믹 타일 화이트",
         source_language: "ko",
@@ -340,6 +344,7 @@ async function main() {
       },
       update: {
         category_id: bSanitary.id,
+        productCategory: ProductCategory.CONSTRUCTION,
         country_code: supplierB.country_code,
         name_original: "기본형 세면기",
         source_language: "ko",
@@ -352,6 +357,7 @@ async function main() {
       create: {
         supplier_id: supplierB.id,
         category_id: bSanitary.id,
+        productCategory: ProductCategory.CONSTRUCTION,
         country_code: supplierB.country_code,
         name_original: "기본형 세면기",
         source_language: "ko",

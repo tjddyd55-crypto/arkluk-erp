@@ -10,6 +10,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { env } from "@/lib/env";
 
@@ -155,16 +156,43 @@ export type PresignedPutObjectResult = {
   expiresAt: Date;
 };
 
-/**
- * 향후 클라이언트 직접 PUT 업로드용 presigned URL.
- * 구현 시 `@aws-sdk/s3-request-presigner` 등으로 채운다.
- */
 export async function createPresignedPutObjectUrl(
-  _input: PresignedPutObjectInput,
+  input: PresignedPutObjectInput,
 ): Promise<PresignedPutObjectResult> {
-  throw new Error(
-    "createPresignedPutObjectUrl: 아직 구현되지 않았습니다. 서버 saveFile 경로를 사용하세요.",
-  );
+  const client = getR2Client();
+  const key = normalizeStorageKey(input.key);
+  const expiresIn = input.expiresInSeconds ?? 900;
+  const command = new PutObjectCommand({
+    Bucket: env.R2_BUCKET_NAME!.trim(),
+    Key: key,
+    ContentType: input.contentType || "application/octet-stream",
+  });
+  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+  return { uploadUrl, expiresAt: new Date(Date.now() + expiresIn * 1000) };
+}
+
+export type PresignedGetObjectInput = {
+  key: string;
+  expiresInSeconds?: number;
+};
+
+export type PresignedGetObjectResult = {
+  downloadUrl: string;
+  expiresIn: number;
+};
+
+export async function createPresignedGetObjectUrl(
+  input: PresignedGetObjectInput,
+): Promise<PresignedGetObjectResult> {
+  const client = getR2Client();
+  const key = normalizeStorageKey(input.key);
+  const expiresIn = input.expiresInSeconds ?? 300;
+  const command = new GetObjectCommand({
+    Bucket: env.R2_BUCKET_NAME!.trim(),
+    Key: key,
+  });
+  const downloadUrl = await getSignedUrl(client, command, { expiresIn });
+  return { downloadUrl, expiresIn };
 }
 
 /** R2(또는 호환 S3) 객체 스트림. 호출 측에서 본문 소비 실패 시 스트림 정리 필요. */

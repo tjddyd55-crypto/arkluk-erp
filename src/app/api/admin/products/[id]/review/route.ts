@@ -3,6 +3,10 @@ import { ProductApprovalAction, ProductStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
+import {
+  assertSupplierProductCategoryMatch,
+  productCategoryForWrite,
+} from "@/lib/product-category-policy";
 import { prisma } from "@/lib/prisma";
 import { productReviewSchema } from "@/lib/schemas";
 import { createAuditLog } from "@/server/services/audit-log";
@@ -34,6 +38,16 @@ export async function POST(
       throw new HttpError(400, "승인 대기(PENDING) 상품만 검토할 수 있습니다.");
     }
 
+    const supplierRow = await prisma.supplier.findUnique({
+      where: { id: before.supplier_id },
+      select: { productCategory: true },
+    });
+    if (!supplierRow) {
+      throw new HttpError(400, "공급사 정보를 찾을 수 없습니다.");
+    }
+    assertSupplierProductCategoryMatch(supplierRow.productCategory, before.productCategory);
+    const line = productCategoryForWrite(supplierRow.productCategory);
+
     const nextStatus =
       parsed.data.status === "APPROVED" ? ProductStatus.APPROVED : ProductStatus.REJECTED;
     const rejectionReason = parsed.data.reason?.trim() ?? null;
@@ -42,6 +56,7 @@ export async function POST(
       const next = await tx.product.update({
         where: { id: productId },
         data: {
+          productCategory: line,
           status: nextStatus,
           is_active: nextStatus === ProductStatus.APPROVED ? true : false,
           rejection_reason: nextStatus === ProductStatus.REJECTED ? rejectionReason : null,

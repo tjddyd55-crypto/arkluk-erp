@@ -5,6 +5,10 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { SUPPORTED_LANGUAGES } from "@/lib/i18n-config";
 import { handleRouteError, HttpError, ok } from "@/lib/http";
+import {
+  assertSupplierProductCategoryMatch,
+  productCategoryForWrite,
+} from "@/lib/product-category-policy";
 import { prisma } from "@/lib/prisma";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "KOREA_SUPPLY_ADMIN", "ADMIN"] as const;
@@ -110,16 +114,29 @@ export async function PATCH(
       select: {
         id: true,
         source_language: true,
+        supplier_id: true,
+        productCategory: true,
       },
     });
     if (!product) {
       throw new HttpError(404, "상품을 찾을 수 없습니다.");
     }
 
+    const supplierRow = await prisma.supplier.findUnique({
+      where: { id: product.supplier_id },
+      select: { productCategory: true },
+    });
+    if (!supplierRow) {
+      throw new HttpError(400, "공급사 정보를 찾을 수 없습니다.");
+    }
+    assertSupplierProductCategoryMatch(supplierRow.productCategory, product.productCategory);
+    const line = productCategoryForWrite(supplierRow.productCategory);
+
     if (parsed.data.language === product.source_language) {
       const updated = await prisma.product.update({
         where: { id: productId },
         data: {
+          productCategory: line,
           name_original: parsed.data.name,
           description_original: parsed.data.description ?? null,
           product_name: parsed.data.name,

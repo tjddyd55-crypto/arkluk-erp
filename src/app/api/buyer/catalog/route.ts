@@ -3,6 +3,7 @@ import { Prisma, ProductStatus } from "@prisma/client";
 
 import { requireAuth } from "@/lib/auth";
 import { handleRouteError, ok } from "@/lib/http";
+import { parseProductCategoryParam } from "@/lib/product-category-policy";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
     }
     const supplierId = toNumber(request.nextUrl.searchParams.get("supplierId"));
     const categoryId = toNumber(request.nextUrl.searchParams.get("categoryId"));
+    const productLine = parseProductCategoryParam(request.nextUrl.searchParams.get("category"));
     const keyword = request.nextUrl.searchParams.get("keyword")?.trim();
 
     if (!supplierId) {
@@ -41,6 +43,7 @@ export async function GET(request: NextRequest) {
       is_active: true,
       status: ProductStatus.APPROVED,
       ...(categoryId ? { category_id: categoryId } : {}),
+      ...(productLine ? { productCategory: productLine } : {}),
       ...(keyword
         ? {
             OR: [
