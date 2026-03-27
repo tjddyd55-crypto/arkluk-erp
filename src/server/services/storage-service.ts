@@ -13,6 +13,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { env } from "@/lib/env";
+import { prisma } from "@/lib/prisma";
 
 let r2Client: S3Client | null = null;
 
@@ -86,26 +87,44 @@ export function buildArkluxAssetObjectKey(companyCode: string, fileName: string)
   return `${ARKLUX_PLATFORM_PREFIX}/${code}/${base}`;
 }
 
-/** 공급사 상품 이미지 R2 키: `products/{productId}/images/{fileName}` */
-export function buildSupplierProductImageObjectKey(productId: number, fileName: string): string {
-  if (!Number.isInteger(productId) || productId <= 0) {
-    throw new Error("유효하지 않은 상품 ID입니다.");
+/**
+ * `Supplier.supplierStorageKey`가 있으면 경로 세그먼트로 쓰고, 없으면 `id` 문자열.
+ * 값이 있을 때는 `company_code`와 동일한 안전 문자 규칙을 적용한다.
+ */
+export function supplierStorageSegmentFromRow(row: { id: number; supplierStorageKey: string | null }): string {
+  const raw = row.supplierStorageKey?.trim();
+  if (raw) {
+    return assertSafeCompanyCodeSegment(raw);
   }
-  const base = fileName.trim().replace(/\\/g, "/");
-  if (!base || base.includes("/") || base.includes("..")) {
-    throw new Error("유효하지 않은 파일명입니다.");
-  }
-  return `products/${productId}/images/${base}`;
+  return String(row.id);
 }
 
-/** 상품별 이미지: `products/{productId}/images/...` 키로 저장하고 동일 키 문자열을 반환한다. */
+/** 상품 이미지: `arklux/{supplierStorageKey|supplier.id}/{fileName}` 키로 저장하고 동일 키 문자열을 반환한다. */
 export async function saveSupplierProductImage(
   buffer: Buffer,
   productId: number,
   fileName: string,
   contentType: string,
 ): Promise<string> {
-  const key = buildSupplierProductImageObjectKey(productId, fileName);
+  if (!Number.isInteger(productId) || productId <= 0) {
+    throw new Error("유효하지 않은 상품 ID입니다.");
+  }
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { supplier_id: true },
+  });
+  if (!product) {
+    throw new Error("상품을 찾을 수 없습니다.");
+  }
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: product.supplier_id },
+    select: { id: true, supplierStorageKey: true },
+  });
+  if (!supplier) {
+    throw new Error("공급사를 찾을 수 없습니다.");
+  }
+  const segment = supplierStorageSegmentFromRow(supplier);
+  const key = buildArkluxAssetObjectKey(segment, fileName);
   return saveFile(buffer, key, contentType);
 }
 

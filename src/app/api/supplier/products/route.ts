@@ -128,6 +128,8 @@ export async function POST(request: NextRequest) {
       values: dynamicPayload.formValues,
     });
 
+    const initialImage = dynamicPayload.imageUrl?.trim() || null;
+
     const created = await prisma.$transaction(async (tx) => {
       const newProduct = await tx.product.create({
         data: {
@@ -144,7 +146,8 @@ export async function POST(request: NextRequest) {
           specification: normalized.productCore.specification,
           price: new Prisma.Decimal(normalized.productCore.price),
           currency: normalized.productCore.currency,
-          image_url: dynamicPayload.imageUrl ?? null,
+          image_url: initialImage,
+          image_urls: initialImage ? [initialImage] : [],
           status: ProductStatus.DRAFT,
           is_active: false,
           product_code: normalized.productCore.sku,

@@ -286,6 +286,8 @@ model Supplier {
   invoice_sender_email        String?
   is_active                   Boolean         @default(true)
   allow_supplier_product_edit Boolean         @default(false)
+  /** R2 경로 `arklux/{supplierStorageKey|id}/` 세그먼트. 미설정 시 `id` 문자열 사용 */
+  supplierStorageKey          String?         @map("supplier_storage_key")
   /** 건축자재 / 기타상품 — 등록 상품은 항상 이 값과 일치 */
   productCategory ProductCategory @default(CONSTRUCTION) @map("product_category")
   created_at                  DateTime        @default(now())
@@ -358,6 +360,8 @@ model Product {
   product_code      String
   product_name      String
   image_url         String?
+  /** 추가 상품 이미지 URL 배열(JSON). 대표는 `image_url` */
+  image_urls        Json?
   currency          String     @default("KRW")
   status            ProductStatus @default(APPROVED)
   rejection_reason  String?

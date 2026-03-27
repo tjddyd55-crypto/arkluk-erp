@@ -18,6 +18,7 @@ import {
   upsertSupplierProductFieldValues,
   validateAndNormalizeDynamicValues,
 } from "@/server/services/supplier-dynamic-product-service";
+import { mergeProductImageGallery } from "@/lib/product-image-urls";
 import { getSupplierActiveProductForm } from "@/server/services/supplier-product-form-service";
 
 const PRODUCT_PATCH_INCLUDE = {
@@ -365,6 +366,17 @@ export async function PATCH(
     const clearRejection =
       before.status === ProductStatus.APPROVED || before.status === ProductStatus.REJECTED;
 
+    const nextImageUrlsPayload = (() => {
+      let gallery = mergeProductImageGallery(before.image_url, before.image_urls);
+      if (nextImageUrl?.trim()) {
+        const t = nextImageUrl.trim();
+        if (!gallery.includes(t)) {
+          gallery = [...gallery, t];
+        }
+      }
+      return gallery;
+    })();
+
     const updated = await prisma.$transaction(async (tx) => {
       const next = await tx.product.update({
         where: { id: productId },
@@ -382,6 +394,7 @@ export async function PATCH(
           product_name: normalized.productCore.name,
           product_code: normalized.productCore.sku,
           image_url: nextImageUrl ?? null,
+          image_urls: nextImageUrlsPayload,
           spec: normalized.productCore.specification,
           price: new Prisma.Decimal(normalized.productCore.price),
           currency: normalized.productCore.currency,

@@ -11,6 +11,7 @@ import {
   SUPPLIER_PRODUCT_IMAGE_EXT_SET,
   SUPPLIER_PRODUCT_IMAGE_MAX_BYTES,
 } from "@/server/storage/storage-upload-policy";
+import { mergeProductImageGallery } from "@/lib/product-image-urls";
 import {
   buildSupplierProductImagePublicUrl,
   saveSupplierProductImage,
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     const product = await prisma.product.findFirst({
       where: { id: productId, supplier_id: supplierId },
-      select: { id: true },
+      select: { id: true, image_url: true, image_urls: true },
     });
     if (!product) {
       throw new HttpError(404, "상품을 찾을 수 없거나 권한이 없습니다.");
@@ -92,9 +93,18 @@ export async function POST(request: NextRequest) {
 
     const url = buildSupplierProductImagePublicUrl(key);
 
+    const gallery = mergeProductImageGallery(product.image_url, product.image_urls);
+    if (!gallery.includes(url)) {
+      gallery.push(url);
+    }
+    const primary = product.image_url?.trim() ? product.image_url : url;
+
     const updated = await prisma.product.update({
       where: { id: productId },
-      data: { image_url: url },
+      data: {
+        image_url: primary,
+        image_urls: gallery,
+      },
     });
 
     return ok({

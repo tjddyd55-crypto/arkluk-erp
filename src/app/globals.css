@@ -38,3 +38,10 @@ html[dir="rtl"] td {
 html[dir="ltr"] body {
   direction: ltr;
 }
+
+.product-thumbnail {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+}

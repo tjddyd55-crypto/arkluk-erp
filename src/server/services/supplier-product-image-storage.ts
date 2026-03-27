@@ -4,6 +4,7 @@ import {
   ARKLUX_PLATFORM_PREFIX,
   deleteFile,
   resolveR2ObjectKey,
+  supplierStorageSegmentFromRow,
 } from "@/server/services/storage-service";
 
 function legacyProductImagePrefix(supplierId: number): string {
@@ -46,14 +47,25 @@ async function isOwnedProductImageKey(supplierId: number, key: string): Promise<
   if (key.startsWith(legacyProductImagePrefix(supplierId))) {
     return true;
   }
-  const companyCode = await getSupplierCompanyCode(supplierId);
-  if (!companyCode) {
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: supplierId },
+    select: { id: true, supplierStorageKey: true, company_code: true },
+  });
+  if (!supplier) {
     return false;
   }
-  return key.startsWith(`${ARKLUX_PLATFORM_PREFIX}/${companyCode}/`);
+  const segment = supplierStorageSegmentFromRow(supplier);
+  if (key.startsWith(`${ARKLUX_PLATFORM_PREFIX}/${segment}/`)) {
+    return true;
+  }
+  const companyCode = trySafeCompanyCodeSegment(supplier.company_code);
+  if (companyCode && key.startsWith(`${ARKLUX_PLATFORM_PREFIX}/${companyCode}/`)) {
+    return true;
+  }
+  return false;
 }
 
-/** API에서 명시 삭제: products/{id}/images/, 레거시 product-images/{supplierId}/, arklux/{company_code}/ */
+/** API에서 명시 삭제: products/{id}/images/, 레거시 product-images/{supplierId}/, arklux/{storage|company_code}/ */
 export async function deleteSupplierProductImageByPathForApi(
   supplierId: number,
   pathInput: string,

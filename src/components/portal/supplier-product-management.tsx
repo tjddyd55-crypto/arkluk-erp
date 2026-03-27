@@ -1,6 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Fragment, useEffect, useMemo, useState } from "react";
+
+import { mergeProductImageGallery } from "@/lib/product-image-urls";
 
 type Category = {
   id: number;
@@ -32,10 +34,13 @@ type ProductRow = {
   status: ProductStatus;
   rejection_reason: string | null;
   image_url: string | null;
+  /** Prisma Json — 클라이언트에서는 문자열 배열로 직렬화되어 온다고 가정 */
+  image_urls?: unknown;
   category?: Category | null;
   product_name: string;
   product_code: string;
   spec: string;
+  memo?: string | null;
   dynamic_values?: Record<string, string | null>;
   created_at: string;
   updated_at: string;
@@ -115,6 +120,28 @@ const FIELD_TYPE_OPTIONS: Array<{ value: FieldRequest["requested_field_type"]; l
   { value: "DATE", label: "날짜" },
 ];
 
+function productListDisplayName(p: ProductRow): string {
+  const v = (p.dynamic_values?.name ?? p.name ?? p.product_name ?? "").trim();
+  return v || "-";
+}
+
+function productListDisplayPrice(p: ProductRow): string {
+  const dynamicPrice = p.dynamic_values?.price;
+  const priceStr =
+    dynamicPrice !== undefined && dynamicPrice !== null && String(dynamicPrice).trim() !== ""
+      ? String(dynamicPrice)
+      : String(p.price ?? "");
+  const num = Number(priceStr);
+  const formatted = Number.isFinite(num) ? num.toLocaleString() : priceStr;
+  return `${formatted} ${p.currency}`;
+}
+
+function productDescriptionForDetail(p: ProductRow): string {
+  return String(
+    p.dynamic_values?.description ?? p.description_original ?? p.description ?? p.memo ?? "",
+  ).trim();
+}
+
 export function SupplierProductManagement() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -132,7 +159,8 @@ export function SupplierProductManagement() {
   const [newCategorySortOrder, setNewCategorySortOrder] = useState("0");
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [settingPrimaryProductId, setSettingPrimaryProductId] = useState<number | null>(null);
   const [excelImporting, setExcelImporting] = useState(false);
   const [requestTitle, setRequestTitle] = useState("");
   const [requestFieldLabel, setRequestFieldLabel] = useState("");
@@ -545,32 +573,32 @@ export function SupplierProductManagement() {
     }
   }
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setPreviewImageUrl(null);
+  async function handleSetPrimaryImage(productId: number, imageUrl: string) {
+    setError(null);
+    setMessage(null);
+    setSettingPrimaryProductId(productId);
+    try {
+      const response = await fetch(`/api/supplier/products/${productId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message ?? "대표 이미지 변경 실패");
       }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  const listMainFields = useMemo(() => {
-    const prioritized = ["name", "sku", "specification", "price"];
-    const fields = productForm?.fields ?? [];
-    const selected: ProductFormField[] = [];
-    for (const key of prioritized) {
-      const found = fields.find((field) => field.fieldKey === key);
-      if (found) selected.push(found);
-    }
-    for (const field of fields) {
-      if (selected.length >= 4) break;
-      if (!selected.find((row) => row.fieldKey === field.fieldKey)) {
-        selected.push(field);
+      if (result.unchanged === true) {
+        setMessage("이미 대표 이미지입니다.");
+      } else {
+        setMessage("대표 이미지가 변경되었습니다.");
       }
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "대표 이미지 변경 실패");
+    } finally {
+      setSettingPrimaryProductId(null);
     }
-    return selected.slice(0, 4);
-  }, [productForm]);
+  }
 
   return (
     <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
@@ -830,91 +858,161 @@ export function SupplierProductManagement() {
           <table className="min-w-full border-collapse text-sm">
             <thead>
               <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">이미지</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">사내 분류</th>
-                {listMainFields.map((field) => (
-                  <th key={field.id} className="border border-slate-200 px-2 py-1 text-left">
-                    {field.label}
-                  </th>
-                ))}
+                <th className="border border-slate-200 px-2 py-1 text-left">썸네일</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">상품명</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">가격</th>
                 <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">반려 사유</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">작업</th>
+                <th className="border border-slate-200 px-2 py-1 text-left">액션</th>
               </tr>
             </thead>
             <tbody>
-              {products.map((product) => (
-                <tr key={product.id}>
-                  <td className="border border-slate-200 px-2 py-1">
-                    {product.image_url?.trim() ? (
-                      <button type="button" onClick={() => setPreviewImageUrl(product.image_url)}>
-                        <img
-                          src={product.image_url}
-                          alt="상품 썸네일"
-                          className="h-10 w-10 rounded border border-slate-200 object-cover"
-                        />
-                      </button>
-                    ) : (
-                      <span className="text-xs text-slate-400">-</span>
-                    )}
-                  </td>
-                  <td className="border border-slate-200 px-2 py-1">
-                    {product.category?.category_name ?? "-"}
-                  </td>
-                  {listMainFields.map((field) => (
-                    <td key={field.id} className="border border-slate-200 px-2 py-1">
-                      {product.dynamic_values?.[field.fieldKey] ??
-                        (field.fieldKey === "name"
-                          ? (product.name ?? product.product_name)
-                          : field.fieldKey === "sku"
-                            ? (product.sku ?? product.product_code)
-                            : field.fieldKey === "specification"
-                              ? (product.specification ?? product.spec)
-                              : field.fieldKey === "price"
-                                ? `${Number(product.price).toLocaleString()} ${product.currency}`
-                                : "-")}
-                    </td>
-                  ))}
-                  <td className="border border-slate-200 px-2 py-1">{STATUS_LABEL[product.status]}</td>
-                  <td className="border border-slate-200 px-2 py-1">
-                    {product.status === "REJECTED" ? product.rejection_reason ?? "-" : "-"}
-                  </td>
-                  <td className="border border-slate-200 px-2 py-1">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-50"
-                        onClick={() => openEdit(product)}
+              {products.map((product) => {
+                const galleryUrls = mergeProductImageGallery(product.image_url, product.image_urls);
+                const descriptionText = productDescriptionForDetail(product);
+                const primary = product.image_url?.trim() ?? "";
+
+                return (
+                  <Fragment key={product.id}>
+                    <tr
+                      className="cursor-pointer hover:bg-slate-50/80"
+                      onClick={() =>
+                        setExpandedId((id) => (id === product.id ? null : product.id))
+                      }
+                    >
+                      <td className="border border-slate-200 px-2 py-1 align-middle">
+                        {primary ? (
+                          <img
+                            src={primary}
+                            alt=""
+                            className="product-thumbnail border border-slate-200"
+                          />
+                        ) : (
+                          <span className="inline-flex h-[60px] w-[60px] items-center justify-center rounded-md border border-dashed border-slate-200 text-xs text-slate-400">
+                            없음
+                          </span>
+                        )}
+                      </td>
+                      <td className="border border-slate-200 px-2 py-1 align-middle">
+                        {productListDisplayName(product)}
+                      </td>
+                      <td className="border border-slate-200 px-2 py-1 align-middle">
+                        {productListDisplayPrice(product)}
+                      </td>
+                      <td className="border border-slate-200 px-2 py-1 align-middle">
+                        {STATUS_LABEL[product.status]}
+                      </td>
+                      <td
+                        className="border border-slate-200 px-2 py-1 align-middle"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        수정
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded border border-red-300 px-2 py-1 text-xs text-red-700"
-                        onClick={() => handleDeleteProduct(product.id)}
-                      >
-                        삭제
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-50"
-                        disabled={
-                          (product.status !== "DRAFT" && product.status !== "REJECTED") ||
-                          submittingProductId === product.id
-                        }
-                        onClick={() => handleSubmitProduct(product.id)}
-                      >
-                        {submittingProductId === product.id ? "제출 중..." : "제출"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-50"
+                            onClick={() => openEdit(product)}
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded border border-red-300 px-2 py-1 text-xs text-red-700"
+                            onClick={() => handleDeleteProduct(product.id)}
+                          >
+                            삭제
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-50"
+                            disabled={
+                              (product.status !== "DRAFT" && product.status !== "REJECTED") ||
+                              submittingProductId === product.id
+                            }
+                            onClick={() => handleSubmitProduct(product.id)}
+                          >
+                            {submittingProductId === product.id ? "제출 중..." : "제출"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expandedId === product.id ? (
+                      <tr className="bg-slate-50">
+                        <td colSpan={5} className="border border-slate-200 px-3 py-3 align-top">
+                          <div className="space-y-3 text-sm text-slate-800">
+                            <div>
+                              <p className="text-xs font-semibold text-slate-600">상품 설명</p>
+                              {descriptionText ? (
+                                <p className="mt-1 whitespace-pre-wrap">{descriptionText}</p>
+                              ) : (
+                                <p className="mt-1 text-slate-500">등록된 설명이 없습니다.</p>
+                              )}
+                            </div>
+                            {product.status === "REJECTED" && product.rejection_reason ? (
+                              <div className="rounded border border-amber-200 bg-amber-50 px-2 py-2 text-xs text-amber-900">
+                                <span className="font-medium">반려 사유: </span>
+                                {product.rejection_reason}
+                              </div>
+                            ) : null}
+                            <div>
+                              <p className="text-xs font-semibold text-slate-600">추가 이미지</p>
+                              {galleryUrls.length > 0 ? (
+                                <ul className="mt-2 flex list-none flex-wrap gap-2 p-0">
+                                  {galleryUrls.map((url) => {
+                                    const isPrimary = primary === url.trim();
+                                    return (
+                                      <li key={url} className="flex flex-col items-center gap-1">
+                                        <button
+                                          type="button"
+                                          title="대표 이미지로 설정"
+                                          className="rounded border border-slate-200 p-0.5 ring-offset-2 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60"
+                                          disabled={isPrimary || settingPrimaryProductId === product.id}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            void handleSetPrimaryImage(product.id, url);
+                                          }}
+                                        >
+                                          <img
+                                            src={url}
+                                            alt=""
+                                            className="product-thumbnail"
+                                          />
+                                        </button>
+                                        {isPrimary ? (
+                                          <span className="text-[10px] font-medium text-slate-600">대표</span>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            className="text-[10px] text-slate-600 underline disabled:opacity-50"
+                                            disabled={settingPrimaryProductId === product.id}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              void handleSetPrimaryImage(product.id, url);
+                                            }}
+                                          >
+                                            대표 설정
+                                          </button>
+                                        )}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              ) : (
+                                <p className="mt-1 text-slate-500">
+                                  등록된 이미지가 없습니다. 상품 수정 화면에서 업로드하세요.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
               {products.length === 0 ? (
                 <tr>
                   <td
                     className="border border-slate-200 px-2 py-3 text-center text-slate-500"
-                    colSpan={6 + listMainFields.length}
+                    colSpan={5}
                   >
                     등록된 상품이 없습니다.
                   </td>
@@ -1001,27 +1099,6 @@ export function SupplierProductManagement() {
         </div>
       </div>
 
-      {previewImageUrl ? (
-        <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
-          onClick={() => setPreviewImageUrl(null)}
-        >
-          <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="absolute -right-3 -top-3 rounded-full bg-white px-2 py-1 text-xs"
-              onClick={() => setPreviewImageUrl(null)}
-            >
-              X
-            </button>
-            <img
-              src={previewImageUrl}
-              alt="상품 이미지 확대"
-              className="max-h-[85vh] rounded object-contain"
-            />
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
