@@ -45,7 +45,12 @@ function getEntityLink(pathname: string, row: NotificationRow) {
   return `/admin/orders/${row.entityId}`;
 }
 
-export function NotificationBell() {
+type NotificationBellProps = {
+  /** 공급사 포털 등 다크 셸과 톤 맞춤 */
+  dark?: boolean;
+};
+
+export function NotificationBell({ dark = false }: NotificationBellProps) {
   const pathname = usePathname();
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -102,7 +107,11 @@ export function NotificationBell() {
     <div className="relative">
       <button
         type="button"
-        className="relative rounded border border-slate-300 bg-white px-3 py-2 text-sm"
+        className={`relative rounded px-3 py-2 text-sm ${
+          dark
+            ? "border border-[#3d4450] bg-[#2a3038] text-gray-300 hover:bg-[#323842]"
+            : "border border-slate-300 bg-white"
+        }`}
         onClick={() => setOpen((value) => !value)}
       >
         🔔
@@ -114,18 +123,36 @@ export function NotificationBell() {
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-20 mt-2 w-[360px] rounded border border-slate-200 bg-white p-3 shadow">
+        <div
+          className={`absolute right-0 z-20 mt-2 w-[360px] rounded border p-3 shadow-xl ${
+            dark
+              ? "border-[#2d333d] bg-[#1a1d23] text-gray-300 shadow-black/40"
+              : "border-slate-200 bg-white"
+          }`}
+        >
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-900">{t("recent_activity")}</p>
+            <p className={`text-sm font-semibold ${dark ? "text-white" : "text-slate-900"}`}>
+              {t("recent_activity")}
+            </p>
             <button
               type="button"
-              className="text-xs text-slate-500"
+              className={`text-xs ${dark ? "text-gray-400 hover:text-gray-300" : "text-slate-500"}`}
               onClick={() => setOpen(false)}
             >
               {t("cancel")}
             </button>
           </div>
-          {error ? <p className="mb-2 rounded bg-red-50 p-2 text-xs text-red-700">{error}</p> : null}
+          {error ? (
+            <p
+              className={`mb-2 rounded border p-2 text-xs ${
+                dark
+                  ? "border-red-800/50 bg-red-950/40 text-red-300"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {error}
+            </p>
+          ) : null}
           <ul className="max-h-96 space-y-2 overflow-auto">
             {sortedRows.map((row) => {
               const link = getEntityLink(pathname, row);
@@ -133,25 +160,38 @@ export function NotificationBell() {
                 <li
                   key={row.recipientId}
                   className={`rounded border px-2 py-2 text-xs ${
-                    row.isRead ? "border-slate-200 bg-slate-50" : "border-blue-200 bg-blue-50"
+                    dark
+                      ? row.isRead
+                        ? "border-[#2d333d] bg-[#14171c]"
+                        : "border-sky-700/50 bg-sky-950/35"
+                      : row.isRead
+                        ? "border-slate-200 bg-slate-50"
+                        : "border-blue-200 bg-blue-50"
                   }`}
                 >
-                  <p className="text-[11px] text-slate-500">
+                  <p className={`text-[11px] ${dark ? "text-gray-400" : "text-slate-500"}`}>
                     {new Date(row.createdAt).toLocaleString()}
                   </p>
-                  <p className="mt-1 text-slate-800">{row.message}</p>
+                  <p className={`mt-1 ${dark ? "text-gray-300" : "text-slate-800"}`}>{row.message}</p>
                   <div className="mt-2 flex items-center gap-2">
                     {!row.isRead ? (
                       <button
                         type="button"
-                        className="rounded border border-slate-300 px-2 py-1"
+                        className={`rounded border px-2 py-1 ${
+                          dark
+                            ? "border-[#3d4450] bg-[#2a3038] text-gray-300 hover:bg-[#323842]"
+                            : "border border-slate-300"
+                        }`}
                         onClick={() => handleMarkRead(row.recipientId)}
                       >
                         {t("confirm")}
                       </button>
                     ) : null}
                     {link ? (
-                      <Link href={link} className="text-blue-700 underline">
+                      <Link
+                        href={link}
+                        className={dark ? "text-sky-400 underline hover:text-sky-300" : "text-blue-700 underline"}
+                      >
                         {t("dashboard")}
                       </Link>
                     ) : null}
@@ -160,7 +200,11 @@ export function NotificationBell() {
               );
             })}
             {sortedRows.length === 0 ? (
-              <li className="rounded border border-slate-200 px-2 py-3 text-center text-xs text-slate-500">
+              <li
+                className={`rounded border px-2 py-3 text-center text-xs ${
+                  dark ? "border-[#2d333d] text-gray-400" : "border-slate-200 text-slate-500"
+                }`}
+              >
                 {t("no_data")}
               </li>
             ) : null}

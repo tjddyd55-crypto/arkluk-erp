@@ -120,6 +120,77 @@ const FIELD_TYPE_OPTIONS: Array<{ value: FieldRequest["requested_field_type"]; l
   { value: "DATE", label: "날짜" },
 ];
 
+/** 다크 리스트 UI 토큰 — 배경 #0f1115 / 행 #1a1d23 / hover #23272f / 펼침 #111318 */
+const spm = {
+  page: "space-y-3 rounded border border-[#2d333d] bg-transparent p-4 text-gray-300",
+  panel: "rounded border border-[#2d333d] bg-[#1a1d23] p-3",
+  muted: "text-gray-400",
+  border: "border-[#2d333d]",
+  heading: "font-semibold text-white",
+  listGrid:
+    "grid grid-cols-[64px_minmax(0,1fr)_minmax(104px,auto)_minmax(88px,auto)_minmax(200px,auto)] items-center gap-3",
+  listHead:
+    "grid grid-cols-[64px_minmax(0,1fr)_minmax(104px,auto)_minmax(88px,auto)_minmax(200px,auto)] items-center gap-3 border-b border-[#2d333d] bg-[#14171c] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-400",
+  listRow:
+    "relative z-0 cursor-pointer border-b border-[#2d333d] bg-[#1a1d23] transition-colors hover:bg-[#23272f]",
+  expand: "border-b border-[#2d333d] bg-[#111318]",
+  btnPrimary:
+    "rounded px-3 py-2 text-sm font-medium bg-blue-600 text-white transition-colors hover:bg-blue-500 disabled:opacity-50",
+  btnSecondary:
+    "rounded border border-[#3d4450] bg-[#2a3038] px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-[#323842] disabled:opacity-50",
+  btnDanger:
+    "rounded border border-red-900/60 bg-red-950/25 px-2 py-1 text-xs text-red-400 transition-colors hover:bg-red-950/45",
+  input:
+    "rounded border border-[#2d333d] bg-[#14171c] px-2 py-1.5 text-sm text-white placeholder:text-gray-500",
+  select:
+    "rounded border border-[#2d333d] bg-[#14171c] px-2 py-1.5 text-sm text-white",
+  galleryScroll: "flex flex-nowrap gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]",
+  /** 썸네일 슬롯: 행 높이·그리드에 영향 없음 */
+  thumbSlot: "relative h-[60px] w-[60px] shrink-0 overflow-visible",
+  /** 썸네일: group-hover 기준, isolate로 스택 안정화 · 호버 시 행 위로 */
+  thumbWrap: "group relative isolate z-0 h-full w-full overflow-visible group-hover:z-[55]",
+  thumbImg:
+    "product-thumbnail border border-[#2d333d] transition-transform duration-200 ease-out will-change-transform group-hover:relative group-hover:z-[1] group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-black/60 group-hover:ring-2 group-hover:ring-blue-500/35",
+  /** absolute + z≥50 + pointer-events-none, -ml로 썸네일과 살짝 겹쳐 hover 끊김 완화 */
+  thumbPreview:
+    "pointer-events-none absolute left-full top-1/2 z-[60] -ml-1 hidden w-[min(280px,calc(100vw-8rem))] -translate-y-1/2 rounded border border-[#2d333d] bg-[#111318] p-1.5 shadow-2xl shadow-black/60 group-hover:block",
+  thumbPreviewImg: "pointer-events-none max-h-52 max-w-full object-contain",
+  /** 상품 상태 pill — 배경 + 글자색 (rounded-full) */
+  statusPillBase: "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium",
+  statusDraft: "bg-yellow-500/20 text-yellow-200 ring-1 ring-inset ring-yellow-500/30",
+  statusApproved: "bg-emerald-500/20 text-emerald-200 ring-1 ring-inset ring-emerald-500/35",
+  statusRejected: "bg-red-500/20 text-red-200 ring-1 ring-inset ring-red-500/35",
+  statusPending: "bg-sky-500/20 text-sky-200 ring-1 ring-inset ring-sky-500/30",
+  /** 필드 요청 상태 pill */
+  fieldReqApproved: "bg-emerald-500/20 text-emerald-200 ring-1 ring-inset ring-emerald-500/35",
+  fieldReqRejected: "bg-red-500/20 text-red-200 ring-1 ring-inset ring-red-500/35",
+  fieldReqPending: "bg-amber-500/20 text-amber-200 ring-1 ring-inset ring-amber-500/30",
+} as const;
+
+/** APPROVED=ACTIVE(녹색), DRAFT=노랑, REJECTED=빨강, PENDING=sky */
+function productStatusSpmClasses(status: ProductStatus): string {
+  if (status === "DRAFT") {
+    return spm.statusDraft;
+  }
+  if (status === "APPROVED") {
+    return spm.statusApproved;
+  }
+  if (status === "REJECTED") {
+    return spm.statusRejected;
+  }
+  return spm.statusPending;
+}
+
+function fieldRequestStatusSpmClasses(status: FieldRequest["status"]): string {
+  if (status === "APPROVED") {
+    return spm.fieldReqApproved;
+  }
+  if (status === "REJECTED") {
+    return spm.fieldReqRejected;
+  }
+  return spm.fieldReqPending;
+}
+
 function productListDisplayName(p: ProductRow): string {
   const v = (p.dynamic_values?.name ?? p.name ?? p.product_name ?? "").trim();
   return v || "-";
@@ -601,22 +672,18 @@ export function SupplierProductManagement() {
   }
 
   return (
-    <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
+    <section className={spm.page}>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">My Products</h2>
-        <button
-          type="button"
-          className="rounded bg-slate-900 px-3 py-2 text-sm text-white"
-          onClick={openCreate}
-        >
+        <h2 className={`text-lg ${spm.heading}`}>My Products</h2>
+        <button type="button" className={spm.btnPrimary} onClick={openCreate}>
           Add Product
         </button>
       </div>
 
       {productForm ? (
-        <p className="rounded bg-slate-50 p-2 text-xs text-slate-600">
+        <p className={`rounded border ${spm.border} bg-[#14171c] p-2 text-xs ${spm.muted}`}>
           현재 적용 폼: {productForm.name} ·{" "}
-          <span className="font-medium text-slate-800">
+          <span className="font-medium text-gray-300">
             현재 사업자 유형: {PRODUCT_LINE_LABEL[productForm.supplierProductCategory]}
           </span>
           . 등록·수정되는 모든 상품은 이 유형으로 자동 저장되며, 화면에서 선택할 수 없습니다. 유형 변경은 관리자에게
@@ -625,55 +692,60 @@ export function SupplierProductManagement() {
       ) : null}
 
       {message ? (
-        <p className="whitespace-pre-line rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p>
+        <p className="whitespace-pre-line rounded border border-emerald-800/40 bg-emerald-950/35 p-2 text-sm text-emerald-300">
+          {message}
+        </p>
       ) : null}
-      {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
+      {error ? (
+        <p className="rounded border border-red-800/40 bg-red-950/35 p-2 text-sm text-red-300">{error}</p>
+      ) : null}
 
-      <div className="rounded border border-slate-200 bg-slate-50 p-3">
+      <div className={spm.panel}>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="rounded border border-slate-300 px-3 py-1 text-sm"
+            className={spm.btnSecondary}
             onClick={() => {
               window.location.href = "/api/supplier/products/excel-template";
             }}
           >
             샘플 다운로드
           </button>
-          <form className="flex items-center gap-2" onSubmit={handleExcelImport}>
-            <input name="excelFile" type="file" accept=".xlsx,.xls" />
-            <button
-              type="submit"
-              className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
-              disabled={excelImporting}
-            >
+          <form className="flex flex-wrap items-center gap-2" onSubmit={handleExcelImport}>
+            <input
+              name="excelFile"
+              type="file"
+              accept=".xlsx,.xls"
+              className="max-w-[200px] text-xs text-gray-400 file:mr-2 file:rounded file:border file:border-[#3d4450] file:bg-[#2a3038] file:px-2 file:py-1 file:text-gray-300"
+            />
+            <button type="submit" className={spm.btnSecondary} disabled={excelImporting}>
               {excelImporting ? "업로드 중..." : "엑셀 업로드"}
             </button>
           </form>
         </div>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className={`mt-2 text-xs ${spm.muted}`}>
           현재 귀사의 상품 등록 필드 구조에 맞는 샘플 파일을 다운로드하여 작성 후 업로드하세요.
         </p>
       </div>
 
       {formOpen ? (
-        <div className="rounded border border-slate-200 bg-slate-50 p-3">
-          <h3 className="text-sm font-semibold text-slate-900">
+        <div className={spm.panel}>
+          <h3 className={`text-sm ${spm.heading}`}>
             {editingId === null ? "상품 초안 등록" : "상품 수정"}
           </h3>
           {editingId !== null && products.find((p) => p.id === editingId)?.status === "APPROVED" ? (
-            <p className="mt-1 text-xs text-amber-800">수정 시 재승인 상태로 변경됩니다.</p>
+            <p className="mt-1 text-xs text-amber-400/90">수정 시 재승인 상태로 변경됩니다.</p>
           ) : null}
           <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-[1fr_120px_100px]">
             <input
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className={spm.input}
               placeholder="카테고리명"
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
               disabled={creatingCategory}
             />
             <input
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className={spm.input}
               placeholder="정렬"
               value={newCategorySortOrder}
               onChange={(e) => setNewCategorySortOrder(e.target.value)}
@@ -681,7 +753,7 @@ export function SupplierProductManagement() {
             />
             <button
               type="button"
-              className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
+              className={spm.btnSecondary}
               onClick={handleCreateCategory}
               disabled={creatingCategory}
             >
@@ -690,7 +762,7 @@ export function SupplierProductManagement() {
           </div>
           <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
             <select
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className={spm.select}
               value={form.categoryId}
               onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}
               title="귀사 내부 분류(건축자재/기타 사업자 유형과 별개)"
@@ -703,7 +775,7 @@ export function SupplierProductManagement() {
               ))}
             </select>
             <select
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className={spm.select}
               value={form.sourceLanguage}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, sourceLanguage: e.target.value as SupportedLanguage }))
@@ -719,7 +791,7 @@ export function SupplierProductManagement() {
               <div key={field.id} className={field.type === "TEXTAREA" ? "md:col-span-2" : ""}>
                 {field.type === "TEXTAREA" ? (
                   <textarea
-                    className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                    className={`w-full ${spm.input}`}
                     rows={3}
                     placeholder={field.placeholder ?? field.label}
                     value={form.formValues[field.fieldKey] ?? ""}
@@ -732,7 +804,7 @@ export function SupplierProductManagement() {
                   />
                 ) : field.type === "SELECT" ? (
                   <select
-                    className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                    className={`w-full ${spm.select}`}
                     value={form.formValues[field.fieldKey] ?? ""}
                     onChange={(e) =>
                       setForm((prev) => ({
@@ -750,7 +822,7 @@ export function SupplierProductManagement() {
                   </select>
                 ) : field.type === "BOOLEAN" ? (
                   <select
-                    className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                    className={`w-full ${spm.select}`}
                     value={form.formValues[field.fieldKey] ?? ""}
                     onChange={(e) =>
                       setForm((prev) => ({
@@ -766,7 +838,7 @@ export function SupplierProductManagement() {
                 ) : (
                   <input
                     type={field.type === "NUMBER" ? "number" : field.type === "DATE" ? "date" : "text"}
-                    className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                    className={`w-full ${spm.input}`}
                     placeholder={`${field.label}${field.required ? " *" : ""}`}
                     value={form.formValues[field.fieldKey] ?? ""}
                     onChange={(e) =>
@@ -777,11 +849,11 @@ export function SupplierProductManagement() {
                     }
                   />
                 )}
-                {field.helpText ? <p className="mt-1 text-xs text-slate-500">{field.helpText}</p> : null}
+                {field.helpText ? <p className={`mt-1 text-xs ${spm.muted}`}>{field.helpText}</p> : null}
               </div>
             ))}
             <div className="md:col-span-2">
-              <p className="mb-2 text-xs text-slate-600">
+              <p className={`mb-2 text-xs ${spm.muted}`}>
                 {editingId === null
                   ? "신규 등록: 먼저 [저장]으로 상품(ID)을 만든 뒤 이미지를 업로드할 수 있습니다."
                   : "이미지는 R2에 저장되며, DB에는 공개 URL이 그대로 저장됩니다."}
@@ -796,6 +868,7 @@ export function SupplierProductManagement() {
                       ? "상품 저장 후 이미지를 선택할 수 있습니다."
                       : "상품 이미지 파일 선택"
                   }
+                  className="text-xs text-gray-400 file:mr-2 file:rounded file:border file:border-[#3d4450] file:bg-[#2a3038] file:px-2 file:py-1 file:text-gray-300"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
@@ -806,7 +879,7 @@ export function SupplierProductManagement() {
                 />
                 <button
                   type="button"
-                  className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
+                  className={spm.btnSecondary}
                   disabled={uploadingImage}
                   onClick={() => void handleClearImage()}
                 >
@@ -818,27 +891,22 @@ export function SupplierProductManagement() {
                   <img
                     src={form.imageUrl}
                     alt="상품 이미지 미리보기"
-                    className="h-12 w-12 rounded border border-slate-200 object-cover"
+                    className="product-thumbnail border border-[#2d333d]"
                   />
-                  <span className="text-xs text-slate-500">{form.imageUrl}</span>
+                  <span className="break-all text-xs text-gray-400">{form.imageUrl}</span>
                 </div>
               ) : (
-                <p className="mt-2 text-xs text-slate-500">이미지는 선택값입니다.</p>
+                <p className={`mt-2 text-xs ${spm.muted}`}>이미지는 선택값입니다.</p>
               )}
             </div>
           </div>
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              className="rounded bg-slate-900 px-3 py-1 text-sm text-white disabled:opacity-60"
-              disabled={submitting}
-              onClick={handleSave}
-            >
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" className={spm.btnPrimary} disabled={submitting} onClick={handleSave}>
               {submitting ? "저장 중..." : "저장"}
             </button>
             <button
               type="button"
-              className="rounded border border-slate-300 px-3 py-1 text-sm"
+              className={spm.btnSecondary}
               onClick={() => {
                 setFormOpen(false);
                 setForm({ ...INITIAL_FORM, formValues: {} });
@@ -852,194 +920,187 @@ export function SupplierProductManagement() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-slate-500">상품 목록을 불러오는 중...</p>
+        <p className={`text-sm ${spm.muted}`}>상품 목록을 불러오는 중...</p>
       ) : (
-        <div className="overflow-auto">
-          <table className="min-w-full border-collapse text-sm">
-            <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">썸네일</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상품명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">가격</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">액션</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => {
-                const galleryUrls = mergeProductImageGallery(product.image_url, product.image_urls);
-                const descriptionText = productDescriptionForDetail(product);
-                const primary = product.image_url?.trim() ?? "";
+        <div className="rounded border border-[#2d333d] text-sm">
+          <div className={spm.listHead}>
+            <span>썸네일</span>
+            <span>상품명</span>
+            <span>가격</span>
+            <span>상태</span>
+            <span>액션</span>
+          </div>
+          {products.length === 0 ? (
+            <div className={`border-b border-[#2d333d] bg-[#1a1d23] px-3 py-6 text-center ${spm.muted}`}>
+              등록된 상품이 없습니다.
+            </div>
+          ) : null}
+          {products.map((product) => {
+            const galleryUrls = mergeProductImageGallery(product.image_url, product.image_urls);
+            const descriptionText = productDescriptionForDetail(product);
+            const primary = product.image_url?.trim() ?? "";
 
-                return (
-                  <Fragment key={product.id}>
-                    <tr
-                      className="cursor-pointer hover:bg-slate-50/80"
-                      onClick={() =>
-                        setExpandedId((id) => (id === product.id ? null : product.id))
-                      }
-                    >
-                      <td className="border border-slate-200 px-2 py-1 align-middle">
-                        {primary ? (
-                          <img
-                            src={primary}
-                            alt=""
-                            className="product-thumbnail border border-slate-200"
-                          />
-                        ) : (
-                          <span className="inline-flex h-[60px] w-[60px] items-center justify-center rounded-md border border-dashed border-slate-200 text-xs text-slate-400">
-                            없음
-                          </span>
-                        )}
-                      </td>
-                      <td className="border border-slate-200 px-2 py-1 align-middle">
-                        {productListDisplayName(product)}
-                      </td>
-                      <td className="border border-slate-200 px-2 py-1 align-middle">
-                        {productListDisplayPrice(product)}
-                      </td>
-                      <td className="border border-slate-200 px-2 py-1 align-middle">
-                        {STATUS_LABEL[product.status]}
-                      </td>
-                      <td
-                        className="border border-slate-200 px-2 py-1 align-middle"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-50"
-                            onClick={() => openEdit(product)}
-                          >
-                            수정
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded border border-red-300 px-2 py-1 text-xs text-red-700"
-                            onClick={() => handleDeleteProduct(product.id)}
-                          >
-                            삭제
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-50"
-                            disabled={
-                              (product.status !== "DRAFT" && product.status !== "REJECTED") ||
-                              submittingProductId === product.id
-                            }
-                            onClick={() => handleSubmitProduct(product.id)}
-                          >
-                            {submittingProductId === product.id ? "제출 중..." : "제출"}
-                          </button>
+            return (
+              <Fragment key={product.id}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className={`${spm.listGrid} ${spm.listRow} px-3 py-2.5`}
+                  onClick={() => setExpandedId((id) => (id === product.id ? null : product.id))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setExpandedId((id) => (id === product.id ? null : product.id));
+                    }
+                  }}
+                >
+                  <div className={spm.thumbSlot}>
+                    {primary ? (
+                      <div className={spm.thumbWrap}>
+                        <img src={primary} alt="" className={spm.thumbImg} />
+                        <div className={spm.thumbPreview} aria-hidden>
+                          <img src={primary} alt="" className={spm.thumbPreviewImg} />
                         </div>
-                      </td>
-                    </tr>
-                    {expandedId === product.id ? (
-                      <tr className="bg-slate-50">
-                        <td colSpan={5} className="border border-slate-200 px-3 py-3 align-top">
-                          <div className="space-y-3 text-sm text-slate-800">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-600">상품 설명</p>
-                              {descriptionText ? (
-                                <p className="mt-1 whitespace-pre-wrap">{descriptionText}</p>
-                              ) : (
-                                <p className="mt-1 text-slate-500">등록된 설명이 없습니다.</p>
-                              )}
-                            </div>
-                            {product.status === "REJECTED" && product.rejection_reason ? (
-                              <div className="rounded border border-amber-200 bg-amber-50 px-2 py-2 text-xs text-amber-900">
-                                <span className="font-medium">반려 사유: </span>
-                                {product.rejection_reason}
-                              </div>
-                            ) : null}
-                            <div>
-                              <p className="text-xs font-semibold text-slate-600">추가 이미지</p>
-                              {galleryUrls.length > 0 ? (
-                                <ul className="mt-2 flex list-none flex-wrap gap-2 p-0">
-                                  {galleryUrls.map((url) => {
-                                    const isPrimary = primary === url.trim();
-                                    return (
-                                      <li key={url} className="flex flex-col items-center gap-1">
-                                        <button
-                                          type="button"
-                                          title="대표 이미지로 설정"
-                                          className="rounded border border-slate-200 p-0.5 ring-offset-2 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60"
-                                          disabled={isPrimary || settingPrimaryProductId === product.id}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            void handleSetPrimaryImage(product.id, url);
-                                          }}
-                                        >
-                                          <img
-                                            src={url}
-                                            alt=""
-                                            className="product-thumbnail"
-                                          />
-                                        </button>
-                                        {isPrimary ? (
-                                          <span className="text-[10px] font-medium text-slate-600">대표</span>
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            className="text-[10px] text-slate-600 underline disabled:opacity-50"
-                                            disabled={settingPrimaryProductId === product.id}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              void handleSetPrimaryImage(product.id, url);
-                                            }}
-                                          >
-                                            대표 설정
-                                          </button>
-                                        )}
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
-                              ) : (
-                                <p className="mt-1 text-slate-500">
-                                  등록된 이미지가 없습니다. 상품 수정 화면에서 업로드하세요.
-                                </p>
-                              )}
-                            </div>
+                      </div>
+                    ) : (
+                      <span className="inline-flex h-[60px] w-[60px] items-center justify-center rounded-md border border-dashed border-[#3d4450] text-xs text-gray-400">
+                        없음
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 truncate font-medium text-white">
+                    {productListDisplayName(product)}
+                  </div>
+                  <div className="whitespace-nowrap text-gray-300">{productListDisplayPrice(product)}</div>
+                  <div className="flex min-w-0 items-center">
+                    <span className={`${spm.statusPillBase} ${productStatusSpmClasses(product.status)}`}>
+                      {STATUS_LABEL[product.status]}
+                    </span>
+                  </div>
+                  <div className="min-w-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        className={`${spm.btnSecondary} px-2 py-1 text-xs`}
+                        onClick={() => openEdit(product)}
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        className={spm.btnDanger}
+                        onClick={() => handleDeleteProduct(product.id)}
+                      >
+                        삭제
+                      </button>
+                      <button
+                        type="button"
+                        className={`${spm.btnSecondary} px-2 py-1 text-xs`}
+                        disabled={
+                          (product.status !== "DRAFT" && product.status !== "REJECTED") ||
+                          submittingProductId === product.id
+                        }
+                        onClick={() => handleSubmitProduct(product.id)}
+                      >
+                        {submittingProductId === product.id ? "제출 중..." : "제출"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {expandedId === product.id ? (
+                  <div className={spm.expand}>
+                    <div className="space-y-3 text-sm text-gray-300">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-400">상품 설명</p>
+                        {descriptionText ? (
+                          <p className="mt-1 whitespace-pre-wrap text-gray-300">{descriptionText}</p>
+                        ) : (
+                          <p className={`mt-1 ${spm.muted}`}>등록된 설명이 없습니다.</p>
+                        )}
+                      </div>
+                      {product.status === "REJECTED" && product.rejection_reason ? (
+                        <div className="rounded border border-amber-800/50 bg-amber-950/30 px-2 py-2 text-xs text-amber-200">
+                          <span className="font-medium text-amber-100">반려 사유: </span>
+                          {product.rejection_reason}
+                        </div>
+                      ) : null}
+                      <div>
+                        <p className="text-xs font-semibold text-gray-400">추가 이미지</p>
+                        {galleryUrls.length > 0 ? (
+                          <div className={`mt-2 ${spm.galleryScroll}`}>
+                            <ul className="flex list-none flex-nowrap gap-3 p-0">
+                              {galleryUrls.map((url) => {
+                                const isPrimary = primary === url.trim();
+                                return (
+                                  <li key={url} className="flex w-[72px] shrink-0 flex-col items-center gap-1">
+                                    <button
+                                      type="button"
+                                      title="대표 이미지로 설정"
+                                      className="group/ga rounded border border-[#2d333d] p-0.5 transition-colors hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                                      disabled={isPrimary || settingPrimaryProductId === product.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        void handleSetPrimaryImage(product.id, url);
+                                      }}
+                                    >
+                                      <img
+                                        src={url}
+                                        alt=""
+                                        className="product-thumbnail w-[60px] max-w-none transition-transform duration-200 ease-out group-hover/ga:scale-105"
+                                      />
+                                    </button>
+                                    {isPrimary ? (
+                                      <span className="text-[10px] font-medium text-blue-400">대표</span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="text-[10px] text-blue-400 underline hover:text-blue-300 disabled:opacity-50"
+                                        disabled={settingPrimaryProductId === product.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          void handleSetPrimaryImage(product.id, url);
+                                        }}
+                                      >
+                                        대표 설정
+                                      </button>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
                           </div>
-                        </td>
-                      </tr>
-                    ) : null}
-                  </Fragment>
-                );
-              })}
-              {products.length === 0 ? (
-                <tr>
-                  <td
-                    className="border border-slate-200 px-2 py-3 text-center text-slate-500"
-                    colSpan={5}
-                  >
-                    등록된 상품이 없습니다.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+                        ) : (
+                          <p className={`mt-1 ${spm.muted}`}>
+                            등록된 이미지가 없습니다. 상품 수정 화면에서 업로드하세요.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </Fragment>
+            );
+          })}
         </div>
       )}
 
-      <div className="rounded border border-slate-200 bg-slate-50 p-3">
-        <h3 className="text-sm font-semibold text-slate-900">필드 추가 요청</h3>
+      <div className={spm.panel}>
+        <h3 className={`text-sm ${spm.heading}`}>필드 추가 요청</h3>
         <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
           <input
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className={spm.input}
             placeholder="요청 제목"
             value={requestTitle}
             onChange={(e) => setRequestTitle(e.target.value)}
           />
           <input
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className={spm.input}
             placeholder="요청 필드명"
             value={requestFieldLabel}
             onChange={(e) => setRequestFieldLabel(e.target.value)}
           />
           <select
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className={spm.select}
             value={requestFieldType}
             onChange={(e) => setRequestFieldType(e.target.value as FieldRequest["requested_field_type"])}
           >
@@ -1050,7 +1111,7 @@ export function SupplierProductManagement() {
             ))}
           </select>
           <input
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className={spm.input}
             placeholder="요청 사유"
             value={requestReason}
             onChange={(e) => setRequestReason(e.target.value)}
@@ -1058,44 +1119,43 @@ export function SupplierProductManagement() {
         </div>
         <button
           type="button"
-          className="mt-2 rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
+          className={`mt-2 ${spm.btnPrimary}`}
           disabled={requestSubmitting}
           onClick={handleCreateFieldRequest}
         >
           {requestSubmitting ? "등록 중..." : "필드 추가 요청"}
         </button>
-        <div className="mt-3 overflow-auto">
-          <table className="min-w-full border-collapse text-xs">
-            <thead>
-              <tr className="bg-white">
-                <th className="border border-slate-200 px-2 py-1 text-left">요청 제목</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">필드명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">타입</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">요청일</th>
-              </tr>
-            </thead>
-            <tbody>
-              {fieldRequests.map((request) => (
-                <tr key={request.id}>
-                  <td className="border border-slate-200 px-2 py-1">{request.request_title}</td>
-                  <td className="border border-slate-200 px-2 py-1">{request.requested_field_label}</td>
-                  <td className="border border-slate-200 px-2 py-1">{request.requested_field_type}</td>
-                  <td className="border border-slate-200 px-2 py-1">{request.status}</td>
-                  <td className="border border-slate-200 px-2 py-1">
-                    {new Date(request.created_at).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-              {fieldRequests.length === 0 ? (
-                <tr>
-                  <td className="border border-slate-200 px-2 py-2 text-center text-slate-500" colSpan={5}>
-                    등록된 요청이 없습니다.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+        <div className="mt-3 overflow-hidden rounded border border-[#2d333d] text-xs">
+          <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_72px_minmax(0,72px)_minmax(120px,auto)] gap-2 border-b border-[#2d333d] bg-[#14171c] px-3 py-2 font-semibold uppercase tracking-wide text-gray-400">
+            <span>요청 제목</span>
+            <span>필드명</span>
+            <span>타입</span>
+            <span>상태</span>
+            <span>요청일</span>
+          </div>
+          {fieldRequests.length === 0 ? (
+            <div className={`border-b border-[#2d333d] bg-[#1a1d23] px-3 py-4 text-center ${spm.muted}`}>
+              등록된 요청이 없습니다.
+            </div>
+          ) : null}
+          {fieldRequests.map((request) => (
+            <div
+              key={request.id}
+              className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_72px_minmax(0,72px)_minmax(120px,auto)] gap-2 border-b border-[#2d333d] bg-[#1a1d23] px-3 py-2 text-gray-300 transition-colors hover:bg-[#23272f]"
+            >
+              <span className="min-w-0 truncate">{request.request_title}</span>
+              <span className="min-w-0 truncate">{request.requested_field_label}</span>
+              <span className="text-gray-400">{request.requested_field_type}</span>
+              <span className="flex items-center">
+                <span className={`${spm.statusPillBase} ${fieldRequestStatusSpmClasses(request.status)}`}>
+                  {request.status}
+                </span>
+              </span>
+              <span className="whitespace-nowrap text-gray-400">
+                {new Date(request.created_at).toLocaleString()}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
