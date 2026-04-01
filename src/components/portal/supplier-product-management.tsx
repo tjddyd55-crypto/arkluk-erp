@@ -127,6 +127,8 @@ const spm = {
   muted: "text-gray-400",
   border: "border-[#2d333d]",
   heading: "font-semibold text-white",
+  /** 상품 리스트 바깥 래퍼 — .product-list-container + overflow visible (globals.css) */
+  listShell: "product-list-container overflow-visible rounded border border-[#2d333d] text-sm",
   listGrid:
     "grid grid-cols-[64px_minmax(0,1fr)_minmax(104px,auto)_minmax(88px,auto)_minmax(200px,auto)] items-center gap-3",
   listHead:
@@ -922,7 +924,7 @@ export function SupplierProductManagement() {
       {loading ? (
         <p className={`text-sm ${spm.muted}`}>상품 목록을 불러오는 중...</p>
       ) : (
-        <div className="rounded border border-[#2d333d] text-sm">
+        <div className={spm.listShell}>
           <div className={spm.listHead}>
             <span>썸네일</span>
             <span>상품명</span>

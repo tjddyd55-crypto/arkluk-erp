@@ -45,3 +45,13 @@ html[dir="ltr"] body {
   object-fit: cover;
   border-radius: 6px;
 }
+
+/* 썸네일 프리뷰(absolute) — 부모에 overflow:hidden이 있으면 잘림. 포털 main·리스트 래퍼는 visible 고정 */
+.portal-main,
+.product-list-container {
+  overflow: visible;
+}
+
+.preview-layer {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}

@@ -149,7 +149,9 @@ export function PortalShell({ children }: { children: ReactNode }) {
           {t("logout")}
         </button>
       </aside>
-      <main className={`flex-1 p-6 ${isSupplierPortal ? "bg-[#0f1115]" : ""}`}>
+      <main
+        className={`flex-1 p-6 ${isSupplierPortal ? "portal-main bg-[#0f1115]" : ""}`}
+      >
         <div
           className={`mb-4 flex items-center gap-3 ${isRTL ? "justify-start" : "justify-end"} ${isSupplierPortal ? "text-zinc-400" : ""}`}
         >
