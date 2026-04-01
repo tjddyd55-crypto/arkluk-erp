@@ -9,8 +9,8 @@ export default function AdminOrdersPage() {
   const { t } = useTranslation();
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">{t("orders")}</h1>
-      <p className="text-sm text-slate-600">{t("view_only_policy")}</p>
+      <h1 className="text-2xl font-bold text-white">{t("orders")}</h1>
+      <p className="text-sm text-gray-400">{t("view_only_policy")}</p>
       <AssignmentSettingsPanel />
       <AdminCentralReviewDashboard />
       <AdminOrdersList />

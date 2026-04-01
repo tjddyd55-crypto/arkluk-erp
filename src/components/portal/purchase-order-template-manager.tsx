@@ -170,23 +170,23 @@ export function PurchaseOrderTemplateManager() {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">템플릿 정보를 불러오는 중...</p>;
+    return <p className="text-sm text-gray-400">템플릿 정보를 불러오는 중...</p>;
   }
 
   return (
     <div className="space-y-4">
       <form
-        className="rounded border border-slate-200 bg-white p-4"
+        className="rounded border border-[#2d333d] bg-[#1a1d23] p-4"
         onSubmit={submitTemplate}
       >
-        <h2 className="text-lg font-semibold text-slate-900">템플릿 생성</h2>
+        <h2 className="text-lg font-semibold text-white">템플릿 생성</h2>
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">공급사(비워두면 공통)</span>
+            <span className="mb-1 block text-gray-400">공급사(비워두면 공통)</span>
             <select
               value={form.supplierId}
               onChange={(e) => setForm((prev) => ({ ...prev, supplierId: e.target.value }))}
-              className="w-full rounded border border-slate-300 px-2 py-1"
+              className="w-full rounded border border-[#2d333d] px-2 py-1"
             >
               <option value="">공통 템플릿</option>
               {suppliers.map((supplier) => (
@@ -197,46 +197,46 @@ export function PurchaseOrderTemplateManager() {
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">템플릿명</span>
+            <span className="mb-1 block text-gray-400">템플릿명</span>
             <input
               value={form.templateName}
               onChange={(e) => setForm((prev) => ({ ...prev, templateName: e.target.value }))}
-              className="w-full rounded border border-slate-300 px-2 py-1"
+              className="w-full rounded border border-[#2d333d] px-2 py-1"
               required
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">한글 제목</span>
+            <span className="mb-1 block text-gray-400">한글 제목</span>
             <input
               value={form.titleKo}
               onChange={(e) => setForm((prev) => ({ ...prev, titleKo: e.target.value }))}
-              className="w-full rounded border border-slate-300 px-2 py-1"
+              className="w-full rounded border border-[#2d333d] px-2 py-1"
               required
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">영문 제목</span>
+            <span className="mb-1 block text-gray-400">영문 제목</span>
             <input
               value={form.titleEn}
               onChange={(e) => setForm((prev) => ({ ...prev, titleEn: e.target.value }))}
-              className="w-full rounded border border-slate-300 px-2 py-1"
+              className="w-full rounded border border-[#2d333d] px-2 py-1"
               required
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">발주처 표시명</span>
+            <span className="mb-1 block text-gray-400">발주처 표시명</span>
             <input
               value={form.buyerName}
               onChange={(e) => setForm((prev) => ({ ...prev, buyerName: e.target.value }))}
-              className="w-full rounded border border-slate-300 px-2 py-1"
+              className="w-full rounded border border-[#2d333d] px-2 py-1"
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">하단 문구</span>
+            <span className="mb-1 block text-gray-400">하단 문구</span>
             <input
               value={form.footerNote}
               onChange={(e) => setForm((prev) => ({ ...prev, footerNote: e.target.value }))}
-              className="w-full rounded border border-slate-300 px-2 py-1"
+              className="w-full rounded border border-[#2d333d] px-2 py-1"
             />
           </label>
         </div>
@@ -260,7 +260,7 @@ export function PurchaseOrderTemplateManager() {
           <button
             type="submit"
             disabled={pending}
-            className="rounded bg-slate-900 px-3 py-1 text-white disabled:opacity-60"
+            className="rounded bg-blue-600 px-3 py-1 text-white disabled:opacity-60"
           >
             {pending ? "처리 중..." : "템플릿 생성"}
           </button>
@@ -270,39 +270,39 @@ export function PurchaseOrderTemplateManager() {
       {message ? (
         <p className="rounded bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>
       ) : null}
-      {error ? <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{error}</p> : null}
 
-      <section className="overflow-auto rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-900">템플릿 목록</h2>
+      <section className="overflow-auto rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+        <h2 className="text-lg font-semibold text-white">템플릿 목록</h2>
         <table className="mt-3 min-w-full border-collapse text-sm">
           <thead>
-            <tr className="bg-slate-50">
-              <th className="border border-slate-200 px-2 py-1 text-left">템플릿명</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">대상 공급사</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">기본 여부</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">활성</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">작업</th>
+            <tr className="bg-[#111318]">
+              <th className="border border-[#2d333d] px-2 py-1 text-left">템플릿명</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">대상 공급사</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">기본 여부</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">활성</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">작업</th>
             </tr>
           </thead>
           <tbody>
             {templates.map((row) => (
               <tr key={row.id}>
-                <td className="border border-slate-200 px-2 py-1">
+                <td className="border border-[#2d333d] px-2 py-1">
                   {row.template_name}
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-gray-400">
                     {row.title_ko} / {row.title_en}
                   </p>
                 </td>
-                <td className="border border-slate-200 px-2 py-1">
+                <td className="border border-[#2d333d] px-2 py-1">
                   {row.supplier?.supplier_name ?? "공통"}
                 </td>
-                <td className="border border-slate-200 px-2 py-1">{row.is_default ? "Y" : "N"}</td>
-                <td className="border border-slate-200 px-2 py-1">{row.is_active ? "Y" : "N"}</td>
-                <td className="border border-slate-200 px-2 py-1">
+                <td className="border border-[#2d333d] px-2 py-1">{row.is_default ? "Y" : "N"}</td>
+                <td className="border border-[#2d333d] px-2 py-1">{row.is_active ? "Y" : "N"}</td>
+                <td className="border border-[#2d333d] px-2 py-1">
                   <div className="flex gap-1">
                     <button
                       type="button"
-                      className="rounded border border-slate-300 px-2 py-1 text-xs"
+                      className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                       disabled={pending}
                       onClick={() => setDefaultTemplate(row)}
                     >
@@ -310,7 +310,7 @@ export function PurchaseOrderTemplateManager() {
                     </button>
                     <button
                       type="button"
-                      className="rounded border border-slate-300 px-2 py-1 text-xs"
+                      className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                       disabled={pending}
                       onClick={() => toggleTemplate(row, !row.is_active)}
                     >

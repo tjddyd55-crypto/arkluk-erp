@@ -349,17 +349,17 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">프로젝트 상세를 불러오는 중...</p>;
+    return <p className="text-sm text-gray-400">프로젝트 상세를 불러오는 중...</p>;
   }
   if (!project) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">프로젝트 정보를 찾을 수 없습니다.</p>;
+    return <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">프로젝트 정보를 찾을 수 없습니다.</p>;
   }
 
   return (
     <div className="space-y-4">
-      <header className="rounded border border-slate-200 bg-white p-4">
-        <h1 className="text-2xl font-bold text-slate-900">{project.project_name}</h1>
-        <p className="mt-1 text-sm text-slate-600">
+      <header className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+        <h1 className="text-2xl font-bold text-white">{project.project_name}</h1>
+        <p className="mt-1 text-sm text-gray-400">
           바이어: {project.buyer.name} / 국가: {project.country.country_name} / 상태:{" "}
           {projectStatusLabel[project.status]}
         </p>
@@ -369,24 +369,24 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
         <p className="rounded bg-emerald-50 p-3 text-sm text-emerald-700">{actionMessage}</p>
       ) : null}
       {actionError ? (
-        <p className="rounded bg-red-50 p-3 text-sm text-red-700">{actionError}</p>
+        <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{actionError}</p>
       ) : null}
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">프로젝트 기본 정보</h2>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             프로젝트명
             <input
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={editName}
               onChange={(event) => setEditName(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             상태
             <select
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={editStatus}
               onChange={(event) =>
                 setEditStatus(event.target.value as ProjectDetail["status"])
@@ -399,36 +399,36 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
               ))}
             </select>
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             현장 위치
             <input
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={editLocation}
               onChange={(event) => setEditLocation(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             시작일
             <input
               type="date"
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={editStartDate}
               onChange={(event) => setEditStartDate(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             종료일
             <input
               type="date"
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={editEndDate}
               onChange={(event) => setEditEndDate(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700 md:col-span-2">
+          <label className="text-sm text-gray-300 md:col-span-2">
             메모
             <textarea
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               rows={3}
               value={editMemo}
               onChange={(event) => setEditMemo(event.target.value)}
@@ -437,7 +437,7 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
           <div className="md:col-span-2">
             <button
               type="button"
-              className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
+              className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-60"
               onClick={saveProject}
               disabled={savingProject}
             >
@@ -447,7 +447,7 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">첨부파일</h2>
         <form
           className="mt-3 flex items-center gap-2"
@@ -469,7 +469,7 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
           <input name="file" type="file" accept=".pdf,.dwg,.zip,.png,.jpg,.jpeg" />
           <button
             type="submit"
-            className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
+            className="rounded border border-[#2d333d] px-3 py-1 text-sm disabled:opacity-60"
             disabled={uploadingFile}
           >
             {uploadingFile ? "업로드 중..." : "파일 업로드"}
@@ -479,29 +479,29 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">파일명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">형식</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">크기</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">업로드일</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">다운로드</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">파일명</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">형식</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">크기</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">업로드일</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">다운로드</th>
               </tr>
             </thead>
             <tbody>
               {files.map((file) => (
                 <tr key={file.id}>
-                  <td className="border border-slate-200 px-2 py-1">{file.original_name}</td>
-                  <td className="border border-slate-200 px-2 py-1">{file.file_type}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{file.original_name}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{file.file_type}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {(file.file_size / 1024).toFixed(1)} KB
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {new Date(file.created_at).toLocaleString()}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     <a
                       href={`/api/admin/projects/files/${file.id}/download`}
-                      className="text-blue-700 underline"
+                      className="text-blue-400 underline"
                     >
                       다운로드
                     </a>
@@ -510,7 +510,7 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
               ))}
               {files.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="border border-slate-200 px-2 py-3 text-center text-slate-500">
+                  <td colSpan={5} className="border border-[#2d333d] px-2 py-3 text-center text-gray-400">
                     업로드된 파일이 없습니다.
                   </td>
                 </tr>
@@ -520,17 +520,17 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">프로젝트 견적 생성</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           <input
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             placeholder="상품 검색 (코드/명/규격)"
             value={productKeyword}
             onChange={(event) => setProductKeyword(event.target.value)}
           />
           <select
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             value={selectedProductId}
             onChange={(event) => setSelectedProductId(event.target.value)}
           >
@@ -545,23 +545,23 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
             type="number"
             min={0.001}
             step={0.001}
-            className="w-24 rounded border border-slate-300 px-2 py-1 text-sm"
+            className="w-24 rounded border border-[#2d333d] px-2 py-1 text-sm"
             value={selectedQty}
             onChange={(event) => setSelectedQty(event.target.value)}
           />
           <button
             type="button"
-            className="rounded border border-slate-300 px-3 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-3 py-1 text-sm"
             onClick={addQuoteItem}
           >
             품목 추가
           </button>
         </div>
 
-        <label className="mt-3 block text-sm text-slate-700">
+        <label className="mt-3 block text-sm text-gray-300">
           견적 메모
           <textarea
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+            className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
             rows={2}
             value={quoteMemo}
             onChange={(event) => setQuoteMemo(event.target.value)}
@@ -571,14 +571,14 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">상품코드</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상품명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">규격</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">단위</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">수량</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">단가</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">제거</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상품코드</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상품명</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">규격</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">단위</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">수량</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">단가</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">제거</th>
               </tr>
             </thead>
             <tbody>
@@ -587,18 +587,18 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
                 if (!product) return null;
                 return (
                   <tr key={item.productId}>
-                    <td className="border border-slate-200 px-2 py-1">{product.product_code}</td>
-                    <td className="border border-slate-200 px-2 py-1">{product.product_name}</td>
-                    <td className="border border-slate-200 px-2 py-1">{product.spec}</td>
-                    <td className="border border-slate-200 px-2 py-1">{product.unit}</td>
-                    <td className="border border-slate-200 px-2 py-1">{item.qty}</td>
-                    <td className="border border-slate-200 px-2 py-1">
+                    <td className="border border-[#2d333d] px-2 py-1">{product.product_code}</td>
+                    <td className="border border-[#2d333d] px-2 py-1">{product.product_name}</td>
+                    <td className="border border-[#2d333d] px-2 py-1">{product.spec}</td>
+                    <td className="border border-[#2d333d] px-2 py-1">{product.unit}</td>
+                    <td className="border border-[#2d333d] px-2 py-1">{item.qty}</td>
+                    <td className="border border-[#2d333d] px-2 py-1">
                       {Number(product.price).toLocaleString()}
                     </td>
-                    <td className="border border-slate-200 px-2 py-1">
+                    <td className="border border-[#2d333d] px-2 py-1">
                       <button
                         type="button"
-                        className="text-red-700 underline"
+                        className="text-red-400 underline"
                         onClick={() => removeQuoteItem(item.productId)}
                       >
                         제거
@@ -609,7 +609,7 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
               })}
               {quoteItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="border border-slate-200 px-2 py-3 text-center text-slate-500">
+                  <td colSpan={7} className="border border-[#2d333d] px-2 py-3 text-center text-gray-400">
                     추가된 견적 품목이 없습니다.
                   </td>
                 </tr>
@@ -619,12 +619,12 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
         </div>
 
         <div className="mt-3 flex items-center justify-between">
-          <p className="text-sm text-slate-600">선택 품목 수: {quoteItems.length}</p>
+          <p className="text-sm text-gray-400">선택 품목 수: {quoteItems.length}</p>
           <div className="flex items-center gap-3">
-            <p className="text-sm text-slate-700">예상 합계: {totalDraftAmount.toLocaleString()}</p>
+            <p className="text-sm text-gray-300">예상 합계: {totalDraftAmount.toLocaleString()}</p>
             <button
               type="button"
-              className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
+              className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-60"
               onClick={createProjectQuote}
               disabled={creatingQuote}
             >
@@ -634,36 +634,36 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">프로젝트 견적 목록</h2>
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">견적번호</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">품목 수</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">총액</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">생성일</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">액션</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">견적번호</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상태</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">품목 수</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">총액</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">생성일</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">액션</th>
               </tr>
             </thead>
             <tbody>
               {quotes.map((quote) => (
                 <tr key={quote.id}>
-                  <td className="border border-slate-200 px-2 py-1">{quote.quote_no}</td>
-                  <td className="border border-slate-200 px-2 py-1">{quote.status}</td>
-                  <td className="border border-slate-200 px-2 py-1">{quote.item_count}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{quote.quote_no}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{quote.status}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{quote.item_count}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {Number(quote.total_amount).toLocaleString()}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {new Date(quote.created_at).toLocaleString()}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     <button
                       type="button"
-                      className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
+                      className="rounded border border-[#2d333d] px-2 py-1 text-xs disabled:opacity-60"
                       disabled={quote.status === "SENT" || quote.status === "ACCEPTED" || quote.status === "REJECTED"}
                       onClick={() => sendProjectQuote(quote.id)}
                     >
@@ -674,7 +674,7 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
               ))}
               {quotes.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="border border-slate-200 px-2 py-3 text-center text-slate-500">
+                  <td colSpan={6} className="border border-[#2d333d] px-2 py-3 text-center text-gray-400">
                     생성된 프로젝트 견적이 없습니다.
                   </td>
                 </tr>
@@ -684,36 +684,36 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">프로젝트 주문 목록</h2>
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">주문번호</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">공급사 수</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">생성일</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">주문번호</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상태</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">공급사 수</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">생성일</th>
               </tr>
             </thead>
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id}>
-                  <td className="border border-slate-200 px-2 py-1">
-                    <a className="text-blue-700 underline" href={`/admin/orders/${order.id}`}>
+                  <td className="border border-[#2d333d] px-2 py-1">
+                    <a className="text-blue-400 underline" href={`/admin/orders/${order.id}`}>
                       {order.order_no}
                     </a>
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{order.status}</td>
-                  <td className="border border-slate-200 px-2 py-1">{order.supplier_count}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{order.status}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{order.supplier_count}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {new Date(order.created_at).toLocaleString()}
                   </td>
                 </tr>
               ))}
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="border border-slate-200 px-2 py-3 text-center text-slate-500">
+                  <td colSpan={4} className="border border-[#2d333d] px-2 py-3 text-center text-gray-400">
                     생성된 프로젝트 주문이 없습니다.
                   </td>
                 </tr>
@@ -723,13 +723,13 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">발주/세금계산서 요약</h2>
         {summary ? (
           <div className="mt-3 space-y-4">
-            <div className="rounded border border-slate-200 p-3">
-              <h3 className="text-sm font-semibold text-slate-900">발주 상태 집계</h3>
-              <p className="mt-2 text-sm text-slate-700">
+            <div className="rounded border border-[#2d333d] p-3">
+              <h3 className="text-sm font-semibold text-white">발주 상태 집계</h3>
+              <p className="mt-2 text-sm text-gray-300">
                 {Object.entries(summary.order_supplier_status_count)
                   .map(([key, value]) => `${key}:${value}`)
                   .join(", ") || "집계 없음"}
@@ -739,20 +739,20 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
             <div className="overflow-auto">
               <table className="min-w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-slate-50">
-                    <th className="border border-slate-200 px-2 py-1 text-left">주문번호</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">공급사</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">발주 상태</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">납기예정</th>
+                  <tr className="bg-[#111318]">
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">주문번호</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">공급사</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">발주 상태</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">납기예정</th>
                   </tr>
                 </thead>
                 <tbody>
                   {summary.order_suppliers.map((row) => (
                     <tr key={row.id}>
-                      <td className="border border-slate-200 px-2 py-1">{row.order.order_no}</td>
-                      <td className="border border-slate-200 px-2 py-1">{row.supplier.supplier_name}</td>
-                      <td className="border border-slate-200 px-2 py-1">{row.status}</td>
-                      <td className="border border-slate-200 px-2 py-1">
+                      <td className="border border-[#2d333d] px-2 py-1">{row.order.order_no}</td>
+                      <td className="border border-[#2d333d] px-2 py-1">{row.supplier.supplier_name}</td>
+                      <td className="border border-[#2d333d] px-2 py-1">{row.status}</td>
+                      <td className="border border-[#2d333d] px-2 py-1">
                         {row.expected_delivery_date
                           ? new Date(row.expected_delivery_date).toLocaleDateString()
                           : "-"}
@@ -766,40 +766,40 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
             <div className="overflow-auto">
               <table className="min-w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-slate-50">
-                    <th className="border border-slate-200 px-2 py-1 text-left">주문번호</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">공급사</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">수신</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">첨부 수</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">첨부 다운로드</th>
+                  <tr className="bg-[#111318]">
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">주문번호</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">공급사</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">수신</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">첨부 수</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">첨부 다운로드</th>
                   </tr>
                 </thead>
                 <tbody>
                   {summary.tax_invoices.map((invoice) => (
                     <tr key={invoice.id}>
-                      <td className="border border-slate-200 px-2 py-1">
+                      <td className="border border-[#2d333d] px-2 py-1">
                         {invoice.order?.order_no ?? "-"}
                       </td>
-                      <td className="border border-slate-200 px-2 py-1">
+                      <td className="border border-[#2d333d] px-2 py-1">
                         {invoice.supplier?.supplier_name ?? "미분류"}
                       </td>
-                      <td className="border border-slate-200 px-2 py-1">
+                      <td className="border border-[#2d333d] px-2 py-1">
                         {new Date(invoice.received_at).toLocaleString()}
                       </td>
-                      <td className="border border-slate-200 px-2 py-1">{invoice.attachment_count}</td>
-                      <td className="border border-slate-200 px-2 py-1">
+                      <td className="border border-[#2d333d] px-2 py-1">{invoice.attachment_count}</td>
+                      <td className="border border-[#2d333d] px-2 py-1">
                         <div className="flex flex-wrap gap-1">
                           {invoice.files.map((file) => (
                             <a
                               key={file.id}
-                              className="text-blue-700 underline"
+                              className="text-blue-400 underline"
                               href={`/api/admin/tax-invoices/files/${file.id}/download`}
                             >
                               {file.file_type}
                             </a>
                           ))}
                           {invoice.files.length === 0 ? (
-                            <span className="text-slate-400">없음</span>
+                            <span className="text-gray-400">없음</span>
                           ) : null}
                         </div>
                       </td>
@@ -809,7 +809,7 @@ export function AdminProjectDetail({ projectId }: { projectId: number }) {
                     <tr>
                       <td
                         colSpan={5}
-                        className="border border-slate-200 px-2 py-3 text-center text-slate-500"
+                        className="border border-[#2d333d] px-2 py-3 text-center text-gray-400"
                       >
                         연결된 세금계산서가 없습니다.
                       </td>

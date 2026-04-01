@@ -183,13 +183,13 @@ export default function SupplierCollaborationProjectDetailPage() {
   }
 
   if (loading) {
-    return <div className="p-6 text-sm text-slate-500">불러오는 중&hellip;</div>;
+    return <div className="p-6 text-sm text-gray-400">불러오는 중&hellip;</div>;
   }
   if (error && !project) {
     return (
       <div className="p-6">
-        <p className="text-red-600">{error}</p>
-        <Link href="/supplier/collaboration/projects" className="mt-2 text-sm text-slate-600">
+        <p className="text-red-400">{error}</p>
+        <Link href="/supplier/collaboration/projects" className="mt-2 text-sm text-gray-400">
           목록
         </Link>
       </div>
@@ -199,32 +199,32 @@ export default function SupplierCollaborationProjectDetailPage() {
 
   return (
     <div className="p-6">
-      <Link href="/supplier/collaboration/projects" className="text-sm text-slate-600 hover:underline">
+      <Link href="/supplier/collaboration/projects" className="text-sm text-gray-400 hover:underline">
         &larr; 목록
       </Link>
-      <h1 className="mt-2 text-xl font-semibold text-slate-900">{project.title}</h1>
-      <p className="mt-1 text-xs text-slate-500">{project.status}</p>
-      <div className="mt-4 whitespace-pre-wrap rounded border border-slate-200 bg-white p-3 text-sm text-slate-800">
+      <h1 className="mt-2 text-xl font-semibold text-white">{project.title}</h1>
+      <p className="mt-1 text-xs text-gray-400">{project.status}</p>
+      <div className="mt-4 whitespace-pre-wrap rounded border border-[#2d333d] bg-[#1a1d23] p-3 text-sm text-gray-300">
         {project.description}
       </div>
 
-      <h2 className="mt-6 text-sm font-semibold text-slate-900">바이어 첨부</h2>
+      <h2 className="mt-6 text-sm font-semibold text-white">바이어 첨부</h2>
       <ul className="mt-2 space-y-1 text-sm">
         {project.files.map((f) => (
           <li key={f.id} className="flex items-center gap-2">
             <span>{f.originalFilename}</span>
-            <button type="button" className="text-blue-700 underline" onClick={() => void onDownloadProjectFile(f.id)}>
+            <button type="button" className="text-blue-400 underline" onClick={() => void onDownloadProjectFile(f.id)}>
               다운로드
             </button>
           </li>
         ))}
       </ul>
 
-      <h2 className="mt-8 text-sm font-semibold text-slate-900">내 제안</h2>
-      <form className="mt-2 max-w-2xl space-y-2 rounded border border-slate-200 bg-slate-50 p-3" onSubmit={onCreateReply}>
-        <label className="block text-xs font-medium text-slate-700">새 제안 본문</label>
+      <h2 className="mt-8 text-sm font-semibold text-white">내 제안</h2>
+      <form className="mt-2 max-w-2xl space-y-2 rounded border border-[#2d333d] bg-[#111318] p-3" onSubmit={onCreateReply}>
+        <label className="block text-xs font-medium text-gray-300">새 제안 본문</label>
         <textarea
-          className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
+          className="w-full rounded border border-[#2d333d] px-2 py-1 text-sm"
           rows={5}
           value={newBody}
           onChange={(e) => setNewBody(e.target.value)}
@@ -233,27 +233,27 @@ export default function SupplierCollaborationProjectDetailPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white disabled:opacity-50"
+          className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-50"
         >
           {submitting ? "등록 중&hellip;" : "제안 등록"}
         </button>
       </form>
 
       {msg ? <p className="mt-2 text-xs text-emerald-700">{msg}</p> : null}
-      {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="mt-2 text-xs text-red-400">{error}</p> : null}
 
       <div className="mt-6 space-y-5">
         {replies.map((r) => (
-          <div key={r.id} className="rounded border border-slate-200 bg-white p-3 text-sm">
-            <p className="text-xs text-slate-500">{new Date(r.createdAt).toLocaleString()}</p>
-            <p className="mt-2 whitespace-pre-wrap text-slate-800">{r.body}</p>
+          <div key={r.id} className="rounded border border-[#2d333d] bg-[#1a1d23] p-3 text-sm">
+            <p className="text-xs text-gray-400">{new Date(r.createdAt).toLocaleString()}</p>
+            <p className="mt-2 whitespace-pre-wrap text-gray-300">{r.body}</p>
             <ul className="mt-2 space-y-1">
               {r.files.map((f) => (
                 <li key={f.id} className="flex items-center gap-2 text-xs">
                   <span>{f.originalFilename}</span>
                   <button
                     type="button"
-                    className="text-blue-700 underline"
+                    className="text-blue-400 underline"
                     onClick={() => void onDownloadReplyFile(r.id, f.id)}
                   >
                     다운로드
@@ -262,9 +262,9 @@ export default function SupplierCollaborationProjectDetailPage() {
               ))}
             </ul>
             <div className="mt-2">
-              <label className="text-xs text-slate-600">이 제안에 파일 추가</label>
+              <label className="text-xs text-gray-400">이 제안에 파일 추가</label>
               <div
-                className="mt-1 rounded border border-dashed border-slate-300 bg-slate-50 p-3 text-center text-xs text-slate-500"
+                className="mt-1 rounded border border-dashed border-[#2d333d] bg-[#111318] p-3 text-center text-xs text-gray-400"
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.stopPropagation();

@@ -33,10 +33,10 @@ export function DashboardSummary() {
   }, []);
 
   if (error) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</p>;
+    return <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{error}</p>;
   }
   if (!data) {
-    return <p className="text-sm text-slate-500">대시보드 로딩 중...</p>;
+    return <p className="text-sm text-gray-400">대시보드 로딩 중...</p>;
   }
 
   const cards = [
@@ -52,9 +52,9 @@ export function DashboardSummary() {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {cards.map((card) => (
-        <article key={card.label} className="rounded border border-slate-200 bg-white p-4">
-          <p className="text-xs text-slate-500">{card.label}</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{card.value}</p>
+        <article key={card.label} className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+          <p className="text-xs text-gray-400">{card.label}</p>
+          <p className="mt-1 text-2xl font-bold text-white">{card.value}</p>
         </article>
       ))}
     </div>

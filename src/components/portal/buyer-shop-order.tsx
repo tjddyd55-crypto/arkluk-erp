@@ -40,11 +40,11 @@ function productStatusBadgeKey(p: ProductRow): string {
 }
 
 function badgeClassName(p: ProductRow): string {
-  if (!p.isActive) return "bg-slate-100 text-slate-700";
-  if (p.status === "APPROVED") return "bg-emerald-100 text-emerald-800";
-  if (p.status === "PENDING") return "bg-amber-100 text-amber-900";
-  if (p.status === "REJECTED") return "bg-red-100 text-red-800";
-  return "bg-slate-100 text-slate-700";
+  if (!p.isActive) return "bg-[#111318] text-gray-300";
+  if (p.status === "APPROVED") return "bg-emerald-950/40 text-emerald-300";
+  if (p.status === "PENDING") return "bg-amber-950/40 text-amber-200";
+  if (p.status === "REJECTED") return "bg-red-950/40 text-red-300";
+  return "bg-[#111318] text-gray-300";
 }
 
 export function BuyerShopOrder() {
@@ -125,7 +125,7 @@ export function BuyerShopOrder() {
 
   if (supplierId == null) {
     return (
-      <p className="rounded border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600">
+      <p className="rounded border border-[#2d333d] bg-[#1a1d23] px-4 py-6 text-sm text-gray-400">
         {t("buyer_pick_supplier_menu")}
       </p>
     );
@@ -133,17 +133,17 @@ export function BuyerShopOrder() {
 
   return (
     <div className="space-y-4">
-      {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-2 text-sm text-red-400">{error}</p> : null}
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
 
-      {loadingProducts ? <p className="text-sm text-slate-500">{t("loading")}</p> : null}
+      {loadingProducts ? <p className="text-sm text-gray-400">{t("loading")}</p> : null}
 
       {!loadingProducts && payload && (
         <div className="space-y-2">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-gray-400">
             {t("buyer_form_label")}: {payload.form.name}
           </p>
-          <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+          <ul className="divide-y divide-[#2d333d] rounded border border-[#2d333d] bg-[#1a1d23]">
             {payload.products.map((p) => (
               <li key={p.id} className="p-3">
                 <button
@@ -151,12 +151,12 @@ export function BuyerShopOrder() {
                   className="flex w-full flex-wrap items-start gap-3 text-left"
                   onClick={() => setExpandedId((id) => (id === p.id ? null : p.id))}
                 >
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded border border-slate-100 bg-slate-50">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded border border-[#2d333d] bg-[#111318]">
                     {p.image_url?.trim() ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.image_url} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-slate-400">—</div>
+                      <div className="flex h-full items-center justify-center text-xs text-gray-400">—</div>
                     )}
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
@@ -165,21 +165,21 @@ export function BuyerShopOrder() {
                     >
                       {t(productStatusBadgeKey(p))}
                     </span>
-                    <p className="font-medium text-slate-900">{p.displayName}</p>
-                    <p className="text-sm text-slate-600">
+                    <p className="font-medium text-white">{p.displayName}</p>
+                    <p className="text-sm text-gray-400">
                       {p.unitPrice != null ? `${p.unitPrice.toLocaleString()}` : "—"}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-gray-400">
                       {expandedId === p.id ? "▼" : "▶"} {t("buyer_detail")}
                     </p>
                   </div>
                 </button>
                 {expandedId === p.id ? (
-                  <dl className="mt-2 grid gap-1 border-t border-slate-100 pt-2 text-sm">
+                  <dl className="mt-2 grid gap-1 border-t border-[#2d333d] pt-2 text-sm">
                     {p.detailRows.map((row) => (
                       <div key={row.field_key} className="grid grid-cols-[8rem_1fr] gap-2">
-                        <dt className="text-slate-500">{row.field_label}</dt>
-                        <dd className="text-slate-800">{row.value}</dd>
+                        <dt className="text-gray-400">{row.field_label}</dt>
+                        <dd className="text-gray-300">{row.value}</dd>
                       </div>
                     ))}
                   </dl>
@@ -191,20 +191,20 @@ export function BuyerShopOrder() {
                   onSubmit={(e) => addToCart(p, e)}
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <label className="text-xs text-slate-600">{t("buyer_qty")}</label>
+                    <label className="text-xs text-gray-400">{t("buyer_qty")}</label>
                     <input
                       type="number"
                       min={1}
                       step={1}
                       disabled={!p.orderable}
-                      className="w-24 rounded border border-slate-300 px-2 py-1 text-sm disabled:cursor-not-allowed disabled:bg-slate-100"
+                      className="w-24 rounded border border-[#2d333d] px-2 py-1 text-sm disabled:cursor-not-allowed disabled:bg-[#111318]"
                       value={quantities[p.id] ?? "1"}
                       onChange={(e) => setQuantities((prev) => ({ ...prev, [p.id]: e.target.value }))}
                     />
                     <button
                       type="submit"
                       disabled={!p.orderable}
-                      className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:hover:bg-slate-400"
+                      className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-600 disabled:hover:bg-gray-600"
                     >
                       {t("buyer_add_cart")}
                     </button>
@@ -217,7 +217,7 @@ export function BuyerShopOrder() {
             ))}
           </ul>
           {payload.products.length === 0 ? (
-            <p className="text-sm text-slate-600">{t("buyer_no_products")}</p>
+            <p className="text-sm text-gray-400">{t("buyer_no_products")}</p>
           ) : null}
         </div>
       )}

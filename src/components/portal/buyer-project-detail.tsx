@@ -148,21 +148,21 @@ export function BuyerProjectDetail({ projectId }: { projectId: number }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">프로젝트 상세를 불러오는 중...</p>;
+    return <p className="text-sm text-gray-400">프로젝트 상세를 불러오는 중...</p>;
   }
   if (!detail) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">프로젝트를 찾을 수 없습니다.</p>;
+    return <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">프로젝트를 찾을 수 없습니다.</p>;
   }
 
   return (
     <div className="space-y-4">
-      <header className="rounded border border-slate-200 bg-white p-4">
-        <h1 className="text-2xl font-bold text-slate-900">{detail.project.project_name}</h1>
-        <p className="mt-1 text-sm text-slate-600">
+      <header className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+        <h1 className="text-2xl font-bold text-white">{detail.project.project_name}</h1>
+        <p className="mt-1 text-sm text-gray-400">
           국가: {detail.project.country.country_name} / 상태:{" "}
           {projectStatusLabel[detail.project.status]}
         </p>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-gray-400">
           위치: {detail.project.location ?? "-"} / 시작:{" "}
           {detail.project.start_date ? new Date(detail.project.start_date).toLocaleDateString() : "-"} / 종료:{" "}
           {detail.project.end_date ? new Date(detail.project.end_date).toLocaleDateString() : "-"}
@@ -173,30 +173,30 @@ export function BuyerProjectDetail({ projectId }: { projectId: number }) {
         <p className="rounded bg-emerald-50 p-3 text-sm text-emerald-700">{actionMessage}</p>
       ) : null}
       {actionError ? (
-        <p className="rounded bg-red-50 p-3 text-sm text-red-700">{actionError}</p>
+        <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{actionError}</p>
       ) : null}
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">첨부파일</h2>
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">파일명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">형식</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">크기</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">다운로드</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">파일명</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">형식</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">크기</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">다운로드</th>
               </tr>
             </thead>
             <tbody>
               {detail.files.map((file) => (
                 <tr key={file.id}>
-                  <td className="border border-slate-200 px-2 py-1">{file.original_name}</td>
-                  <td className="border border-slate-200 px-2 py-1">{file.file_type}</td>
-                  <td className="border border-slate-200 px-2 py-1">{(file.file_size / 1024).toFixed(1)} KB</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{file.original_name}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{file.file_type}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{(file.file_size / 1024).toFixed(1)} KB</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     <a
-                      className="text-blue-700 underline"
+                      className="text-blue-400 underline"
                       href={`/api/buyer/projects/files/${file.id}/download`}
                     >
                       다운로드
@@ -206,7 +206,7 @@ export function BuyerProjectDetail({ projectId }: { projectId: number }) {
               ))}
               {detail.files.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="border border-slate-200 px-2 py-3 text-center text-slate-500">
+                  <td colSpan={4} className="border border-[#2d333d] px-2 py-3 text-center text-gray-400">
                     첨부파일이 없습니다.
                   </td>
                 </tr>
@@ -216,20 +216,20 @@ export function BuyerProjectDetail({ projectId }: { projectId: number }) {
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">프로젝트 견적</h2>
         <div className="mt-3 space-y-3">
           {quotes.map((quote) => (
-            <article key={quote.id} className="rounded border border-slate-200 p-3">
+            <article key={quote.id} className="rounded border border-[#2d333d] p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-slate-900">
+                <p className="text-sm font-semibold text-white">
                   {quote.quote_no} / 상태: {quote.status} / 총액:{" "}
                   {Number(quote.total_amount).toLocaleString()}
                 </p>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="rounded bg-slate-900 px-2 py-1 text-xs text-white disabled:opacity-60"
+                    className="rounded bg-blue-600 px-2 py-1 text-xs text-white disabled:opacity-60"
                     disabled={
                       actingQuoteId === quote.id ||
                       !["SENT", "VIEWED"].includes(quote.status)
@@ -240,7 +240,7 @@ export function BuyerProjectDetail({ projectId }: { projectId: number }) {
                   </button>
                   <button
                     type="button"
-                    className="rounded border border-red-300 px-2 py-1 text-xs text-red-700 disabled:opacity-60"
+                    className="rounded border border-red-300 px-2 py-1 text-xs text-red-400 disabled:opacity-60"
                     disabled={
                       actingQuoteId === quote.id ||
                       !["SENT", "VIEWED"].includes(quote.status)
@@ -255,26 +255,26 @@ export function BuyerProjectDetail({ projectId }: { projectId: number }) {
               <div className="mt-2 overflow-auto">
                 <table className="min-w-full border-collapse text-xs">
                   <thead>
-                    <tr className="bg-slate-50">
-                      <th className="border border-slate-200 px-2 py-1 text-left">공급사</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">제품명</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">규격</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">단위</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">수량</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">단가</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">금액</th>
+                    <tr className="bg-[#111318]">
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">공급사</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">제품명</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">규격</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">단위</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">수량</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">단가</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">금액</th>
                     </tr>
                   </thead>
                   <tbody>
                     {quote.quote_items.map((item) => (
                       <tr key={item.id}>
-                        <td className="border border-slate-200 px-2 py-1">{item.supplier.supplier_name}</td>
-                        <td className="border border-slate-200 px-2 py-1">{item.product_name_snapshot}</td>
-                        <td className="border border-slate-200 px-2 py-1">{item.spec_snapshot}</td>
-                        <td className="border border-slate-200 px-2 py-1">{item.unit_snapshot}</td>
-                        <td className="border border-slate-200 px-2 py-1">{item.qty}</td>
-                        <td className="border border-slate-200 px-2 py-1">{item.price_snapshot}</td>
-                        <td className="border border-slate-200 px-2 py-1">{item.amount}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{item.supplier.supplier_name}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{item.product_name_snapshot}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{item.spec_snapshot}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{item.unit_snapshot}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{item.qty}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{item.price_snapshot}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{item.amount}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -283,37 +283,37 @@ export function BuyerProjectDetail({ projectId }: { projectId: number }) {
             </article>
           ))}
           {quotes.length === 0 ? (
-            <p className="text-sm text-slate-500">등록된 프로젝트 견적이 없습니다.</p>
+            <p className="text-sm text-gray-400">등록된 프로젝트 견적이 없습니다.</p>
           ) : null}
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">프로젝트 주문</h2>
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">주문번호</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">공급사 수</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">생성일</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">주문번호</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상태</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">공급사 수</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">생성일</th>
               </tr>
             </thead>
             <tbody>
               {detail.orders.map((order) => (
                 <tr key={order.id}>
-                  <td className="border border-slate-200 px-2 py-1">{order.order_no}</td>
-                  <td className="border border-slate-200 px-2 py-1">{order.status}</td>
-                  <td className="border border-slate-200 px-2 py-1">{order.supplier_count}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{order.order_no}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{order.status}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{order.supplier_count}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {new Date(order.created_at).toLocaleString()}
                   </td>
                 </tr>
               ))}
               {detail.orders.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="border border-slate-200 px-2 py-3 text-center text-slate-500">
+                  <td colSpan={4} className="border border-[#2d333d] px-2 py-3 text-center text-gray-400">
                     생성된 주문이 없습니다.
                   </td>
                 </tr>
@@ -323,9 +323,9 @@ export function BuyerProjectDetail({ projectId }: { projectId: number }) {
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">발주 / 세금계산서 요약</h2>
-        <p className="mt-2 text-sm text-slate-700">
+        <p className="mt-2 text-sm text-gray-300">
           발주 상태 집계:{" "}
           {Object.entries(detail.summary.order_supplier_status_count)
             .map(([key, value]) => `${key}:${value}`)
@@ -334,20 +334,20 @@ export function BuyerProjectDetail({ projectId }: { projectId: number }) {
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">주문번호</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">공급사</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">납기예정</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">주문번호</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">공급사</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상태</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">납기예정</th>
               </tr>
             </thead>
             <tbody>
               {detail.summary.order_suppliers.map((row) => (
                 <tr key={row.id}>
-                  <td className="border border-slate-200 px-2 py-1">{row.order.order_no}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.supplier.supplier_name}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.status}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{row.order.order_no}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.supplier.supplier_name}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.status}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.expected_delivery_date
                       ? new Date(row.expected_delivery_date).toLocaleDateString()
                       : "-"}
@@ -361,40 +361,40 @@ export function BuyerProjectDetail({ projectId }: { projectId: number }) {
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">주문번호</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">공급사</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">수신일</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">첨부 수</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">첨부 다운로드</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">주문번호</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">공급사</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">수신일</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">첨부 수</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">첨부 다운로드</th>
               </tr>
             </thead>
             <tbody>
               {detail.summary.tax_invoices.map((invoice) => (
                 <tr key={invoice.id}>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {invoice.order?.order_no ?? "-"}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {invoice.supplier?.supplier_name ?? "미분류"}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {new Date(invoice.received_at).toLocaleString()}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{invoice.attachment_count}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{invoice.attachment_count}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     <div className="flex flex-wrap gap-1">
                       {invoice.files.map((file) => (
                         <a
                           key={file.id}
-                          className="text-blue-700 underline"
+                          className="text-blue-400 underline"
                           href={`/api/buyer/tax-invoices/files/${file.id}/download`}
                         >
                           {file.file_type}
                         </a>
                       ))}
                       {invoice.files.length === 0 ? (
-                        <span className="text-slate-400">없음</span>
+                        <span className="text-gray-400">없음</span>
                       ) : null}
                     </div>
                   </td>
@@ -402,7 +402,7 @@ export function BuyerProjectDetail({ projectId }: { projectId: number }) {
               ))}
               {detail.summary.tax_invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="border border-slate-200 px-2 py-3 text-center text-slate-500">
+                  <td colSpan={5} className="border border-[#2d333d] px-2 py-3 text-center text-gray-400">
                     연결된 세금계산서가 없습니다.
                   </td>
                 </tr>

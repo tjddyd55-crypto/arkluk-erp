@@ -90,10 +90,10 @@ export function UserProfileSettings() {
 
   return (
     <div className="space-y-4">
-      {error ? <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{error}</p> : null}
       {message ? <p className="rounded bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p> : null}
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+      <section className="rounded-lg border border-[#2d333d] bg-[#1a1d23] p-4 text-sm">
         <p>
           {t("name")}: {profile?.name ?? "-"}
         </p>
@@ -108,26 +108,26 @@ export function UserProfileSettings() {
         </p>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-        <h2 className="text-base font-semibold text-slate-900">{t("language")}</h2>
-        <p className="mt-1 text-xs text-slate-500">
+      <section className="rounded-lg border border-[#2d333d] bg-[#1a1d23] p-4 text-sm">
+        <h2 className="text-base font-semibold text-white">{t("language")}</h2>
+        <p className="mt-1 text-xs text-gray-400">
           저장하면 이후 로그인에서도 같은 기본 언어로 표시됩니다.
         </p>
         <div className="mt-3 grid gap-2 md:grid-cols-2">
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             Email
             <input
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1 text-sm"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="example@domain.com"
               disabled={pending}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             Contact
             <input
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1 text-sm"
               value={contactPhone}
               onChange={(event) => setContactPhone(event.target.value)}
               placeholder="+82-10-0000-0000"
@@ -137,7 +137,7 @@ export function UserProfileSettings() {
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <select
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             value={selectedLanguage}
             onChange={(event) => setSelectedLanguage(event.target.value as SupportedLanguage)}
             disabled={pending}
@@ -149,7 +149,7 @@ export function UserProfileSettings() {
           </select>
           <button
             type="button"
-            className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
+            className="rounded border border-[#2d333d] px-3 py-1 text-sm disabled:opacity-60"
             onClick={saveProfileSettings}
             disabled={pending}
           >

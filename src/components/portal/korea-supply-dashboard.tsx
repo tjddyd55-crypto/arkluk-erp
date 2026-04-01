@@ -47,10 +47,10 @@ export function KoreaSupplyDashboard() {
   }, [t]);
 
   if (error) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>;
+    return <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{error}</p>;
   }
   if (!data) {
-    return <p className="text-sm text-slate-500">{t("loading")}</p>;
+    return <p className="text-sm text-gray-400">{t("loading")}</p>;
   }
 
   const cards = [
@@ -64,37 +64,37 @@ export function KoreaSupplyDashboard() {
     <div className="space-y-4">
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {cards.map((card) => (
-          <article key={card.label} className="rounded border border-slate-200 bg-white p-4">
-            <p className="text-xs text-slate-500">{card.label}</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{card.value}</p>
+          <article key={card.label} className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+            <p className="text-xs text-gray-400">{card.label}</p>
+            <p className="mt-1 text-2xl font-bold text-white">{card.value}</p>
           </article>
         ))}
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-900">{t("suppliers")} {t("orders")}</h2>
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+        <h2 className="text-lg font-semibold text-white">{t("suppliers")} {t("orders")}</h2>
         <div className="mt-2 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("supplier")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("orders")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("in_progress")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("completed")}</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("supplier")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("orders")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("in_progress")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("completed")}</th>
               </tr>
             </thead>
             <tbody>
               {data.supplierOrderStats.map((row) => (
                 <tr key={row.supplierId}>
-                  <td className="border border-slate-200 px-2 py-1">{row.supplierName}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.orderCount}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.shippingInProgress}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.completed}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.supplierName}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.orderCount}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.shippingInProgress}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.completed}</td>
                 </tr>
               ))}
               {data.supplierOrderStats.length === 0 ? (
                 <tr>
-                  <td className="border border-slate-200 px-2 py-3 text-center text-slate-500" colSpan={4}>
+                  <td className="border border-[#2d333d] px-2 py-3 text-center text-gray-400" colSpan={4}>
                     {t("no_data")}
                   </td>
                 </tr>
@@ -104,30 +104,30 @@ export function KoreaSupplyDashboard() {
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-900">{t("recent_activity")}</h2>
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+        <h2 className="text-lg font-semibold text-white">{t("recent_activity")}</h2>
         <div className="mt-2 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("time")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("supplier")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("message")}</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("time")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("supplier")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("message")}</th>
               </tr>
             </thead>
             <tbody>
               {data.recentSupplierActivities.map((log) => (
                 <tr key={log.id}>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {new Date(log.createdAt).toLocaleString()}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{log.supplierName}</td>
-                  <td className="border border-slate-200 px-2 py-1">{log.message}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{log.supplierName}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{log.message}</td>
                 </tr>
               ))}
               {data.recentSupplierActivities.length === 0 ? (
                 <tr>
-                  <td className="border border-slate-200 px-2 py-3 text-center text-slate-500" colSpan={3}>
+                  <td className="border border-[#2d333d] px-2 py-3 text-center text-gray-400" colSpan={3}>
                     {t("no_data")}
                   </td>
                 </tr>

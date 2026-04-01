@@ -103,21 +103,21 @@ export function AdminProductCatalog() {
   }, [filteredRows]);
 
   return (
-    <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
+    <section className="space-y-3 rounded border border-[#2d333d] bg-[#1a1d23] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-slate-900">전체 상품 조회</h2>
+        <h2 className="text-lg font-semibold text-white">전체 상품 조회</h2>
         <button
           type="button"
-          className="rounded border border-slate-300 px-3 py-1 text-sm"
+          className="rounded border border-[#2d333d] px-3 py-1 text-sm"
           onClick={loadProducts}
         >
           새로고침
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded border border-slate-200 bg-slate-50 p-2">
+      <div className="flex flex-wrap gap-2 rounded border border-[#2d333d] bg-[#111318] p-2">
         <select
-          className="rounded border border-slate-300 px-2 py-1 text-sm"
+          className="rounded border border-[#2d333d] px-2 py-1 text-sm"
           value={supplierFilter}
           onChange={(event) => setSupplierFilter(event.target.value)}
         >
@@ -129,33 +129,33 @@ export function AdminProductCatalog() {
           ))}
         </select>
         <input
-          className="w-80 rounded border border-slate-300 px-2 py-1 text-sm"
+          className="w-80 rounded border border-[#2d333d] px-2 py-1 text-sm"
           placeholder="상품명 또는 공급사명 검색"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
       </div>
 
-      {loading ? <p className="text-sm text-slate-500">상품 목록을 불러오는 중...</p> : null}
-      {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-sm text-gray-400">상품 목록을 불러오는 중...</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-2 text-sm text-red-400">{error}</p> : null}
 
       {!loading && !error ? (
         <>
           {Object.entries(groupedRows).map(([supplierId, groupData]) => (
-            <div key={supplierId} className="mb-4 overflow-auto rounded border border-slate-200">
-              <div className="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900">
+            <div key={supplierId} className="mb-4 overflow-auto rounded border border-[#2d333d]">
+              <div className="border-b border-[#2d333d] bg-[#111318] px-3 py-2 text-sm font-semibold text-white">
                 {groupData.supplierName}
               </div>
               <table className="min-w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-slate-50">
-                    <th className="border border-slate-200 px-2 py-1 text-left">공급사</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">카테고리</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">상품명</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">규격</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">가격</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">등록 언어</th>
-                    <th className="border border-slate-200 px-2 py-1 text-left">상품 설명</th>
+                  <tr className="bg-[#111318]">
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">공급사</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">카테고리</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">상품명</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">규격</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">가격</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">등록 언어</th>
+                    <th className="border border-[#2d333d] px-2 py-1 text-left">상품 설명</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -165,19 +165,19 @@ export function AdminProductCatalog() {
                       row.description_original ?? row.description ?? row.memo ?? "-";
                     return (
                       <tr key={row.id}>
-                        <td className="border border-slate-200 px-2 py-1">{groupData.supplierName}</td>
-                        <td className="border border-slate-200 px-2 py-1">{row.category.category_name}</td>
-                        <td className="border border-slate-200 px-2 py-1">{productName}</td>
-                        <td className="border border-slate-200 px-2 py-1">
+                        <td className="border border-[#2d333d] px-2 py-1">{groupData.supplierName}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{row.category.category_name}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{productName}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">
                           {row.specification ?? row.spec ?? "-"}
                         </td>
-                        <td className="border border-slate-200 px-2 py-1">
+                        <td className="border border-[#2d333d] px-2 py-1">
                           {Number(row.price).toLocaleString()} {row.currency}
                         </td>
-                        <td className="border border-slate-200 px-2 py-1">
+                        <td className="border border-[#2d333d] px-2 py-1">
                           {LANGUAGE_LABEL[row.source_language]}
                         </td>
-                        <td className="border border-slate-200 px-2 py-1">{productDescription}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{productDescription}</td>
                       </tr>
                     );
                   })}
@@ -186,7 +186,7 @@ export function AdminProductCatalog() {
             </div>
           ))}
           {filteredRows.length === 0 ? (
-            <p className="text-sm text-slate-500">조건에 맞는 상품이 없습니다.</p>
+            <p className="text-sm text-gray-400">조건에 맞는 상품이 없습니다.</p>
           ) : null}
         </>
       ) : null}

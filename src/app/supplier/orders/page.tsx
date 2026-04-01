@@ -80,39 +80,39 @@ export default function SupplierOrdersPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">{t("my_orders")}</h1>
+      <h1 className="text-2xl font-bold text-white">{t("my_orders")}</h1>
 
-      {loading ? <p className="text-sm text-slate-500">{t("loading")}</p> : null}
-      {error ? <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-sm text-gray-400">{t("loading")}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{error}</p> : null}
 
       {!loading && !error ? (
-        <div className="overflow-auto rounded border border-slate-200 bg-white p-4">
+        <div className="overflow-auto rounded border border-[#2d333d] bg-[#1a1d23] p-4">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("order_number")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("buyer")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("country")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("created_at")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("status")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">ETA</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("order_number")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("buyer")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("country")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("created_at")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("status")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">ETA</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.order_id}>
-                  <td className="border border-slate-200 px-2 py-1">
-                    <a className="text-blue-700 underline" href={`/supplier/orders/${row.order_id}`}>
+                  <td className="border border-[#2d333d] px-2 py-1">
+                    <a className="text-blue-400 underline" href={`/supplier/orders/${row.order_id}`}>
                       {row.order.order_no}
                     </a>
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{row.order.buyer.name}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.order.country.country_name}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{row.order.buyer.name}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.order.country.country_name}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.sent_at ? new Date(row.sent_at).toLocaleString() : "-"}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{getStatusLabel(row)}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{getStatusLabel(row)}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.expected_delivery_date
                       ? new Date(row.expected_delivery_date).toLocaleDateString()
                       : "-"}
@@ -121,7 +121,7 @@ export default function SupplierOrdersPage() {
               ))}
               {rows.length === 0 ? (
                 <tr>
-                  <td className="border border-slate-200 px-2 py-3 text-center text-slate-500" colSpan={6}>
+                  <td className="border border-[#2d333d] px-2 py-3 text-center text-gray-400" colSpan={6}>
                     {t("no_data")}
                   </td>
                 </tr>

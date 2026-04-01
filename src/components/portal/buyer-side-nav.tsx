@@ -14,7 +14,7 @@ type SupplierRow = {
 
 function navLinkClass(active: boolean) {
   return `block rounded px-3 py-2 text-sm ${
-    active ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
+    active ? "bg-[#23272f] text-white" : "text-gray-400 hover:bg-[#23272f] hover:text-white"
   }`;
 }
 
@@ -48,7 +48,7 @@ function BuyerShopNavSectionInner() {
 
   const onShop = pathname.startsWith("/buyer/shop");
   const activeSupplierId = searchParams.get("supplierId");
-  const indent = isRTL ? "mr-2 border-r border-slate-200 pr-2" : "ml-2 border-l border-slate-200 pl-2";
+  const indent = isRTL ? "mr-2 border-r border-[#2d333d] pr-2" : "ml-2 border-l border-[#2d333d] pl-2";
 
   return (
     <div className="space-y-1">
@@ -56,19 +56,19 @@ function BuyerShopNavSectionInner() {
         href="/buyer/shop"
         className={`block rounded px-3 py-2 text-sm ${
           onShop && !activeSupplierId
-            ? "bg-slate-900 text-white"
+            ? "bg-[#23272f] text-white"
             : onShop
-              ? "bg-slate-100 font-medium text-slate-900"
-              : "text-slate-700 hover:bg-slate-100"
+              ? "bg-[#1a1d23] font-medium text-white"
+              : "text-gray-400 hover:bg-[#23272f] hover:text-white"
         }`}
       >
         {t("buyer_shop_order")}
       </Link>
       <div className={`space-y-0.5 ${indent}`}>
         {loading ? (
-          <p className="px-3 py-1 text-xs text-slate-400">{t("loading")}</p>
+          <p className="px-3 py-1 text-xs text-gray-400">{t("loading")}</p>
         ) : suppliers.length === 0 ? (
-          <p className="px-3 py-1 text-xs text-slate-500">{t("buyer_no_suppliers")}</p>
+          <p className="px-3 py-1 text-xs text-gray-400">{t("buyer_no_suppliers")}</p>
         ) : (
           suppliers.map((s) => {
             const active = onShop && activeSupplierId === String(s.id);
@@ -77,7 +77,7 @@ function BuyerShopNavSectionInner() {
                 key={s.id}
                 href={`/buyer/shop?supplierId=${s.id}`}
                 className={`block rounded px-3 py-1.5 text-sm ${
-                  active ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                  active ? "bg-[#23272f] text-white" : "text-gray-400 hover:bg-[#23272f] hover:text-white"
                 }`}
               >
                 {s.company_name ?? s.supplier_name}
@@ -96,8 +96,8 @@ export function BuyerShopNavSection() {
     <Suspense
       fallback={
         <div className="space-y-1">
-          <div className="rounded px-3 py-2 text-sm text-slate-500">{t("buyer_shop_order")}</div>
-          <p className="ml-2 text-xs text-slate-400">{t("loading")}</p>
+          <div className="rounded px-3 py-2 text-sm text-gray-400">{t("buyer_shop_order")}</div>
+          <p className="ml-2 text-xs text-gray-400">{t("loading")}</p>
         </div>
       }
     >

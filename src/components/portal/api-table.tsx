@@ -57,30 +57,30 @@ export function ApiTable({ endpoint, title }: { endpoint: string; title: string 
   }, [rows]);
 
   return (
-    <section className="rounded border border-slate-200 bg-white p-4">
+    <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+        <h2 className="text-lg font-semibold text-white">{title}</h2>
         <button
           onClick={() => window.location.reload()}
-          className="rounded border border-slate-300 px-2 py-1 text-xs"
+          className="rounded border border-[#2d333d] px-2 py-1 text-xs"
         >
           {t("search")}
         </button>
       </div>
 
-      {pending ? <p className="text-sm text-slate-500">{t("loading")}</p> : null}
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {pending ? <p className="text-sm text-gray-400">{t("loading")}</p> : null}
+      {error ? <p className="text-sm text-red-400">{error}</p> : null}
       {!pending && !error && rows.length === 0 ? (
-        <p className="text-sm text-slate-500">{t("no_data")}</p>
+        <p className="text-sm text-gray-400">{t("no_data")}</p>
       ) : null}
 
       {!pending && !error && rows.length > 0 ? (
         <div className="overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
+              <tr className="bg-[#111318]">
                 {columns.map((column) => (
-                  <th key={column} className="border border-slate-200 px-2 py-1 text-left">
+                  <th key={column} className="border border-[#2d333d] px-2 py-1 text-left">
                     {column}
                   </th>
                 ))}
@@ -88,9 +88,9 @@ export function ApiTable({ endpoint, title }: { endpoint: string; title: string 
             </thead>
             <tbody>
               {rows.map((row, idx) => (
-                <tr key={idx}>
+                <tr key={idx} className="bg-[#1a1d23] hover:bg-[#23272f]">
                   {columns.map((column) => (
-                    <td key={column} className="border border-slate-200 px-2 py-1">
+                    <td key={column} className="border border-[#2d333d] px-2 py-1">
                       {typeof row[column] === "object"
                         ? JSON.stringify(row[column])
                         : String(row[column] ?? "")}

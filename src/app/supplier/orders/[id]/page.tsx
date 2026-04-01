@@ -95,23 +95,23 @@ const statusLabelMap: Record<SupplierOrderDetail["status"], string> = {
 function badgeClassForOsStatus(status: SupplierOrderDetail["status"]) {
   switch (status) {
     case "PENDING":
-      return "bg-slate-200 text-slate-800";
+      return "bg-[#2d333d] text-gray-300";
     case "SENT":
-      return "bg-blue-100 text-blue-900";
+      return "bg-sky-950/40 text-sky-300";
     case "VIEWED":
-      return "bg-violet-100 text-violet-900";
+      return "bg-violet-950/40 text-violet-300";
     case "CONFIRMED":
-      return "bg-emerald-100 text-emerald-900";
+      return "bg-emerald-950/40 text-emerald-300";
     case "REJECTED":
-      return "bg-red-100 text-red-900";
+      return "bg-red-950/40 text-red-300";
     case "SHIPPING":
-      return "bg-orange-100 text-orange-900";
+      return "bg-orange-950/40 text-orange-300";
     case "COMPLETED":
       return "bg-green-800 text-white";
     case "CANCELLED":
-      return "bg-slate-300 text-slate-800";
+      return "bg-[#3d4450] text-gray-400";
     default:
-      return "bg-slate-200 text-slate-800";
+      return "bg-[#2d333d] text-gray-300";
   }
 }
 
@@ -685,10 +685,10 @@ export default function SupplierOrderDetailPage() {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">{t("loading")}</p>;
+    return <p className="text-sm text-gray-400">{t("loading")}</p>;
   }
   if (error || !detail) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error ?? t("not_found")}</p>;
+    return <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{error ?? t("not_found")}</p>;
   }
 
   const st = detail.status;
@@ -708,61 +708,61 @@ export default function SupplierOrderDetailPage() {
 
   return (
     <div className="space-y-4">
-      <header className="rounded border border-slate-200 bg-white p-4">
+      <header className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-900">{detail.order.order_no}</h1>
+          <h1 className="text-2xl font-bold text-white">{detail.order.order_no}</h1>
           <span
             className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClassForOsStatus(detail.status)}`}
           >
             {getSupplierStatusLabel(detail.status, detail.order.status)}
           </span>
         </div>
-        <p className="mt-2 text-sm font-medium text-slate-800">공급사: {supplierDisplayName}</p>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-2 text-sm font-medium text-gray-300">공급사: {supplierDisplayName}</p>
+        <p className="mt-1 text-sm text-gray-400">
           {t("buyer")}: {detail.order.buyer.name} / {t("country")}: {detail.order.country.country_name}
         </p>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-gray-400">
           주문(통합) 상태: <span className="font-mono text-xs">{detail.order.status}</span>
         </p>
         <div className="mt-2 flex flex-wrap gap-2 text-sm">
-          <span className="rounded bg-slate-100 px-2 py-1 text-slate-800">
+          <span className="rounded bg-[#111318] px-2 py-1 text-gray-300">
             PDF: {labelForPdfStatus(detail.pdf_status)}
           </span>
-          <span className="rounded bg-slate-100 px-2 py-1 text-slate-800">
+          <span className="rounded bg-[#111318] px-2 py-1 text-gray-300">
             이메일: {labelForEmailStatus(detail.email_status)}
           </span>
         </div>
         {detail.pdf_status === "FAILED" && detail.pdf_last_error ? (
-          <p className="mt-1 text-xs text-red-600">PDF 오류: {detail.pdf_last_error}</p>
+          <p className="mt-1 text-xs text-red-400">PDF 오류: {detail.pdf_last_error}</p>
         ) : null}
         {detail.email_status === "FAILED" && detail.email_last_error ? (
-          <p className="mt-1 text-xs text-red-600">메일 오류: {detail.email_last_error}</p>
+          <p className="mt-1 text-xs text-red-400">메일 오류: {detail.email_last_error}</p>
         ) : null}
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-gray-400">
           발송일: {detail.sent_at ? new Date(detail.sent_at).toLocaleString() : "-"} / 수락일:{" "}
           {detail.supplier_confirmed_at
             ? new Date(detail.supplier_confirmed_at).toLocaleString()
             : "-"}
         </p>
         {detail.tracking_number ? (
-          <p className="mt-1 text-xs text-slate-600">운송장: {detail.tracking_number}</p>
+          <p className="mt-1 text-xs text-gray-400">운송장: {detail.tracking_number}</p>
         ) : null}
         {detail.reject_reason ? (
-          <p className="mt-1 text-xs text-red-700">거절 사유: {detail.reject_reason}</p>
+          <p className="mt-1 text-xs text-red-400">거절 사유: {detail.reject_reason}</p>
         ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
           <a
             href={`/api/supplier/orders/${orderId}/pdf`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
+            className="inline-block rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
           >
             {t("po_pdf_download")}
           </a>
           {detail.pdf_status === "FAILED" ? (
             <button
               type="button"
-              className="rounded border border-amber-600 px-3 py-1.5 text-sm text-amber-900 disabled:opacity-60"
+              className="rounded border border-amber-600 px-3 py-1.5 text-sm text-amber-200 disabled:opacity-60"
               disabled={regeneratingPdf}
               onClick={handleRegeneratePdf}
             >
@@ -772,7 +772,7 @@ export default function SupplierOrderDetailPage() {
           {detail.email_status === "FAILED" ? (
             <button
               type="button"
-              className="rounded border border-amber-600 px-3 py-1.5 text-sm text-amber-900 disabled:opacity-60"
+              className="rounded border border-amber-600 px-3 py-1.5 text-sm text-amber-200 disabled:opacity-60"
               disabled={resendingEmail}
               onClick={handleResendPoEmail}
             >
@@ -782,31 +782,31 @@ export default function SupplierOrderDetailPage() {
         </div>
       </header>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">
           {t("supplier")} {t("actions")}
         </h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-gray-400">
           상태는 서버에서만 변경됩니다. 처리 후 목록이 자동으로 갱신됩니다.
         </p>
 
         <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             수락 시 납기 예정일(선택)
             <input
               type="date"
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={confirmDate}
               onChange={(event) => setConfirmDate(event.target.value)}
               disabled={!canAccept || confirming}
             />
           </label>
 
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             납기 예정일(수정)
             <input
               type="date"
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={deliveryDate}
               onChange={(event) => setDeliveryDate(event.target.value)}
               disabled={!canSetDelivery || updatingDelivery}
@@ -814,11 +814,11 @@ export default function SupplierOrderDetailPage() {
           </label>
         </div>
 
-        <label className="mt-3 block text-sm text-slate-700">
+        <label className="mt-3 block text-sm text-gray-300">
           배송 시작 시 운송장 번호
           <input
             type="text"
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+            className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
             value={trackingInput}
             onChange={(event) => setTrackingInput(event.target.value)}
             disabled={!canShip || shipping}
@@ -826,10 +826,10 @@ export default function SupplierOrderDetailPage() {
           />
         </label>
 
-        <label className="mt-3 block text-sm text-slate-700">
+        <label className="mt-3 block text-sm text-gray-300">
           공급사 메모
           <textarea
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+            className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
             rows={3}
             value={supplierNote}
             onChange={(event) => setSupplierNote(event.target.value)}
@@ -838,10 +838,10 @@ export default function SupplierOrderDetailPage() {
         </label>
 
         {canReject && st !== "REJECTED" ? (
-          <label className="mt-3 block text-sm text-slate-700">
+          <label className="mt-3 block text-sm text-gray-300">
             거절 사유(선택)
             <textarea
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               rows={2}
               value={rejectReasonInput}
               onChange={(event) => setRejectReasonInput(event.target.value)}
@@ -869,7 +869,7 @@ export default function SupplierOrderDetailPage() {
           </button>
           <button
             type="button"
-            className="rounded border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
+            className="rounded border border-[#2d333d] px-3 py-2 text-sm disabled:opacity-60"
             onClick={handleUpdateDeliveryDate}
             disabled={!canSetDelivery || updatingDelivery}
           >
@@ -877,7 +877,7 @@ export default function SupplierOrderDetailPage() {
           </button>
           <button
             type="button"
-            className="rounded border border-orange-400 px-3 py-2 text-sm text-orange-900 disabled:opacity-60"
+            className="rounded border border-orange-400 px-3 py-2 text-sm text-orange-200 disabled:opacity-60"
             onClick={handleMarkShipped}
             disabled={!canShip || shipping}
           >
@@ -885,7 +885,7 @@ export default function SupplierOrderDetailPage() {
           </button>
           <button
             type="button"
-            className="rounded border border-emerald-600 px-3 py-2 text-sm text-emerald-900 disabled:opacity-60"
+            className="rounded border border-emerald-600 px-3 py-2 text-sm text-emerald-300 disabled:opacity-60"
             onClick={handleMarkDelivered}
             disabled={!canDeliver || delivering}
           >
@@ -893,7 +893,7 @@ export default function SupplierOrderDetailPage() {
           </button>
           <button
             type="button"
-            className="rounded border border-red-300 px-3 py-2 text-sm text-red-700 disabled:opacity-60"
+            className="rounded border border-red-300 px-3 py-2 text-sm text-red-400 disabled:opacity-60"
             onClick={handleCancelOrder}
             disabled={!canCancel || cancelling}
           >
@@ -902,34 +902,34 @@ export default function SupplierOrderDetailPage() {
         </div>
 
         {message ? <p className="mt-2 rounded bg-emerald-50 p-2 text-xs text-emerald-700">{message}</p> : null}
-        {actionError ? <p className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700">{actionError}</p> : null}
+        {actionError ? <p className="mt-2 rounded bg-red-950/30 p-2 text-xs text-red-400">{actionError}</p> : null}
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">{t("products")}</h2>
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">No</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상품코드</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">제품명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">규격</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">단위</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">수량</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">메모</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">No</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상품코드</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">제품명</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">규격</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">단위</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">수량</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">메모</th>
               </tr>
             </thead>
             <tbody>
               {detail.order.order_items.map((item, index) => (
                 <tr key={item.id}>
-                  <td className="border border-slate-200 px-2 py-1">{index + 1}</td>
-                  <td className="border border-slate-200 px-2 py-1">{item.product_code_snapshot}</td>
-                  <td className="border border-slate-200 px-2 py-1">{item.product_name_snapshot}</td>
-                  <td className="border border-slate-200 px-2 py-1">{item.spec_snapshot}</td>
-                  <td className="border border-slate-200 px-2 py-1">{item.unit_snapshot}</td>
-                  <td className="border border-slate-200 px-2 py-1">{item.qty}</td>
-                  <td className="border border-slate-200 px-2 py-1">{item.memo ?? ""}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{index + 1}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{item.product_code_snapshot}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{item.product_name_snapshot}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{item.spec_snapshot}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{item.unit_snapshot}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{item.qty}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{item.memo ?? ""}</td>
                 </tr>
               ))}
             </tbody>
@@ -937,27 +937,27 @@ export default function SupplierOrderDetailPage() {
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">{t("shipment")}</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-gray-400">
           기존 주문 상태와 독립적으로, 부분 출고 및 송장 추적을 위한 Shipment를 생성합니다.
         </p>
 
         <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             Carrier
             <input
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               placeholder="예: DHL, FedEx"
               value={shipmentCarrier}
               onChange={(event) => setShipmentCarrier(event.target.value)}
               disabled={creatingShipment}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             Tracking Number
             <input
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               placeholder="운송장 번호"
               value={shipmentTrackingNumber}
               onChange={(event) => setShipmentTrackingNumber(event.target.value)}
@@ -969,27 +969,27 @@ export default function SupplierOrderDetailPage() {
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">상품코드</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">제품명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">주문수량</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">Shipment Items</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상품코드</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">제품명</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">주문수량</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">Shipment Items</th>
               </tr>
             </thead>
             <tbody>
               {detail.order.order_items.map((item) => (
                 <tr key={item.id}>
-                  <td className="border border-slate-200 px-2 py-1">{item.product_code_snapshot}</td>
-                  <td className="border border-slate-200 px-2 py-1">{item.product_name_snapshot}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{item.product_code_snapshot}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{item.product_name_snapshot}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {item.qty} {item.unit_snapshot}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     <input
                       type="number"
                       min={0}
                       step="0.001"
-                      className="w-28 rounded border border-slate-300 px-2 py-1"
+                      className="w-28 rounded border border-[#2d333d] px-2 py-1"
                       value={shipmentQtyMap[item.id] ?? ""}
                       onChange={(event) =>
                         setShipmentQtyMap((prev) => ({
@@ -1009,7 +1009,7 @@ export default function SupplierOrderDetailPage() {
         <div className="mt-3">
           <button
             type="button"
-            className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
+            className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-60"
             onClick={handleCreateShipment}
             disabled={creatingShipment}
           >
@@ -1018,25 +1018,25 @@ export default function SupplierOrderDetailPage() {
         </div>
 
         <div className="mt-4">
-          <h3 className="text-sm font-semibold text-slate-800">Shipment 목록</h3>
+          <h3 className="text-sm font-semibold text-gray-300">Shipment 목록</h3>
           {loadingShipments ? (
-            <p className="mt-2 text-xs text-slate-500">출고 목록을 불러오는 중...</p>
+            <p className="mt-2 text-xs text-gray-400">출고 목록을 불러오는 중...</p>
           ) : shipments.length === 0 ? (
-            <p className="mt-2 text-xs text-slate-500">생성된 Shipment가 없습니다.</p>
+            <p className="mt-2 text-xs text-gray-400">생성된 Shipment가 없습니다.</p>
           ) : (
             <div className="mt-2 space-y-2">
               {shipments.map((shipment) => (
-                <article key={shipment.id} className="rounded border border-slate-200 p-3">
+                <article key={shipment.id} className="rounded border border-[#2d333d] p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">
+                      <p className="text-sm font-semibold text-white">
                         {shipment.shipment_no} ({shipmentStatusLabelMap[shipment.status]} /{" "}
                         {shipment.supplier_status})
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-gray-400">
                         Carrier: {shipment.carrier ?? "-"} / Tracking: {shipment.tracking_number ?? "-"}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-gray-400">
                         생성일: {new Date(shipment.created_at).toLocaleString()} / 출고일:{" "}
                         {shipment.shipped_at ? new Date(shipment.shipped_at).toLocaleString() : "-"} / 배송완료일:{" "}
                         {shipment.delivered_at
@@ -1046,7 +1046,7 @@ export default function SupplierOrderDetailPage() {
                     </div>
                     <div className="flex gap-2">
                       <select
-                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                        className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                         value={shipmentWorkflowStatusMap[shipment.id] ?? shipment.supplier_status}
                         onChange={(event) =>
                           setShipmentWorkflowStatusMap((prev) => ({
@@ -1064,7 +1064,7 @@ export default function SupplierOrderDetailPage() {
                       </select>
                       <button
                         type="button"
-                        className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
+                        className="rounded border border-[#2d333d] px-2 py-1 text-xs disabled:opacity-60"
                         disabled={processingShipmentId === shipment.id}
                         onClick={() => handleUpdateShipmentWorkflowStatus(shipment.id)}
                       >
@@ -1098,26 +1098,26 @@ export default function SupplierOrderDetailPage() {
                   <div className="mt-2 overflow-auto">
                     <table className="min-w-full border-collapse text-xs">
                       <thead>
-                        <tr className="bg-slate-50">
-                          <th className="border border-slate-200 px-2 py-1 text-left">상품코드</th>
-                          <th className="border border-slate-200 px-2 py-1 text-left">제품명</th>
-                          <th className="border border-slate-200 px-2 py-1 text-left">출고수량</th>
-                          <th className="border border-slate-200 px-2 py-1 text-left">주문수량</th>
+                        <tr className="bg-[#111318]">
+                          <th className="border border-[#2d333d] px-2 py-1 text-left">상품코드</th>
+                          <th className="border border-[#2d333d] px-2 py-1 text-left">제품명</th>
+                          <th className="border border-[#2d333d] px-2 py-1 text-left">출고수량</th>
+                          <th className="border border-[#2d333d] px-2 py-1 text-left">주문수량</th>
                         </tr>
                       </thead>
                       <tbody>
                         {shipment.items.map((item) => (
                           <tr key={item.id}>
-                            <td className="border border-slate-200 px-2 py-1">
+                            <td className="border border-[#2d333d] px-2 py-1">
                               {item.order_item.product_code_snapshot}
                             </td>
-                            <td className="border border-slate-200 px-2 py-1">
+                            <td className="border border-[#2d333d] px-2 py-1">
                               {item.order_item.product_name_snapshot}
                             </td>
-                            <td className="border border-slate-200 px-2 py-1">
+                            <td className="border border-[#2d333d] px-2 py-1">
                               {item.quantity} {item.order_item.unit_snapshot}
                             </td>
-                            <td className="border border-slate-200 px-2 py-1">
+                            <td className="border border-[#2d333d] px-2 py-1">
                               {item.order_item.qty} {item.order_item.unit_snapshot}
                             </td>
                           </tr>
@@ -1125,7 +1125,7 @@ export default function SupplierOrderDetailPage() {
                         {shipment.items.length === 0 ? (
                           <tr>
                             <td
-                              className="border border-slate-200 px-2 py-2 text-center text-slate-500"
+                              className="border border-[#2d333d] px-2 py-2 text-center text-gray-400"
                               colSpan={4}
                             >
                               출고 품목이 없습니다.
@@ -1136,11 +1136,11 @@ export default function SupplierOrderDetailPage() {
                     </table>
                   </div>
 
-                  <div className="mt-3 rounded border border-slate-200 p-2">
-                    <p className="text-xs font-semibold text-slate-700">{t("update_status")}</p>
+                  <div className="mt-3 rounded border border-[#2d333d] p-2">
+                    <p className="text-xs font-semibold text-gray-300">{t("update_status")}</p>
                     <div className="mt-2 flex gap-2">
                       <input
-                        className="flex-1 rounded border border-slate-300 px-2 py-1 text-xs"
+                        className="flex-1 rounded border border-[#2d333d] px-2 py-1 text-xs"
                         placeholder="예: 상품 준비 중, 포장 완료, 발송 완료, 배송 중, 배송 완료"
                         value={shipmentStatusMessageMap[shipment.id] ?? ""}
                         onChange={(event) =>
@@ -1153,7 +1153,7 @@ export default function SupplierOrderDetailPage() {
                       />
                       <button
                         type="button"
-                        className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
+                        className="rounded border border-[#2d333d] px-2 py-1 text-xs disabled:opacity-60"
                         disabled={processingShipmentId === shipment.id}
                         onClick={() => handleAddShipmentStatus(shipment.id)}
                       >
@@ -1162,17 +1162,17 @@ export default function SupplierOrderDetailPage() {
                     </div>
                   </div>
 
-                  <div className="mt-3 rounded border border-slate-200 p-2">
-                    <p className="text-xs font-semibold text-slate-700">{t("shipment_timeline")}</p>
-                    <ul className="mt-2 space-y-1 text-xs text-slate-600">
+                  <div className="mt-3 rounded border border-[#2d333d] p-2">
+                    <p className="text-xs font-semibold text-gray-300">{t("shipment_timeline")}</p>
+                    <ul className="mt-2 space-y-1 text-xs text-gray-400">
                       {shipment.status_logs.map((log) => (
-                        <li key={log.id} className="rounded bg-slate-50 px-2 py-1">
+                        <li key={log.id} className="rounded bg-[#111318] px-2 py-1">
                           {new Date(log.created_at).toLocaleString()} - {log.status_message} (
                           {log.creator.name})
                         </li>
                       ))}
                       {shipment.status_logs.length === 0 ? (
-                        <li className="rounded bg-slate-50 px-2 py-1 text-slate-500">
+                        <li className="rounded bg-[#111318] px-2 py-1 text-gray-400">
                           상태 메시지가 없습니다.
                         </li>
                       ) : null}

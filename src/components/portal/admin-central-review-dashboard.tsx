@@ -123,48 +123,48 @@ export function AdminCentralReviewDashboard() {
   }
 
   return (
-    <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
+    <section className="space-y-3 rounded border border-[#2d333d] bg-[#1a1d23] p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">중앙 검토 큐</h2>
+        <h2 className="text-lg font-semibold text-white">중앙 검토 큐</h2>
         <button
           type="button"
-          className="rounded border border-slate-300 px-3 py-1 text-sm"
+          className="rounded border border-[#2d333d] px-3 py-1 text-sm"
           onClick={loadDashboard}
         >
           새로고침
         </button>
       </div>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-gray-400">
         COUNTRY_ADMIN 검토를 거쳐 UNDER_REVIEW 상태인 주문을 조회합니다.
       </p>
-      <p className="text-xs text-amber-700">
+      <p className="text-xs text-amber-300">
         정책 변경으로 관리자 계정은 상태 변경/공급사 배정을 수행할 수 없습니다.
       </p>
 
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
-      {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
-      {loading ? <p className="text-sm text-slate-500">중앙 검토 주문을 불러오는 중...</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-2 text-sm text-red-400">{error}</p> : null}
+      {loading ? <p className="text-sm text-gray-400">중앙 검토 주문을 불러오는 중...</p> : null}
 
       {!loading && orders.length === 0 ? (
-        <p className="rounded border border-slate-200 p-3 text-sm text-slate-500">
+        <p className="rounded border border-[#2d333d] p-3 text-sm text-gray-400">
           검토 대기 주문이 없습니다.
         </p>
       ) : null}
 
       {!loading
         ? orders.map((order) => (
-            <article key={order.id} className="rounded border border-slate-200 p-3">
+            <article key={order.id} className="rounded border border-[#2d333d] p-3">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">{order.order_no}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm font-semibold text-white">{order.order_no}</p>
+                  <p className="text-xs text-gray-400">
                     국가: {order.country.country_name} ({order.country.country_code}) / 생성자:{" "}
                     {order.buyer.name} / 생성일: {new Date(order.created_at).toLocaleString()}
                   </p>
                 </div>
                 <a
                   href={`/admin/orders/${order.id}`}
-                  className="rounded border border-slate-300 px-3 py-1 text-sm"
+                  className="rounded border border-[#2d333d] px-3 py-1 text-sm"
                 >
                   주문 보기
                 </a>
@@ -173,29 +173,29 @@ export function AdminCentralReviewDashboard() {
               <div className="mt-3 overflow-auto">
                 <table className="min-w-full border-collapse text-sm">
                   <thead>
-                    <tr className="bg-slate-50">
-                      <th className="border border-slate-200 px-2 py-1 text-left">코드</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">상품명</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">규격</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">수량</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">현재 공급사</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">공급사 배정</th>
+                    <tr className="bg-[#111318]">
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">코드</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">상품명</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">규격</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">수량</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">현재 공급사</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">공급사 배정</th>
                     </tr>
                   </thead>
                   <tbody>
                     {order.order_items.map((item) => (
                       <tr key={item.id}>
-                        <td className="border border-slate-200 px-2 py-1">{item.product_code_snapshot}</td>
-                        <td className="border border-slate-200 px-2 py-1">{item.product_name_snapshot}</td>
-                        <td className="border border-slate-200 px-2 py-1">{item.spec_snapshot}</td>
-                        <td className="border border-slate-200 px-2 py-1">
+                        <td className="border border-[#2d333d] px-2 py-1">{item.product_code_snapshot}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{item.product_name_snapshot}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">{item.spec_snapshot}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">
                           {item.qty} {item.unit_snapshot}
                         </td>
-                        <td className="border border-slate-200 px-2 py-1">{item.supplier.supplier_name}</td>
-                        <td className="border border-slate-200 px-2 py-1">
+                        <td className="border border-[#2d333d] px-2 py-1">{item.supplier.supplier_name}</td>
+                        <td className="border border-[#2d333d] px-2 py-1">
                           <div className="flex items-center gap-2">
                             <select
-                              className="rounded border border-slate-300 px-2 py-1 text-xs"
+                              className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                               value={selectedSupplierMap[item.id] ?? item.supplier_id}
                               disabled={statusChangeDisabled}
                               onChange={(event) =>
@@ -213,7 +213,7 @@ export function AdminCentralReviewDashboard() {
                             </select>
                             <button
                               type="button"
-                              className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
+                              className="rounded border border-[#2d333d] px-2 py-1 text-xs disabled:opacity-60"
                               disabled={statusChangeDisabled || assigningItemId === item.id}
                               onClick={() => assignSupplier(order.id, item.id)}
                             >

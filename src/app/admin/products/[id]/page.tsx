@@ -9,7 +9,7 @@ export default async function AdminProductTranslationPage({
   const productId = Number(id);
 
   if (Number.isNaN(productId)) {
-    return <p className="text-sm text-red-600">유효하지 않은 상품 ID입니다.</p>;
+    return <p className="text-sm text-red-400">유효하지 않은 상품 ID입니다.</p>;
   }
 
   return <AdminProductTranslationEditor productId={productId} />;

@@ -7,8 +7,8 @@ export default function AdminLogsPage() {
   const { t } = useTranslation();
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">{t("logs")}</h1>
-      <p className="text-sm text-slate-600">{t("logs")}</p>
+      <h1 className="text-2xl font-bold text-white">{t("logs")}</h1>
+      <p className="text-sm text-gray-400">{t("logs")}</p>
       <ApiTable endpoint="/api/admin/logs?type=audit" title={t("logs")} />
       <ApiTable endpoint="/api/admin/logs?type=email" title={t("logs")} />
       <ApiTable endpoint="/api/admin/logs?type=order-change" title={t("orders")} />

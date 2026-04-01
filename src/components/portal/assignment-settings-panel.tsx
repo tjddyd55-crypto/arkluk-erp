@@ -117,12 +117,12 @@ export function AssignmentSettingsPanel() {
   }
 
   return (
-    <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
+    <section className="space-y-3 rounded border border-[#2d333d] bg-[#1a1d23] p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">배정 시스템 설정</h2>
+        <h2 className="text-lg font-semibold text-white">배정 시스템 설정</h2>
         <button
           type="button"
-          className="rounded border border-slate-300 px-3 py-1 text-sm"
+          className="rounded border border-[#2d333d] px-3 py-1 text-sm"
           onClick={loadSettings}
           disabled={loading}
         >
@@ -130,14 +130,14 @@ export function AssignmentSettingsPanel() {
         </button>
       </div>
 
-      {loading ? <p className="text-sm text-slate-500">설정을 불러오는 중...</p> : null}
+      {loading ? <p className="text-sm text-gray-400">설정을 불러오는 중...</p> : null}
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
-      {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-2 text-sm text-red-400">{error}</p> : null}
 
       {!loading ? (
         <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded border border-slate-200 p-3">
-            <p className="text-sm font-semibold text-slate-900">배정 모드</p>
+          <div className="rounded border border-[#2d333d] p-3">
+            <p className="text-sm font-semibold text-white">배정 모드</p>
             <label className="mt-2 flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -180,7 +180,7 @@ export function AssignmentSettingsPanel() {
                 type="number"
                 min={1}
                 max={168}
-                className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+                className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
                 value={form.timeoutHours}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, timeoutHours: Number(e.target.value || 24) }))
@@ -189,8 +189,8 @@ export function AssignmentSettingsPanel() {
             </label>
           </div>
 
-          <div className="rounded border border-slate-200 p-3">
-            <p className="text-sm font-semibold text-slate-900">알림 채널</p>
+          <div className="rounded border border-[#2d333d] p-3">
+            <p className="text-sm font-semibold text-white">알림 채널</p>
             <label className="mt-2 flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -247,7 +247,7 @@ export function AssignmentSettingsPanel() {
               Webhook URL (선택)
               <input
                 type="text"
-                className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+                className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
                 value={form.webhookUrl ?? ""}
                 onChange={(e) =>
                   setForm((prev) => ({
@@ -262,7 +262,7 @@ export function AssignmentSettingsPanel() {
               <input
                 type="number"
                 min={1}
-                className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+                className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
                 value={form.automationActorUserId ?? ""}
                 onChange={(e) =>
                   setForm((prev) => ({
@@ -279,7 +279,7 @@ export function AssignmentSettingsPanel() {
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
+          className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-60"
           disabled={saving || loading}
           onClick={saveSettings}
         >

@@ -119,13 +119,13 @@ export default function AdminTranslationsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">{t("translation_management")}</h1>
-      <p className="text-sm text-slate-600">{t("translations")}</p>
+      <h1 className="text-2xl font-bold text-white">{t("translation_management")}</h1>
+      <p className="text-sm text-gray-400">{t("translations")}</p>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <div className="flex flex-wrap items-center gap-2">
           <select
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             value={selectedNamespace}
             onChange={(event) =>
               setSelectedNamespace((event.target.value as "all" | I18nNamespace) ?? "all")
@@ -139,7 +139,7 @@ export default function AdminTranslationsPage() {
             ))}
           </select>
           <input
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             placeholder={t("search")}
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
@@ -147,21 +147,21 @@ export default function AdminTranslationsPage() {
         </div>
       </section>
 
-      {loading ? <p className="text-sm text-slate-500">{t("loading")}</p> : null}
-      {error ? <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-sm text-gray-400">{t("loading")}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{error}</p> : null}
 
       {!loading ? (
-        <section className="overflow-auto rounded border border-slate-200 bg-white p-4">
+        <section className="overflow-auto rounded border border-[#2d333d] bg-[#1a1d23] p-4">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("namespace")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("key")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">ko</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">en</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">mn</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">ar</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("actions")}</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("namespace")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("key")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">ko</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">en</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">mn</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">ar</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -170,40 +170,40 @@ export default function AdminTranslationsPage() {
                 const draft = getRowDraft(row);
                 return (
                   <tr key={rowKey}>
-                    <td className="border border-slate-200 px-2 py-1">{row.namespace}</td>
-                    <td className="border border-slate-200 px-2 py-1">{row.key}</td>
-                    <td className="border border-slate-200 px-2 py-1">
+                    <td className="border border-[#2d333d] px-2 py-1">{row.namespace}</td>
+                    <td className="border border-[#2d333d] px-2 py-1">{row.key}</td>
+                    <td className="border border-[#2d333d] px-2 py-1">
                       <input
-                        className="w-56 rounded border border-slate-300 px-2 py-1"
+                        className="w-56 rounded border border-[#2d333d] px-2 py-1"
                         value={draft.ko}
                         onChange={(event) => updateDraft(row, "ko", event.target.value)}
                       />
                     </td>
-                    <td className="border border-slate-200 px-2 py-1">
+                    <td className="border border-[#2d333d] px-2 py-1">
                       <input
-                        className="w-56 rounded border border-slate-300 px-2 py-1"
+                        className="w-56 rounded border border-[#2d333d] px-2 py-1"
                         value={draft.en}
                         onChange={(event) => updateDraft(row, "en", event.target.value)}
                       />
                     </td>
-                    <td className="border border-slate-200 px-2 py-1">
+                    <td className="border border-[#2d333d] px-2 py-1">
                       <input
-                        className="w-56 rounded border border-slate-300 px-2 py-1"
+                        className="w-56 rounded border border-[#2d333d] px-2 py-1"
                         value={draft.mn}
                         onChange={(event) => updateDraft(row, "mn", event.target.value)}
                       />
                     </td>
-                    <td className="border border-slate-200 px-2 py-1">
+                    <td className="border border-[#2d333d] px-2 py-1">
                       <input
-                        className="w-56 rounded border border-slate-300 px-2 py-1"
+                        className="w-56 rounded border border-[#2d333d] px-2 py-1"
                         value={draft.ar}
                         onChange={(event) => updateDraft(row, "ar", event.target.value)}
                       />
                     </td>
-                    <td className="border border-slate-200 px-2 py-1">
+                    <td className="border border-[#2d333d] px-2 py-1">
                       <button
                         type="button"
-                        className="rounded border border-slate-300 px-3 py-1 text-xs disabled:opacity-60"
+                        className="rounded border border-[#2d333d] px-3 py-1 text-xs disabled:opacity-60"
                         onClick={() => saveRow(row)}
                         disabled={savingKey === rowKey}
                       >
@@ -215,7 +215,7 @@ export default function AdminTranslationsPage() {
               })}
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td className="border border-slate-200 px-2 py-4 text-center text-slate-500" colSpan={7}>
+                  <td className="border border-[#2d333d] px-2 py-4 text-center text-gray-400" colSpan={7}>
                     {t("no_data")}
                   </td>
                 </tr>

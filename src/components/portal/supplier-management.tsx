@@ -323,11 +323,11 @@ export function SupplierManagement() {
   const tableColSpan = showCompanyCodes ? 9 : 8;
 
   return (
-    <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
+    <section className="space-y-3 rounded border border-[#2d333d] bg-[#1a1d23] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-slate-900">공급사 목록</h2>
+        <h2 className="text-lg font-semibold text-white">공급사 목록</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-600">
+          <label className="flex cursor-pointer items-center gap-1.5 text-sm text-gray-400">
             <input
               type="checkbox"
               checked={showCompanyCodes}
@@ -337,7 +337,7 @@ export function SupplierManagement() {
           </label>
           <button
             type="button"
-            className="rounded bg-slate-900 px-3 py-2 text-sm text-white"
+            className="rounded bg-blue-600 px-3 py-2 text-sm text-white"
             onClick={openCreateForm}
           >
             공급사 추가
@@ -345,31 +345,31 @@ export function SupplierManagement() {
         </div>
       </div>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-gray-400">
         회사코드는 시스템이 자동 부여하며 수정할 수 없습니다. 공급사 생성 시 로그인 계정이 함께
         만들어지며, 해당 계정으로 상품 등록·엑셀 업로드가 가능합니다.
       </p>
 
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
-      {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-2 text-sm text-red-400">{error}</p> : null}
 
       {lastCreatedCredentials ? (
-        <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm">
+        <div className="rounded border border-amber-200 bg-amber-950/30 p-3 text-sm">
           <p className="font-medium text-amber-950">생성된 로그인 정보 (한 번만 표시)</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="text-slate-700">
-              아이디: <code className="rounded bg-white px-1">{lastCreatedCredentials.loginId}</code>
+            <span className="text-gray-300">
+              아이디: <code className="rounded bg-[#1a1d23] px-1">{lastCreatedCredentials.loginId}</code>
             </span>
             <button
               type="button"
-              className="rounded border border-amber-300 bg-white px-2 py-0.5 text-xs"
+              className="rounded border border-amber-300 bg-[#1a1d23] px-2 py-0.5 text-xs"
               onClick={() => copyText("아이디", lastCreatedCredentials.loginId)}
             >
               아이디 복사
             </button>
             <button
               type="button"
-              className="rounded border border-amber-300 bg-white px-2 py-0.5 text-xs"
+              className="rounded border border-amber-300 bg-[#1a1d23] px-2 py-0.5 text-xs"
               onClick={() => copyText("비밀번호", lastCreatedCredentials.password)}
             >
               비밀번호 복사
@@ -377,7 +377,7 @@ export function SupplierManagement() {
             {lastCreatedCredentials.companyCode ? (
               <button
                 type="button"
-                className="rounded border border-amber-300 bg-white px-2 py-0.5 text-xs"
+                className="rounded border border-amber-300 bg-[#1a1d23] px-2 py-0.5 text-xs"
                 onClick={() => copyText("회사코드", lastCreatedCredentials.companyCode!)}
               >
                 회사코드 복사
@@ -395,13 +395,13 @@ export function SupplierManagement() {
       ) : null}
 
       {formOpen ? (
-        <div className="rounded border border-slate-200 bg-slate-50 p-3">
-          <h3 className="text-sm font-semibold text-slate-900">
+        <div className="rounded border border-[#2d333d] bg-[#111318] p-3">
+          <h3 className="text-sm font-semibold text-white">
             {editingId === null ? "공급사 추가" : "공급사 수정"}
           </h3>
-          <div className="mt-2 space-y-2 rounded border border-slate-200 bg-white p-2">
-            <p className="text-xs font-medium text-slate-700">로그인 계정</p>
-            <p className="text-xs text-slate-500">
+          <div className="mt-2 space-y-2 rounded border border-[#2d333d] bg-[#1a1d23] p-2">
+            <p className="text-xs font-medium text-gray-300">로그인 계정</p>
+            <p className="text-xs text-gray-400">
               {editingId === null
                 ? "아이디·비밀번호는 필수입니다."
                 : "아이디를 변경할 수 있습니다. 비밀번호는 변경할 때만 입력(8자 이상)하면 됩니다."}
@@ -415,13 +415,13 @@ export function SupplierManagement() {
                       setLoginIdCheckState("idle");
                       setForm((prev) => ({ ...prev, loginId: e.target.value }));
                     }}
-                    className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1 text-sm"
+                    className="min-w-0 flex-1 rounded border border-[#2d333d] px-2 py-1 text-sm"
                     placeholder="로그인 아이디 (이메일 또는 사용자명)"
                     autoComplete="off"
                   />
                   <button
                     type="button"
-                    className="shrink-0 rounded border border-slate-400 bg-white px-2.5 py-1 text-xs font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+                    className="shrink-0 rounded border border-[#2d333d] bg-[#1a1d23] px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#23272f] disabled:opacity-50"
                     disabled={
                       loginIdCheckState === "checking" ||
                       form.loginId.trim().length < 3 ||
@@ -436,10 +436,10 @@ export function SupplierManagement() {
                   <span className="text-xs text-emerald-600">사용 가능한 아이디입니다.</span>
                 ) : null}
                 {loginIdCheckState === "taken" ? (
-                  <span className="text-xs text-red-600">이미 사용 중인 아이디입니다.</span>
+                  <span className="text-xs text-red-400">이미 사용 중인 아이디입니다.</span>
                 ) : null}
                 {loginIdCheckState === "invalid" ? (
-                  <span className="text-xs text-amber-700">
+                  <span className="text-xs text-amber-300">
                     {/\s/.test(form.loginId)
                       ? "아이디에 공백을 사용할 수 없습니다."
                       : "3자 이상 입력한 뒤 확인해 주세요."}
@@ -450,7 +450,7 @@ export function SupplierManagement() {
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
-                className="rounded border border-slate-300 px-2 py-1 text-sm"
+                className="rounded border border-[#2d333d] px-2 py-1 text-sm"
                 placeholder={
                   editingId === null
                     ? "비밀번호 (8자 이상)"
@@ -464,13 +464,13 @@ export function SupplierManagement() {
             <input
               value={form.companyName}
               onChange={(e) => setForm((prev) => ({ ...prev, companyName: e.target.value }))}
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
               placeholder="회사명"
             />
             <input
               value={form.countryCode}
               onChange={(e) => setForm((prev) => ({ ...prev, countryCode: e.target.value }))}
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
               placeholder="국가코드 (KR)"
             />
             <select
@@ -478,7 +478,7 @@ export function SupplierManagement() {
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, productCategory: e.target.value as SupplierProductLine }))
               }
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
               title="등록 가능한 상품 라인"
             >
               <option value="CONSTRUCTION">상품 유형: 건축자재</option>
@@ -487,37 +487,37 @@ export function SupplierManagement() {
             <input
               value={form.businessNumber}
               onChange={(e) => setForm((prev) => ({ ...prev, businessNumber: e.target.value }))}
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
               placeholder="사업자번호"
             />
             <input
               value={form.representativeName}
               onChange={(e) => setForm((prev) => ({ ...prev, representativeName: e.target.value }))}
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
               placeholder="대표자명"
             />
             <input
               value={form.contactName}
               onChange={(e) => setForm((prev) => ({ ...prev, contactName: e.target.value }))}
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
               placeholder="담당자명"
             />
             <input
               value={form.contactEmail}
               onChange={(e) => setForm((prev) => ({ ...prev, contactEmail: e.target.value }))}
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
               placeholder="담당자 이메일"
             />
             <input
               value={form.contactPhone}
               onChange={(e) => setForm((prev) => ({ ...prev, contactPhone: e.target.value }))}
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
               placeholder="담당자 전화번호"
             />
             <input
               value={form.orderEmail}
               onChange={(e) => setForm((prev) => ({ ...prev, orderEmail: e.target.value }))}
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
               placeholder="주문 수신 이메일 (미입력 시 담당자 이메일 사용)"
             />
             <select
@@ -525,7 +525,7 @@ export function SupplierManagement() {
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, status: e.target.value as SupplierStatus }))
               }
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             >
               <option value="PENDING">PENDING</option>
               <option value="ACTIVE">ACTIVE</option>
@@ -536,14 +536,14 @@ export function SupplierManagement() {
           <textarea
             value={form.address}
             onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
-            className="mt-2 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+            className="mt-2 w-full rounded border border-[#2d333d] px-2 py-1 text-sm"
             rows={2}
             placeholder="주소"
           />
           <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded bg-slate-900 px-3 py-1 text-sm text-white disabled:opacity-60"
+              className="rounded bg-blue-600 px-3 py-1 text-sm text-white disabled:opacity-60"
               disabled={submitting}
               onClick={submitForm}
             >
@@ -551,7 +551,7 @@ export function SupplierManagement() {
             </button>
             <button
               type="button"
-              className="rounded border border-slate-300 px-3 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-3 py-1 text-sm"
               onClick={() => {
                 setFormOpen(false);
                 setEditingId(null);
@@ -566,7 +566,7 @@ export function SupplierManagement() {
             {editingId === null && lastCreatedCredentials ? (
               <button
                 type="button"
-                className="rounded border border-slate-300 px-3 py-1 text-sm"
+                className="rounded border border-[#2d333d] px-3 py-1 text-sm"
                 onClick={() => {
                   setFormOpen(false);
                   setEditingSupplierUserId(null);
@@ -582,52 +582,52 @@ export function SupplierManagement() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-slate-500">공급사 목록을 불러오는 중...</p>
+        <p className="text-sm text-gray-400">공급사 목록을 불러오는 중...</p>
       ) : (
         <div className="overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">회사명</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">회사명</th>
                 {showCompanyCodes ? (
-                  <th className="border border-slate-200 px-2 py-1 text-left">회사코드</th>
+                  <th className="border border-[#2d333d] px-2 py-1 text-left">회사코드</th>
                 ) : null}
-                <th className="border border-slate-200 px-2 py-1 text-left">로그인 아이디</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">국가</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상품 유형</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">담당자</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">연락처</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">작업</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">로그인 아이디</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">국가</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상품 유형</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">담당자</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">연락처</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상태</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">작업</th>
               </tr>
             </thead>
             <tbody>
               {sortedSuppliers.map((supplier) => (
                 <tr key={supplier.id}>
-                  <td className="border border-slate-200 px-2 py-1">{supplier.company_name}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{supplier.company_name}</td>
                   {showCompanyCodes ? (
-                    <td className="border border-slate-200 px-2 py-1 font-mono text-xs text-slate-600">
+                    <td className="border border-[#2d333d] px-2 py-1 font-mono text-xs text-gray-400">
                       {supplier.company_code ?? "—"}
                     </td>
                   ) : null}
-                  <td className="border border-slate-200 px-2 py-1 font-mono text-xs">
+                  <td className="border border-[#2d333d] px-2 py-1 font-mono text-xs">
                     {supplier.users?.[0]?.login_id ?? "—"}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{supplier.country_code}</td>
-                  <td className="border border-slate-200 px-2 py-1 text-xs">
+                  <td className="border border-[#2d333d] px-2 py-1">{supplier.country_code}</td>
+                  <td className="border border-[#2d333d] px-2 py-1 text-xs">
                     {SUPPLIER_LINE_LABEL[supplier.productCategory] ?? supplier.productCategory}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{supplier.contact_name ?? "-"}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{supplier.contact_name ?? "-"}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {supplier.contact_email ?? "-"}
                     {supplier.contact_phone ? ` / ${supplier.contact_phone}` : ""}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{statusLabel[supplier.status]}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{statusLabel[supplier.status]}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     <div className="flex gap-1">
                       <button
                         type="button"
-                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                        className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                         onClick={() => openEditForm(supplier)}
                       >
                         수정
@@ -644,7 +644,7 @@ export function SupplierManagement() {
                       ) : (
                         <button
                           type="button"
-                          className="rounded border border-red-300 px-2 py-1 text-xs text-red-700 disabled:opacity-60"
+                          className="rounded border border-red-300 px-2 py-1 text-xs text-red-400 disabled:opacity-60"
                           disabled={actionSupplierId === supplier.id}
                           onClick={() => updateSupplierStatus(supplier.id, "SUSPENDED")}
                         >
@@ -658,7 +658,7 @@ export function SupplierManagement() {
               {sortedSuppliers.length === 0 ? (
                 <tr>
                   <td
-                    className="border border-slate-200 px-2 py-3 text-center text-slate-500"
+                    className="border border-[#2d333d] px-2 py-3 text-center text-gray-400"
                     colSpan={tableColSpan}
                   >
                     등록된 공급사가 없습니다.

@@ -267,13 +267,13 @@ export function AdminProductReview() {
   const selectedSet = new Set(selectedIds);
 
   return (
-    <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
+    <section className="space-y-3 rounded border border-[#2d333d] bg-[#1a1d23] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-slate-900">상품 승인 대기 ({rows.length})</h2>
+        <h2 className="text-lg font-semibold text-white">상품 승인 대기 ({rows.length})</h2>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="rounded border border-slate-300 px-3 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-3 py-1 text-sm"
             onClick={loadPendingProducts}
             disabled={bulkPending}
           >
@@ -282,9 +282,9 @@ export function AdminProductReview() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded border border-slate-200 bg-slate-50 p-2">
+      <div className="flex flex-wrap items-center gap-2 rounded border border-[#2d333d] bg-[#111318] p-2">
         <select
-          className="rounded border border-slate-300 px-2 py-1 text-sm"
+          className="rounded border border-[#2d333d] px-2 py-1 text-sm"
           value={supplierFilter}
           onChange={(event) => setSupplierFilter(event.target.value)}
           disabled={bulkPending}
@@ -297,14 +297,14 @@ export function AdminProductReview() {
           ))}
         </select>
         <input
-          className="w-72 rounded border border-slate-300 px-2 py-1 text-sm"
+          className="w-72 rounded border border-[#2d333d] px-2 py-1 text-sm"
           placeholder="상품명 또는 공급사명 검색"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           disabled={bulkPending}
         />
         <input
-          className="w-72 rounded border border-slate-300 px-2 py-1 text-sm"
+          className="w-72 rounded border border-[#2d333d] px-2 py-1 text-sm"
           placeholder="선택 반려 사유"
           value={bulkRejectReason}
           onChange={(event) => setBulkRejectReason(event.target.value)}
@@ -329,24 +329,24 @@ export function AdminProductReview() {
       </div>
 
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
-      {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-2 text-sm text-red-400">{error}</p> : null}
 
       {loading ? (
-        <p className="text-sm text-slate-500">승인 대기 상품을 불러오는 중...</p>
+        <p className="text-sm text-gray-400">승인 대기 상품을 불러오는 중...</p>
       ) : (
         <>
           {Object.entries(groupedRows).map(([supplierId, groupData]) => {
             const groupIds = groupData.rows.map((row) => row.id);
             const groupAllSelected = groupIds.length > 0 && groupIds.every((id) => selectedSet.has(id));
             return (
-              <div key={supplierId} className="mb-4 overflow-auto rounded border border-slate-200">
-                <div className="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900">
+              <div key={supplierId} className="mb-4 overflow-auto rounded border border-[#2d333d]">
+                <div className="border-b border-[#2d333d] bg-[#111318] px-3 py-2 text-sm font-semibold text-white">
                   {groupData.supplierName}
                 </div>
                 <table className="min-w-full border-collapse text-sm">
                   <thead>
-                    <tr className="bg-slate-50">
-                      <th className="border border-slate-200 px-2 py-1 text-left">
+                    <tr className="bg-[#111318]">
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">
                         <input
                           type="checkbox"
                           checked={groupAllSelected}
@@ -359,21 +359,21 @@ export function AdminProductReview() {
                           }}
                         />
                       </th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">공급사</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">카테고리</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">상품명</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">규격</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">가격</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">등록 언어</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
-                      <th className="border border-slate-200 px-2 py-1 text-left">처리</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">공급사</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">카테고리</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">상품명</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">규격</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">가격</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">등록 언어</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">상태</th>
+                      <th className="border border-[#2d333d] px-2 py-1 text-left">처리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {groupData.rows.map((row) => (
                       <Fragment key={row.id}>
                         <tr>
-                          <td className="border border-slate-200 px-2 py-1">
+                          <td className="border border-[#2d333d] px-2 py-1">
                             <input
                               type="checkbox"
                               checked={selectedSet.has(row.id)}
@@ -386,22 +386,22 @@ export function AdminProductReview() {
                               }}
                             />
                           </td>
-                          <td className="border border-slate-200 px-2 py-1">{groupData.supplierName}</td>
-                          <td className="border border-slate-200 px-2 py-1">{row.category.category_name}</td>
-                          <td className="border border-slate-200 px-2 py-1">{row.name_original || "-"}</td>
-                          <td className="border border-slate-200 px-2 py-1">{row.specification ?? "-"}</td>
-                          <td className="border border-slate-200 px-2 py-1">
+                          <td className="border border-[#2d333d] px-2 py-1">{groupData.supplierName}</td>
+                          <td className="border border-[#2d333d] px-2 py-1">{row.category.category_name}</td>
+                          <td className="border border-[#2d333d] px-2 py-1">{row.name_original || "-"}</td>
+                          <td className="border border-[#2d333d] px-2 py-1">{row.specification ?? "-"}</td>
+                          <td className="border border-[#2d333d] px-2 py-1">
                             {Number(row.price).toLocaleString()} {row.currency}
                           </td>
-                          <td className="border border-slate-200 px-2 py-1">
+                          <td className="border border-[#2d333d] px-2 py-1">
                             {SOURCE_LANGUAGE_LABEL[row.source_language]}
                           </td>
-                          <td className="border border-slate-200 px-2 py-1">{STATUS_LABEL[row.status]}</td>
-                          <td className="border border-slate-200 px-2 py-1">
+                          <td className="border border-[#2d333d] px-2 py-1">{STATUS_LABEL[row.status]}</td>
+                          <td className="border border-[#2d333d] px-2 py-1">
                             <div className="flex flex-wrap gap-2">
                               <input
                                 type="text"
-                                className="w-52 rounded border border-slate-300 px-2 py-1 text-xs"
+                                className="w-52 rounded border border-[#2d333d] px-2 py-1 text-xs"
                                 placeholder="반려 사유 입력"
                                 value={rejectReasonMap[row.id] ?? ""}
                                 onChange={(event) =>
@@ -413,14 +413,14 @@ export function AdminProductReview() {
                               />
                               <button
                                 type="button"
-                                className="rounded border border-slate-300 px-2 py-1 text-xs"
+                                className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                                 onClick={() => toggleHistory(row.id)}
                               >
                                 {historyOpenId === row.id ? "이력 닫기" : "이력 보기"}
                               </button>
                               <Link
                                 href={`/admin/products/${row.id}`}
-                                className="rounded border border-slate-300 px-2 py-1 text-xs"
+                                className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                               >
                                 번역 수정
                               </Link>
@@ -445,17 +445,17 @@ export function AdminProductReview() {
                         </tr>
                         {historyOpenId === row.id ? (
                           <tr>
-                            <td className="border border-slate-200 px-3 py-2" colSpan={9}>
-                              <div className="rounded bg-slate-50 p-3">
-                                <p className="mb-2 text-sm font-semibold text-slate-900">승인 이력 타임라인</p>
+                            <td className="border border-[#2d333d] px-3 py-2" colSpan={9}>
+                              <div className="rounded bg-[#111318] p-3">
+                                <p className="mb-2 text-sm font-semibold text-white">승인 이력 타임라인</p>
                                 {historyLoadingId === row.id ? (
-                                  <p className="text-sm text-slate-500">이력을 불러오는 중...</p>
+                                  <p className="text-sm text-gray-400">이력을 불러오는 중...</p>
                                 ) : historyErrorMap[row.id] ? (
-                                  <p className="text-sm text-red-600">{historyErrorMap[row.id]}</p>
+                                  <p className="text-sm text-red-400">{historyErrorMap[row.id]}</p>
                                 ) : (historyMap[row.id] ?? []).length === 0 ? (
-                                  <p className="text-sm text-slate-500">등록된 이력이 없습니다.</p>
+                                  <p className="text-sm text-gray-400">등록된 이력이 없습니다.</p>
                                 ) : (
-                                  <ul className="space-y-1 text-sm text-slate-700">
+                                  <ul className="space-y-1 text-sm text-gray-300">
                                     {(historyMap[row.id] ?? []).map((entry) => (
                                       <li key={`${row.id}-${entry.timestamp}-${entry.action}-${entry.user}`}>
                                         {formatTimestamp(entry.timestamp)} -{" "}
@@ -479,7 +479,7 @@ export function AdminProductReview() {
             );
           })}
           {filteredRows.length === 0 ? (
-            <p className="text-sm text-slate-500">조건에 맞는 승인 대기 상품이 없습니다.</p>
+            <p className="text-sm text-gray-400">조건에 맞는 승인 대기 상품이 없습니다.</p>
           ) : null}
         </>
       )}

@@ -75,46 +75,44 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-slate-100 p-6">
+    <div className="relative flex min-h-screen items-center justify-center bg-[#0f1115] p-6">
       <div className="absolute right-6 top-6">
         <PublicLanguageSwitcher />
       </div>
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-md rounded-lg bg-white p-8 shadow-sm"
+        className="w-full max-w-md rounded-lg border border-[#2d333d] bg-[#1a1d23] p-8 shadow-sm shadow-black/20"
       >
-        <h1 className="text-2xl font-bold text-slate-900">{t("login")}</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          {t("login_description")}
-        </p>
+        <h1 className="text-2xl font-bold text-white">{t("login")}</h1>
+        <p className="mt-2 text-sm text-gray-400">{t("login_description")}</p>
 
         <div className="mt-6 space-y-4">
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">{t("login_id")}</span>
+            <span className="mb-1 block text-sm font-medium text-gray-300">{t("login_id")}</span>
             <input
               value={loginId}
               onChange={(e) => setLoginId(e.target.value)}
-              className="w-full rounded border border-slate-300 px-3 py-2"
+              className="w-full rounded-lg border border-[#2d333d] bg-[#1a1d23] px-3 py-2 text-white placeholder:text-gray-400"
             />
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">{t("password")}</span>
+            <span className="mb-1 block text-sm font-medium text-gray-300">{t("password")}</span>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded border border-slate-300 px-3 py-2"
+              className="w-full rounded-lg border border-[#2d333d] bg-[#1a1d23] px-3 py-2 text-white placeholder:text-gray-400"
             />
           </label>
         </div>
 
-        {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+        {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
 
         <button
           type="submit"
           disabled={pending}
-          className="mt-6 w-full rounded bg-slate-900 py-2 text-white disabled:opacity-60"
+          className="mt-6 w-full rounded-lg bg-blue-600 py-2 text-white hover:bg-blue-700 disabled:opacity-60"
         >
           {pending ? t("logging_in") : t("login")}
         </button>

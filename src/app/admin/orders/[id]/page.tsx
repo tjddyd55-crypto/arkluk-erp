@@ -246,11 +246,11 @@ export default function AdminOrderDetailPage() {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">{t("loading")}</p>;
+    return <p className="text-sm text-gray-400">{t("loading")}</p>;
   }
 
   if (error || !order) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error ?? t("not_found")}</p>;
+    return <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{error ?? t("not_found")}</p>;
   }
 
   const groupedInvoices = order.tax_invoices.reduce<
@@ -330,20 +330,20 @@ export default function AdminOrderDetailPage() {
 
   return (
     <div className="space-y-4">
-      <header className="rounded border border-slate-200 bg-white p-4">
-        <h1 className="text-2xl font-bold text-slate-900">{order.order_no}</h1>
-        <p className="mt-1 text-sm text-slate-600">
+      <header className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+        <h1 className="text-2xl font-bold text-white">{order.order_no}</h1>
+        <p className="mt-1 text-sm text-gray-400">
           {t("buyer")}: {order.buyer.name} / {t("country")}: {order.country.country_name} / {t("status")}: {order.status}
         </p>
       </header>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">{t("suppliers")} {t("orders")} ({t("view_only_policy")})</h2>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="rounded border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
+              className="rounded border border-[#2d333d] px-3 py-2 text-sm disabled:opacity-60"
               disabled={statusChangeDisabled || assigningOrderMode !== null}
               onClick={() => runAutoAssignment("AUTO")}
             >
@@ -359,7 +359,7 @@ export default function AdminOrderDetailPage() {
             </button>
             <button
               type="button"
-              className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
+              className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-60"
               disabled={statusChangeDisabled || sendingAll}
               onClick={sendPurchaseOrderToAll}
             >
@@ -371,9 +371,9 @@ export default function AdminOrderDetailPage() {
           <p className="mt-2 rounded bg-emerald-50 p-2 text-xs text-emerald-700">{actionMessage}</p>
         ) : null}
         {actionError ? (
-          <p className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700">{actionError}</p>
+          <p className="mt-2 rounded bg-red-950/30 p-2 text-xs text-red-400">{actionError}</p>
         ) : null}
-        <p className="mt-2 text-xs text-amber-700">
+        <p className="mt-2 text-xs text-amber-300">
           {t("view_only_policy")}
         </p>
 
@@ -385,14 +385,14 @@ export default function AdminOrderDetailPage() {
             return (
               <article
                 key={supplierRow.supplier_id}
-                className="rounded border border-slate-200 p-3"
+                className="rounded border border-[#2d333d] p-3"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-white">
                       {supplierRow.supplier.supplier_name}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-gray-400">
                       {t("status")}: {statusLabelMap[supplierRow.status]}
                       {supplierRow.sent_at
                         ? ` / ${t("created_at")}: ${new Date(supplierRow.sent_at).toLocaleString()}`
@@ -405,13 +405,13 @@ export default function AdminOrderDetailPage() {
                         : ""}
                     </p>
                     {supplierRow.supplier_note ? (
-                      <p className="mt-1 text-xs text-slate-600">{t("message")}: {supplierRow.supplier_note}</p>
+                      <p className="mt-1 text-xs text-gray-400">{t("message")}: {supplierRow.supplier_note}</p>
                     ) : null}
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
+                      className="rounded border border-[#2d333d] px-3 py-1 text-sm disabled:opacity-60"
                       disabled={
                         statusChangeDisabled ||
                         supplierRow.status !== "PENDING" ||
@@ -425,7 +425,7 @@ export default function AdminOrderDetailPage() {
                     </button>
                     <button
                       type="button"
-                      className="rounded border border-red-300 px-3 py-1 text-sm text-red-700 disabled:opacity-60"
+                      className="rounded border border-red-300 px-3 py-1 text-sm text-red-400 disabled:opacity-60"
                       disabled={
                         statusChangeDisabled ||
                         (supplierRow.status !== "SENT" &&
@@ -439,7 +439,7 @@ export default function AdminOrderDetailPage() {
                     {purchaseOrder ? (
                       <a
                         href={`/api/admin/purchase-orders/${purchaseOrder.id}/download`}
-                        className="rounded border border-slate-300 px-3 py-1 text-sm"
+                        className="rounded border border-[#2d333d] px-3 py-1 text-sm"
                       >
                         {t("shipment")} PDF
                       </a>
@@ -450,35 +450,35 @@ export default function AdminOrderDetailPage() {
                 <div className="mt-3 overflow-auto">
                   <table className="min-w-full border-collapse text-sm">
                     <thead>
-                      <tr className="bg-slate-50">
-                        <th className="border border-slate-200 px-2 py-1 text-left">No</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">{t("product")}</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">Spec</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">Unit</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">{t("total")}</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">{t("message")}</th>
-                        <th className="border border-slate-200 px-2 py-1 text-left">{t("supplier")}</th>
+                      <tr className="bg-[#111318]">
+                        <th className="border border-[#2d333d] px-2 py-1 text-left">No</th>
+                        <th className="border border-[#2d333d] px-2 py-1 text-left">{t("product")}</th>
+                        <th className="border border-[#2d333d] px-2 py-1 text-left">Spec</th>
+                        <th className="border border-[#2d333d] px-2 py-1 text-left">Unit</th>
+                        <th className="border border-[#2d333d] px-2 py-1 text-left">{t("total")}</th>
+                        <th className="border border-[#2d333d] px-2 py-1 text-left">{t("message")}</th>
+                        <th className="border border-[#2d333d] px-2 py-1 text-left">{t("supplier")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {items.map((item, idx) => (
                         <tr key={item.id}>
-                          <td className="border border-slate-200 px-2 py-1">{idx + 1}</td>
-                          <td className="border border-slate-200 px-2 py-1">
+                          <td className="border border-[#2d333d] px-2 py-1">{idx + 1}</td>
+                          <td className="border border-[#2d333d] px-2 py-1">
                             {item.product_name_snapshot}
                           </td>
-                          <td className="border border-slate-200 px-2 py-1">
+                          <td className="border border-[#2d333d] px-2 py-1">
                             {item.spec_snapshot}
                           </td>
-                          <td className="border border-slate-200 px-2 py-1">
+                          <td className="border border-[#2d333d] px-2 py-1">
                             {item.unit_snapshot}
                           </td>
-                          <td className="border border-slate-200 px-2 py-1">{item.qty}</td>
-                          <td className="border border-slate-200 px-2 py-1">{item.memo ?? ""}</td>
-                          <td className="border border-slate-200 px-2 py-1">
+                          <td className="border border-[#2d333d] px-2 py-1">{item.qty}</td>
+                          <td className="border border-[#2d333d] px-2 py-1">{item.memo ?? ""}</td>
+                          <td className="border border-[#2d333d] px-2 py-1">
                             <div className="flex gap-2">
                               <select
-                                className="rounded border border-slate-300 px-2 py-1"
+                                className="rounded border border-[#2d333d] px-2 py-1"
                                 value={selectedSupplierMap[item.id] ?? supplierRow.supplier_id}
                                 disabled={statusChangeDisabled}
                                 onChange={(event) =>
@@ -496,7 +496,7 @@ export default function AdminOrderDetailPage() {
                               </select>
                               <button
                                 type="button"
-                                className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
+                                className="rounded border border-[#2d333d] px-2 py-1 text-xs disabled:opacity-60"
                                 disabled={statusChangeDisabled || assigningItemId === item.id}
                                 onClick={() => assignOrderItem(item.id)}
                               >
@@ -515,22 +515,22 @@ export default function AdminOrderDetailPage() {
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <h2 className="text-lg font-semibold">{t("tax_invoices")}</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-gray-400">
           {t("tax_invoices")}
         </p>
         {order.tax_invoices.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">{t("no_data")}</p>
+          <p className="mt-2 text-sm text-gray-400">{t("no_data")}</p>
         ) : (
           <div className="mt-3 space-y-4">
             {Object.entries(groupedInvoices).map(([supplierName, invoices]) => (
-              <article key={supplierName} className="rounded border border-slate-200 p-3">
-                <h3 className="text-sm font-semibold text-slate-900">{supplierName}</h3>
+              <article key={supplierName} className="rounded border border-[#2d333d] p-3">
+                <h3 className="text-sm font-semibold text-white">{supplierName}</h3>
                 <div className="mt-2 space-y-2">
                   {invoices.map((invoice) => (
-                    <div key={invoice.id} className="rounded border border-slate-200 p-2">
-                      <p className="text-xs text-slate-500">
+                    <div key={invoice.id} className="rounded border border-[#2d333d] p-2">
+                      <p className="text-xs text-gray-400">
                         {invoice.email_inbox.from_email} /{" "}
                         {new Date(invoice.email_inbox.received_at).toLocaleString()} /{" "}
                         {invoice.order_link_type === "AUTO"
@@ -541,13 +541,13 @@ export default function AdminOrderDetailPage() {
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {invoice.files.length === 0 ? (
-                          <span className="text-xs text-slate-400">{t("no_data")}</span>
+                          <span className="text-xs text-gray-400">{t("no_data")}</span>
                         ) : (
                           invoice.files.map((file) => (
                             <a
                               key={file.id}
                               href={`/api/admin/tax-invoices/files/${file.id}/download`}
-                              className="rounded border border-slate-300 px-2 py-1 text-xs"
+                              className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                             >
                               {file.file_type} {t("download")}
                             </a>

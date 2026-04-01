@@ -269,11 +269,11 @@ export function BuyerOrderEntry() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-900">{t("create_order")}</h2>
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+        <h2 className="text-lg font-semibold text-white">{t("create_order")}</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           <select
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             value={supplierId ?? ""}
             onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : null)}
           >
@@ -285,14 +285,14 @@ export function BuyerOrderEntry() {
             ))}
           </select>
           <input
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             placeholder={t("search")}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
           />
           {supplierId ? (
             <a
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
               href={`/api/buyer/orders/excel-template?supplierId=${supplierId}`}
             >
               {t("download")}
@@ -311,7 +311,7 @@ export function BuyerOrderEntry() {
               key={tab.key}
               type="button"
               className={`rounded px-3 py-1 text-xs ${
-                lineTab === tab.key ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700"
+                lineTab === tab.key ? "bg-[#23272f] text-white" : "border border-[#2d333d] bg-[#1a1d23] text-gray-300"
               }`}
               onClick={() => setLineTab(tab.key)}
               disabled={!supplierId}
@@ -323,9 +323,9 @@ export function BuyerOrderEntry() {
       </section>
 
       {isCountryAdmin ? (
-        <section className="rounded border border-slate-200 bg-white p-4">
-          <h3 className="text-sm font-semibold text-slate-900">{t("orders")}</h3>
-          <p className="mt-1 text-sm text-slate-600">
+        <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+          <h3 className="text-sm font-semibold text-white">{t("orders")}</h3>
+          <p className="mt-1 text-sm text-gray-400">
             1) 주문 초안 생성 → 2) 품목 추가 → 3) 주문 제출(UNDER_REVIEW)
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -333,7 +333,7 @@ export function BuyerOrderEntry() {
               type="button"
               onClick={createCountryOrderDraft}
               disabled={draftCreating || !!draftOrderId}
-              className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-60"
+              className="rounded border border-[#2d333d] px-3 py-1 text-sm disabled:opacity-60"
             >
               {draftCreating ? t("loading") : t("create")}
             </button>
@@ -341,50 +341,50 @@ export function BuyerOrderEntry() {
               type="button"
               onClick={submitCountryDraftOrder}
               disabled={draftSubmitting || !draftOrderId}
-              className="rounded bg-slate-900 px-3 py-1 text-sm text-white disabled:opacity-60"
+              className="rounded bg-blue-600 px-3 py-1 text-sm text-white disabled:opacity-60"
             >
               {draftSubmitting ? t("loading") : t("submit")}
             </button>
-            <span className="text-sm text-slate-700">
+            <span className="text-sm text-gray-300">
               {t("status")}: {draftOrderNo ?? "-"}
             </span>
           </div>
         </section>
       ) : null}
 
-      <section className="rounded border border-slate-200 bg-white p-4">
-          <h3 className="text-sm font-semibold text-slate-900">{t("products")}</h3>
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+          <h3 className="text-sm font-semibold text-white">{t("products")}</h3>
         <div className="mt-3 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">Code</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("product")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">Description</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">Spec</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">Unit</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">Price</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("total")}</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">Code</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("product")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">Description</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">Spec</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">Unit</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">Price</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("total")}</th>
               </tr>
             </thead>
             <tbody>
               {products.map((product) => (
                 <tr key={product.id}>
-                  <td className="border border-slate-200 px-2 py-1">{product.product_code}</td>
-                  <td className="border border-slate-200 px-2 py-1">{product.product_name}</td>
-                  <td className="border border-slate-200 px-2 py-1">{product.description ?? "-"}</td>
-                  <td className="border border-slate-200 px-2 py-1">{product.spec}</td>
-                  <td className="border border-slate-200 px-2 py-1">{product.unit}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{product.product_code}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{product.product_name}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{product.description ?? "-"}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{product.spec}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{product.unit}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {Number(product.price).toLocaleString()}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     <input
                       value={qtyMap[product.id] ?? ""}
                       onChange={(e) =>
                         setQtyMap((prev) => ({ ...prev, [product.id]: e.target.value }))
                       }
-                      className="w-24 rounded border border-slate-300 px-2 py-1"
+                      className="w-24 rounded border border-[#2d333d] px-2 py-1"
                     />
                   </td>
                 </tr>
@@ -394,11 +394,11 @@ export function BuyerOrderEntry() {
         </div>
 
         <div className="mt-3 flex items-center justify-between">
-          <p className="text-sm text-slate-600">{t("product_count")}: {selectedItems.length}</p>
+          <p className="text-sm text-gray-400">{t("product_count")}: {selectedItems.length}</p>
           <button
             type="button"
             onClick={submitOrder}
-            className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
+            className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-60"
             disabled={draftAdding}
           >
             {isCountryAdmin
@@ -411,11 +411,11 @@ export function BuyerOrderEntry() {
       </section>
 
       {!isCountryAdmin ? (
-        <section className="rounded border border-slate-200 bg-white p-4">
-          <h3 className="text-sm font-semibold text-slate-900">{t("orders")} Excel</h3>
+        <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+          <h3 className="text-sm font-semibold text-white">{t("orders")} Excel</h3>
           <form className="mt-3 flex items-center gap-2" onSubmit={onExcelUpload}>
             <input name="file" type="file" accept=".xlsx,.xls" />
-            <button className="rounded border border-slate-300 px-3 py-1 text-sm" type="submit">
+            <button className="rounded border border-[#2d333d] px-3 py-1 text-sm" type="submit">
               {t("upload")}
             </button>
           </form>
@@ -423,7 +423,7 @@ export function BuyerOrderEntry() {
       ) : null}
 
       {message ? <p className="rounded bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p> : null}
-      {error ? <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{error}</p> : null}
     </div>
   );
 }

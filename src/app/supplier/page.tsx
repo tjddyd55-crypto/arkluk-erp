@@ -115,13 +115,13 @@ export default function SupplierDashboardPage() {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">{t("loading")}</p>;
+    return <p className="text-sm text-gray-400">{t("loading")}</p>;
   }
   if (error) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>;
+    return <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{error}</p>;
   }
   if (!data) {
-    return <p className="text-sm text-slate-500">{t("no_data")}</p>;
+    return <p className="text-sm text-gray-400">{t("no_data")}</p>;
   }
 
   const metricCards = [
@@ -133,54 +133,54 @@ export default function SupplierDashboardPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">{t("role_supplier_dashboard")}</h1>
-      <p className="text-sm text-slate-600">{t("dashboard")}</p>
+      <h1 className="text-2xl font-bold text-white">{t("role_supplier_dashboard")}</h1>
+      <p className="text-sm text-gray-400">{t("dashboard")}</p>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {metricCards.map((card) => (
-          <article key={card.label} className="rounded border border-slate-200 bg-white p-4">
-            <p className="text-xs text-slate-500">{card.label}</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{card.value}</p>
+          <article key={card.label} className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+            <p className="text-xs text-gray-400">{card.label}</p>
+            <p className="mt-1 text-2xl font-bold text-white">{card.value}</p>
           </article>
         ))}
       </section>
 
       <div className="flex items-center gap-2 text-sm">
-        <Link href="/supplier/orders" className="rounded border border-slate-300 px-3 py-1">
+        <Link href="/supplier/orders" className="rounded border border-[#2d333d] px-3 py-1">
           {t("my_orders")}
         </Link>
       </div>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-900">{t("my_orders")}</h2>
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+        <h2 className="text-lg font-semibold text-white">{t("my_orders")}</h2>
         <div className="mt-2 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("order_number")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("buyer")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("product_count")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("order_status")}</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">{t("shipment_status")}</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("order_number")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("buyer")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("product_count")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("order_status")}</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">{t("shipment_status")}</th>
               </tr>
             </thead>
             <tbody>
               {data.orders.map((row) => (
                 <tr key={row.orderId}>
-                  <td className="border border-slate-200 px-2 py-1">
-                    <Link href={`/supplier/orders/${row.orderId}`} className="text-blue-700 underline">
+                  <td className="border border-[#2d333d] px-2 py-1">
+                    <Link href={`/supplier/orders/${row.orderId}`} className="text-blue-400 underline">
                       {row.orderNo}
                     </Link>
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{row.buyerName}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.productCount}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.orderStatus}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.shippingStatus}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.buyerName}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.productCount}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.orderStatus}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.shippingStatus}</td>
                 </tr>
               ))}
               {data.orders.length === 0 ? (
                 <tr>
-                  <td className="border border-slate-200 px-2 py-3 text-center text-slate-500" colSpan={5}>
+                  <td className="border border-[#2d333d] px-2 py-3 text-center text-gray-400" colSpan={5}>
                     {t("no_data")}
                   </td>
                 </tr>
@@ -190,20 +190,20 @@ export default function SupplierDashboardPage() {
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-900">{t("update_status")}</h2>
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+        <h2 className="text-lg font-semibold text-white">{t("update_status")}</h2>
         <div className="mt-2 grid gap-3">
           {data.shipmentTargets.map((shipment) => (
-            <article key={shipment.shipmentId} className="rounded border border-slate-200 p-3">
-              <p className="text-sm font-semibold text-slate-900">
+            <article key={shipment.shipmentId} className="rounded border border-[#2d333d] p-3">
+              <p className="text-sm font-semibold text-white">
                 [{shipment.shipmentNo}] {shipment.orderNo}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-gray-400">
                 {t("status")}: {shipment.supplierStatus} / {shipment.shipmentStatus}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <select
-                  className="rounded border border-slate-300 px-2 py-1 text-xs"
+                  className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                   value={statusMap[shipment.shipmentId] ?? shipment.supplierStatus}
                   onChange={(event) =>
                     setStatusMap((prev) => ({
@@ -220,7 +220,7 @@ export default function SupplierDashboardPage() {
                   ))}
                 </select>
                 <input
-                  className="min-w-60 flex-1 rounded border border-slate-300 px-2 py-1 text-xs"
+                  className="min-w-60 flex-1 rounded border border-[#2d333d] px-2 py-1 text-xs"
                   placeholder={t("message")}
                   value={messageMap[shipment.shipmentId] ?? ""}
                   onChange={(event) =>
@@ -232,7 +232,7 @@ export default function SupplierDashboardPage() {
                 />
                 <button
                   type="button"
-                  className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
+                  className="rounded border border-[#2d333d] px-2 py-1 text-xs disabled:opacity-60"
                   disabled={pendingShipmentId === shipment.shipmentId}
                   onClick={() => updateShipmentStatus(shipment.shipmentId, shipment.orderId)}
                 >
@@ -242,23 +242,23 @@ export default function SupplierDashboardPage() {
             </article>
           ))}
           {data.shipmentTargets.length === 0 ? (
-            <p className="rounded border border-slate-200 p-3 text-sm text-slate-500">
+            <p className="rounded border border-[#2d333d] p-3 text-sm text-gray-400">
               {t("no_data")}
             </p>
           ) : null}
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-900">{t("recent_shipment_updates")}</h2>
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+        <h2 className="text-lg font-semibold text-white">{t("recent_shipment_updates")}</h2>
         <ul className="mt-2 space-y-1 text-sm">
           {data.recentLogs.map((log) => (
-            <li key={log.id} className="rounded bg-slate-50 px-2 py-1 text-slate-700">
+            <li key={log.id} className="rounded bg-[#111318] px-2 py-1 text-gray-300">
               {new Date(log.createdAt).toLocaleString()} [{log.shipmentNo}] {log.message}
             </li>
           ))}
           {data.recentLogs.length === 0 ? (
-            <li className="rounded bg-slate-50 px-2 py-3 text-center text-slate-500">
+            <li className="rounded bg-[#111318] px-2 py-3 text-center text-gray-400">
               {t("no_data")}
             </li>
           ) : null}

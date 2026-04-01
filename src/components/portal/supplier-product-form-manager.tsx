@@ -346,26 +346,26 @@ export function SupplierProductFormManager() {
   }
 
   return (
-    <section className="space-y-4 rounded border border-slate-200 bg-white p-4">
+    <section className="space-y-4 rounded border border-[#2d333d] bg-[#1a1d23] p-4">
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">공급사 상품 입력 폼 설정</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+        <h2 className="text-lg font-semibold text-white">공급사 상품 입력 폼 설정</h2>
+        <p className="mt-2 text-sm leading-relaxed text-gray-400">
           이 설정은 상품 등록 화면과 엑셀 업로드 구조에 그대로 반영됩니다.
-          <span className="font-medium text-slate-800"> 표시명</span>은 엑셀 1행(사용자용 헤더)에
+          <span className="font-medium text-gray-300"> 표시명</span>은 엑셀 1행(사용자용 헤더)에
           사용되며, 시스템 식별은 서버가 부여한 내부키로 처리됩니다.
         </p>
       </div>
 
-      {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-2 text-sm text-red-400">{error}</p> : null}
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
 
-      {loading ? <p className="text-sm text-slate-500">공급사 목록을 불러오는 중...</p> : null}
+      {loading ? <p className="text-sm text-gray-400">공급사 목록을 불러오는 중...</p> : null}
 
       {!loading ? (
         <>
           <div className="flex flex-wrap items-center gap-2">
             <select
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-2 py-1 text-sm"
               value={selectedSupplierId ?? ""}
               onChange={(e) => setSelectedSupplierId(e.target.value ? Number(e.target.value) : null)}
             >
@@ -376,27 +376,27 @@ export function SupplierProductFormManager() {
               ))}
             </select>
             <input
-              className="w-64 rounded border border-slate-300 px-2 py-1 text-sm"
+              className="w-64 rounded border border-[#2d333d] px-2 py-1 text-sm"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
               placeholder="폼 이름"
             />
             <button
               type="button"
-              className="rounded border border-slate-300 px-3 py-1 text-sm"
+              className="rounded border border-[#2d333d] px-3 py-1 text-sm"
               onClick={openFieldComposer}
             >
               필드 추가
             </button>
             <button
               type="button"
-              className="rounded bg-slate-900 px-3 py-1 text-sm text-white disabled:opacity-60"
+              className="rounded bg-blue-600 px-3 py-1 text-sm text-white disabled:opacity-60"
               onClick={saveForm}
               disabled={saving}
             >
               {saving ? "저장 중..." : "폼 저장"}
             </button>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-400">
               <input
                 type="checkbox"
                 checked={showAdvancedSettings}
@@ -407,11 +407,11 @@ export function SupplierProductFormManager() {
           </div>
 
           {composerOpen ? (
-            <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 p-3">
+            <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-[#2d333d] bg-[#111318] p-3">
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">표시명</label>
+                <label className="text-xs font-medium text-gray-400">표시명</label>
                 <input
-                  className="min-w-[12rem] rounded border border-slate-300 px-2 py-1 text-sm"
+                  className="min-w-[12rem] rounded border border-[#2d333d] px-2 py-1 text-sm"
                   value={newFieldLabel}
                   onChange={(e) => setNewFieldLabel(e.target.value)}
                   placeholder="예: 재고 수량"
@@ -419,9 +419,9 @@ export function SupplierProductFormManager() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">타입</label>
+                <label className="text-xs font-medium text-gray-400">타입</label>
                 <select
-                  className="rounded border border-slate-300 px-2 py-1 text-sm"
+                  className="rounded border border-[#2d333d] px-2 py-1 text-sm"
                   value={newFieldType}
                   onChange={(e) => setNewFieldType(e.target.value as FormFieldRow["fieldType"])}
                 >
@@ -434,14 +434,14 @@ export function SupplierProductFormManager() {
               </div>
               <button
                 type="button"
-                className="rounded bg-slate-800 px-3 py-1 text-sm text-white"
+                className="rounded bg-[#2a2f3a] px-3 py-1 text-sm text-white hover:bg-[#323842]"
                 onClick={confirmAddFieldFromComposer}
               >
                 추가
               </button>
               <button
                 type="button"
-                className="rounded border border-slate-300 px-3 py-1 text-sm"
+                className="rounded border border-[#2d333d] px-3 py-1 text-sm"
                 onClick={() => setComposerOpen(false)}
               >
                 취소
@@ -449,34 +449,34 @@ export function SupplierProductFormManager() {
             </div>
           ) : null}
 
-          <div className="overflow-auto rounded border border-slate-200">
+          <div className="overflow-auto rounded border border-[#2d333d]">
             <table className="min-w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  <th className="border-b border-slate-200 px-3 py-2" style={{ minWidth: "14rem" }}>
+                <tr className="bg-[#111318] text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  <th className="border-b border-[#2d333d] px-3 py-2" style={{ minWidth: "14rem" }}>
                     표시명
                   </th>
-                  <th className="border-b border-slate-200 px-2 py-2">타입</th>
-                  <th className="border-b border-slate-200 px-2 py-2 text-center" title="필수 입력">
+                  <th className="border-b border-[#2d333d] px-2 py-2">타입</th>
+                  <th className="border-b border-[#2d333d] px-2 py-2 text-center" title="필수 입력">
                     필수
                   </th>
-                  <th className="border-b border-slate-200 px-2 py-2 text-center">활성</th>
-                  <th className="border-b border-slate-200 px-2 py-2 text-center">순서</th>
-                  <th className="border-b border-slate-200 px-2 py-2">placeholder</th>
-                  <th className="border-b border-slate-200 px-2 py-2">도움말</th>
+                  <th className="border-b border-[#2d333d] px-2 py-2 text-center">활성</th>
+                  <th className="border-b border-[#2d333d] px-2 py-2 text-center">순서</th>
+                  <th className="border-b border-[#2d333d] px-2 py-2">placeholder</th>
+                  <th className="border-b border-[#2d333d] px-2 py-2">도움말</th>
                   {showAdvancedSettings ? (
                     <>
-                      <th className="border-b border-slate-200 px-2 py-2">validation (JSON)</th>
-                      <th className="border-b border-slate-200 px-2 py-2">내부키</th>
-                      <th className="border-b border-slate-200 px-2 py-2 text-center" title="바이어 상품 목록 대표명">
+                      <th className="border-b border-[#2d333d] px-2 py-2">validation (JSON)</th>
+                      <th className="border-b border-[#2d333d] px-2 py-2">내부키</th>
+                      <th className="border-b border-[#2d333d] px-2 py-2 text-center" title="바이어 상품 목록 대표명">
                         대표명
                       </th>
-                      <th className="border-b border-slate-200 px-2 py-2 text-center" title="바이어 상품 목록 대표 단가">
+                      <th className="border-b border-[#2d333d] px-2 py-2 text-center" title="바이어 상품 목록 대표 단가">
                         대표가
                       </th>
                     </>
                   ) : null}
-                  <th className="border-b border-slate-200 px-2 py-2 text-center">비활성화</th>
+                  <th className="border-b border-[#2d333d] px-2 py-2 text-center">비활성화</th>
                 </tr>
               </thead>
               <tbody>
@@ -486,19 +486,19 @@ export function SupplierProductFormManager() {
                   return (
                     <tr
                       key={rowStableKey(row, displayIndex)}
-                      className={disabledVisual ? "bg-slate-50/80 text-slate-500" : ""}
+                      className={disabledVisual ? "bg-[#111318]/80 text-gray-400" : ""}
                     >
-                      <td className="border-b border-slate-100 px-3 py-2">
+                      <td className="border-b border-[#2d333d] px-3 py-2">
                         <input
-                          className="w-full min-w-[12rem] rounded border border-slate-300 px-2 py-1.5 text-sm font-medium text-slate-900"
+                          className="w-full min-w-[12rem] rounded border border-[#2d333d] px-2 py-1.5 text-sm font-medium text-white"
                           value={row.fieldLabel}
                           onChange={(e) => stateIdx >= 0 && updateField(stateIdx, { fieldLabel: e.target.value })}
                           disabled={stateIdx < 0}
                         />
                       </td>
-                      <td className="border-b border-slate-100 px-2 py-2">
+                      <td className="border-b border-[#2d333d] px-2 py-2">
                         <select
-                          className="rounded border border-slate-300 px-2 py-1 text-xs"
+                          className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                           value={row.fieldType}
                           onChange={(e) =>
                             stateIdx >= 0 &&
@@ -515,11 +515,11 @@ export function SupplierProductFormManager() {
                           ))}
                         </select>
                       </td>
-                      <td className="border-b border-slate-100 px-2 py-2 text-center">
+                      <td className="border-b border-[#2d333d] px-2 py-2 text-center">
                         <button
                           type="button"
                           title={row.isRequired ? "필수 입력" : "선택 입력"}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-lg leading-none text-slate-700 hover:bg-slate-50"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[#2d333d] bg-[#1a1d23] text-lg leading-none text-gray-300 hover:bg-[#23272f]"
                           onClick={() =>
                             stateIdx >= 0 && updateField(stateIdx, { isRequired: !row.isRequired })
                           }
@@ -528,22 +528,22 @@ export function SupplierProductFormManager() {
                           {row.isRequired ? "✓" : "—"}
                         </button>
                       </td>
-                      <td className="border-b border-slate-100 px-2 py-2 text-center">
+                      <td className="border-b border-[#2d333d] px-2 py-2 text-center">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
                             row.isEnabled
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-slate-200 text-slate-600"
+                              ? "bg-emerald-950/40 text-emerald-300"
+                              : "bg-[#2d333d] text-gray-400"
                           }`}
                         >
                           {row.isEnabled ? "노출" : "숨김"}
                         </span>
                       </td>
-                      <td className="border-b border-slate-100 px-1 py-2 text-center">
+                      <td className="border-b border-[#2d333d] px-1 py-2 text-center">
                         <div className="inline-flex flex-col gap-0.5">
                           <button
                             type="button"
-                            className="rounded border border-slate-200 px-1.5 py-0 text-xs hover:bg-slate-100 disabled:opacity-40"
+                            className="rounded border border-[#2d333d] px-1.5 py-0 text-xs hover:bg-[#23272f] disabled:opacity-40"
                             disabled={displayIndex === 0}
                             onClick={() => moveRowInOrder(displayIndex, "up")}
                             title="위로"
@@ -552,7 +552,7 @@ export function SupplierProductFormManager() {
                           </button>
                           <button
                             type="button"
-                            className="rounded border border-slate-200 px-1.5 py-0 text-xs hover:bg-slate-100 disabled:opacity-40"
+                            className="rounded border border-[#2d333d] px-1.5 py-0 text-xs hover:bg-[#23272f] disabled:opacity-40"
                             disabled={displayIndex >= displayRows.length - 1}
                             onClick={() => moveRowInOrder(displayIndex, "down")}
                             title="아래로"
@@ -561,9 +561,9 @@ export function SupplierProductFormManager() {
                           </button>
                         </div>
                       </td>
-                      <td className="border-b border-slate-100 px-2 py-2">
+                      <td className="border-b border-[#2d333d] px-2 py-2">
                         <input
-                          className="w-36 max-w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                          className="w-36 max-w-full rounded border border-[#2d333d] px-2 py-1 text-xs"
                           value={row.placeholderText}
                           onChange={(e) =>
                             stateIdx >= 0 && updateField(stateIdx, { placeholderText: e.target.value })
@@ -571,9 +571,9 @@ export function SupplierProductFormManager() {
                           disabled={stateIdx < 0}
                         />
                       </td>
-                      <td className="border-b border-slate-100 px-2 py-2">
+                      <td className="border-b border-[#2d333d] px-2 py-2">
                         <input
-                          className="w-36 max-w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                          className="w-36 max-w-full rounded border border-[#2d333d] px-2 py-1 text-xs"
                           value={row.helpText}
                           onChange={(e) => stateIdx >= 0 && updateField(stateIdx, { helpText: e.target.value })}
                           disabled={stateIdx < 0}
@@ -581,9 +581,9 @@ export function SupplierProductFormManager() {
                       </td>
                       {showAdvancedSettings ? (
                         <>
-                          <td className="border-b border-slate-100 px-2 py-2">
+                          <td className="border-b border-[#2d333d] px-2 py-2">
                             <input
-                              className="w-44 max-w-full rounded border border-slate-300 px-2 py-1 font-mono text-xs"
+                              className="w-44 max-w-full rounded border border-[#2d333d] px-2 py-1 font-mono text-xs"
                               value={row.validationJson}
                               onChange={(e) =>
                                 stateIdx >= 0 && updateField(stateIdx, { validationJson: e.target.value })
@@ -592,15 +592,15 @@ export function SupplierProductFormManager() {
                               disabled={stateIdx < 0}
                             />
                           </td>
-                          <td className="border-b border-slate-100 px-2 py-2">
+                          <td className="border-b border-[#2d333d] px-2 py-2">
                             <span
-                              className="inline-block max-w-[10rem] truncate rounded border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs text-slate-600"
+                              className="inline-block max-w-[10rem] truncate rounded border border-[#2d333d] bg-[#111318] px-2 py-1 font-mono text-xs text-gray-400"
                               title={row.fieldKey || "저장 시 서버에서 부여"}
                             >
                               {row.fieldKey || "— (저장 시 부여)"}
                             </span>
                           </td>
-                          <td className="border-b border-slate-100 px-2 py-2 text-center">
+                          <td className="border-b border-[#2d333d] px-2 py-2 text-center">
                             <input
                               type="checkbox"
                               checked={row.isPrimaryName}
@@ -612,7 +612,7 @@ export function SupplierProductFormManager() {
                               title="바이어 목록 대표 표시명"
                             />
                           </td>
-                          <td className="border-b border-slate-100 px-2 py-2 text-center">
+                          <td className="border-b border-[#2d333d] px-2 py-2 text-center">
                             <input
                               type="checkbox"
                               checked={row.isPrimaryPrice}
@@ -626,11 +626,11 @@ export function SupplierProductFormManager() {
                           </td>
                         </>
                       ) : null}
-                      <td className="border-b border-slate-100 px-2 py-2 text-center">
+                      <td className="border-b border-[#2d333d] px-2 py-2 text-center">
                         {row.isEnabled ? (
                           <button
                             type="button"
-                            className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100"
+                            className="rounded border border-amber-700/50 bg-amber-950/30 px-2 py-1 text-xs font-medium text-amber-200 hover:bg-amber-950/50"
                             onClick={() => requestDeactivateField(row)}
                           >
                             비활성화
@@ -638,7 +638,7 @@ export function SupplierProductFormManager() {
                         ) : (
                           <button
                             type="button"
-                            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                            className="rounded border border-[#2d333d] bg-[#1a1d23] px-2 py-1 text-xs font-medium text-gray-300 hover:bg-[#23272f]"
                             onClick={() => requestReactivateField(row)}
                           >
                             다시 노출
@@ -650,7 +650,7 @@ export function SupplierProductFormManager() {
                 })}
                 {rows.length === 0 ? (
                   <tr>
-                    <td className="px-3 py-6 text-center text-slate-500" colSpan={totalColCount}>
+                    <td className="px-3 py-6 text-center text-gray-400" colSpan={totalColCount}>
                       등록된 필드가 없습니다. 「필드 추가」로 항목을 만드세요.
                     </td>
                   </tr>

@@ -149,13 +149,13 @@ export default function BuyerCollaborationProjectDetailPage() {
   }
 
   if (loading) {
-    return <div className="p-6 text-sm text-slate-500">불러오는 중…</div>;
+    return <div className="p-6 text-sm text-gray-400">불러오는 중…</div>;
   }
   if (error && !detail) {
     return (
       <div className="p-6">
-        <p className="text-red-600">{error}</p>
-        <Link href="/buyer/collaboration/projects" className="mt-2 text-sm text-slate-600">
+        <p className="text-red-400">{error}</p>
+        <Link href="/buyer/collaboration/projects" className="mt-2 text-sm text-gray-400">
           목록
         </Link>
       </div>
@@ -165,18 +165,18 @@ export default function BuyerCollaborationProjectDetailPage() {
 
   return (
     <div className="p-6">
-      <Link href="/buyer/collaboration/projects" className="text-sm text-slate-600 hover:underline">
+      <Link href="/buyer/collaboration/projects" className="text-sm text-gray-400 hover:underline">
         ← 목록
       </Link>
-      <h1 className="mt-2 text-xl font-semibold text-slate-900">{detail.title}</h1>
-      <p className="mt-1 text-xs text-slate-500">{detail.status}</p>
-      <div className="mt-4 whitespace-pre-wrap rounded border border-slate-200 bg-white p-3 text-sm text-slate-800">
+      <h1 className="mt-2 text-xl font-semibold text-white">{detail.title}</h1>
+      <p className="mt-1 text-xs text-gray-400">{detail.status}</p>
+      <div className="mt-4 whitespace-pre-wrap rounded border border-[#2d333d] bg-[#1a1d23] p-3 text-sm text-gray-300">
         {detail.description}
       </div>
 
-      <h2 className="mt-6 text-sm font-semibold text-slate-900">첨부 파일</h2>
+      <h2 className="mt-6 text-sm font-semibold text-white">첨부 파일</h2>
       <div
-        className="mt-2 rounded border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-600"
+        className="mt-2 rounded border border-dashed border-[#2d333d] bg-[#111318] p-6 text-center text-sm text-gray-400"
         onDragOver={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -197,35 +197,35 @@ export default function BuyerCollaborationProjectDetailPage() {
         />
       </div>
       {msg ? <p className="mt-1 text-xs text-emerald-700">{msg}</p> : null}
-      {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="mt-1 text-xs text-red-400">{error}</p> : null}
       <ul className="mt-2 space-y-1 text-sm">
         {detail.files.map((f) => (
           <li key={f.id} className="flex items-center gap-2">
             <span>{f.originalFilename}</span>
-            <button type="button" className="text-blue-700 underline" onClick={() => void onDownload(f.id)}>
+            <button type="button" className="text-blue-400 underline" onClick={() => void onDownload(f.id)}>
               다운로드
             </button>
           </li>
         ))}
       </ul>
 
-      <h2 className="mt-6 text-sm font-semibold text-slate-900">받은 제안</h2>
+      <h2 className="mt-6 text-sm font-semibold text-white">받은 제안</h2>
       <div className="mt-2 space-y-4">
         {detail.replies.map((r) => (
-          <div key={r.id} className="rounded border border-slate-200 bg-white p-3 text-sm">
-            <p className="text-xs font-medium text-slate-600">
+          <div key={r.id} className="rounded border border-[#2d333d] bg-[#1a1d23] p-3 text-sm">
+            <p className="text-xs font-medium text-gray-400">
               {r.authorSupplier?.companyName ?? r.authorSupplier?.supplierName ?? "업체"} ·{" "}
               {new Date(r.createdAt).toLocaleString()}
             </p>
-            <p className="mt-2 whitespace-pre-wrap text-slate-800">{r.body}</p>
+            <p className="mt-2 whitespace-pre-wrap text-gray-300">{r.body}</p>
             {r.files.length > 0 ? (
-              <ul className="mt-2 space-y-1 text-xs text-slate-600">
+              <ul className="mt-2 space-y-1 text-xs text-gray-400">
                 {r.files.map((f) => (
                   <li key={f.id} className="flex items-center gap-2">
                     <span>{f.originalFilename}</span>
                     <button
                       type="button"
-                      className="text-blue-700 underline"
+                      className="text-blue-400 underline"
                       onClick={() => void onDownloadReplyFile(r.id, f.id)}
                     >
                       다운로드

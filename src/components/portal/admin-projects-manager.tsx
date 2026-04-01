@@ -179,23 +179,23 @@ export function AdminProjectsManager() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-900">프로젝트 생성</h2>
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+        <h2 className="text-lg font-semibold text-white">프로젝트 생성</h2>
         <form className="mt-3 grid gap-3 md:grid-cols-2" onSubmit={onCreateProject}>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             프로젝트명
             <input
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={createForm.projectName}
               onChange={(event) =>
                 setCreateForm((prev) => ({ ...prev, projectName: event.target.value }))
               }
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             바이어
             <select
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={createForm.buyerId}
               onChange={(event) =>
                 setCreateForm((prev) => ({ ...prev, buyerId: event.target.value }))
@@ -209,10 +209,10 @@ export function AdminProjectsManager() {
               ))}
             </select>
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             국가
             <select
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={createForm.countryId}
               onChange={(event) =>
                 setCreateForm((prev) => ({ ...prev, countryId: event.target.value }))
@@ -226,42 +226,42 @@ export function AdminProjectsManager() {
               ))}
             </select>
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             현장 위치
             <input
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={createForm.location}
               onChange={(event) =>
                 setCreateForm((prev) => ({ ...prev, location: event.target.value }))
               }
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             시작일
             <input
               type="date"
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={createForm.startDate}
               onChange={(event) =>
                 setCreateForm((prev) => ({ ...prev, startDate: event.target.value }))
               }
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-gray-300">
             종료일
             <input
               type="date"
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               value={createForm.endDate}
               onChange={(event) =>
                 setCreateForm((prev) => ({ ...prev, endDate: event.target.value }))
               }
             />
           </label>
-          <label className="text-sm text-slate-700 md:col-span-2">
+          <label className="text-sm text-gray-300 md:col-span-2">
             메모
             <textarea
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+              className="mt-1 w-full rounded border border-[#2d333d] px-2 py-1"
               rows={3}
               value={createForm.memo}
               onChange={(event) =>
@@ -272,7 +272,7 @@ export function AdminProjectsManager() {
           <div className="md:col-span-2">
             <button
               type="submit"
-              className="rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
+              className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-60"
               disabled={submitting}
             >
               {submitting ? "생성 중..." : "프로젝트 생성"}
@@ -281,16 +281,16 @@ export function AdminProjectsManager() {
         </form>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4">
+      <section className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <div className="flex flex-wrap gap-2">
           <input
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             placeholder="프로젝트명 검색"
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
           />
           <select
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             value={status}
             onChange={(event) => setStatus(event.target.value)}
           >
@@ -302,7 +302,7 @@ export function AdminProjectsManager() {
             ))}
           </select>
           <select
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             value={countryId}
             onChange={(event) => setCountryId(event.target.value)}
           >
@@ -314,7 +314,7 @@ export function AdminProjectsManager() {
             ))}
           </select>
           <select
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-2 py-1 text-sm"
             value={buyerId}
             onChange={(event) => setBuyerId(event.target.value)}
           >
@@ -327,52 +327,52 @@ export function AdminProjectsManager() {
           </select>
           <button
             type="button"
-            className="rounded border border-slate-300 px-3 py-1 text-sm"
+            className="rounded border border-[#2d333d] px-3 py-1 text-sm"
             onClick={loadProjects}
           >
             조회
           </button>
         </div>
 
-        {loading ? <p className="mt-3 text-sm text-slate-500">프로젝트 목록을 불러오는 중...</p> : null}
-        {error ? <p className="mt-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
+        {loading ? <p className="mt-3 text-sm text-gray-400">프로젝트 목록을 불러오는 중...</p> : null}
+        {error ? <p className="mt-3 rounded bg-red-950/30 p-2 text-sm text-red-400">{error}</p> : null}
         {message ? <p className="mt-3 rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
 
         {!loading && !error ? (
           <div className="mt-3 overflow-auto">
             <table className="min-w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-slate-50">
-                  <th className="border border-slate-200 px-2 py-1 text-left">프로젝트명</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">바이어</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">국가</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">견적/주문</th>
-                  <th className="border border-slate-200 px-2 py-1 text-left">생성일</th>
+                <tr className="bg-[#111318]">
+                  <th className="border border-[#2d333d] px-2 py-1 text-left">프로젝트명</th>
+                  <th className="border border-[#2d333d] px-2 py-1 text-left">바이어</th>
+                  <th className="border border-[#2d333d] px-2 py-1 text-left">국가</th>
+                  <th className="border border-[#2d333d] px-2 py-1 text-left">상태</th>
+                  <th className="border border-[#2d333d] px-2 py-1 text-left">견적/주문</th>
+                  <th className="border border-[#2d333d] px-2 py-1 text-left">생성일</th>
                 </tr>
               </thead>
               <tbody>
                 {projects.map((project) => (
                   <tr key={project.id}>
-                    <td className="border border-slate-200 px-2 py-1">
-                      <a className="text-blue-700 underline" href={`/admin/projects/${project.id}`}>
+                    <td className="border border-[#2d333d] px-2 py-1">
+                      <a className="text-blue-400 underline" href={`/admin/projects/${project.id}`}>
                         {project.project_name}
                       </a>
                     </td>
-                    <td className="border border-slate-200 px-2 py-1">{project.buyer.name}</td>
-                    <td className="border border-slate-200 px-2 py-1">{project.country.country_name}</td>
-                    <td className="border border-slate-200 px-2 py-1">{statusLabel[project.status]}</td>
-                    <td className="border border-slate-200 px-2 py-1">
+                    <td className="border border-[#2d333d] px-2 py-1">{project.buyer.name}</td>
+                    <td className="border border-[#2d333d] px-2 py-1">{project.country.country_name}</td>
+                    <td className="border border-[#2d333d] px-2 py-1">{statusLabel[project.status]}</td>
+                    <td className="border border-[#2d333d] px-2 py-1">
                       {project._count.quotes} / {project._count.orders}
                     </td>
-                    <td className="border border-slate-200 px-2 py-1">
+                    <td className="border border-[#2d333d] px-2 py-1">
                       {new Date(project.created_at).toLocaleDateString()}
                     </td>
                   </tr>
                 ))}
                 {projects.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="border border-slate-200 px-2 py-3 text-center text-slate-500">
+                    <td colSpan={6} className="border border-[#2d333d] px-2 py-3 text-center text-gray-400">
                       조회된 프로젝트가 없습니다.
                     </td>
                   </tr>

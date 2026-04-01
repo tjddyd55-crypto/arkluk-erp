@@ -130,24 +130,24 @@ export function SupplierInvoiceSettings() {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">공급사 정보를 불러오는 중...</p>;
+    return <p className="text-sm text-gray-400">공급사 정보를 불러오는 중...</p>;
   }
 
   if (loadError) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{loadError}</p>;
+    return <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{loadError}</p>;
   }
 
   return (
-    <div className="overflow-auto rounded border border-slate-200 bg-white p-4">
+    <div className="overflow-auto rounded border border-[#2d333d] bg-[#1a1d23] p-4">
       <table className="min-w-full border-collapse text-sm">
         <thead>
-          <tr className="bg-slate-50">
-            <th className="border border-slate-200 px-2 py-1 text-left">공급사</th>
-            <th className="border border-slate-200 px-2 py-1 text-left">주문 수신 메일</th>
-            <th className="border border-slate-200 px-2 py-1 text-left">
+          <tr className="bg-[#111318]">
+            <th className="border border-[#2d333d] px-2 py-1 text-left">공급사</th>
+            <th className="border border-[#2d333d] px-2 py-1 text-left">주문 수신 메일</th>
+            <th className="border border-[#2d333d] px-2 py-1 text-left">
               세금계산서 발신 메일(from, 다중)
             </th>
-            <th className="border border-slate-200 px-2 py-1 text-left">저장</th>
+            <th className="border border-[#2d333d] px-2 py-1 text-left">저장</th>
           </tr>
         </thead>
         <tbody>
@@ -155,9 +155,9 @@ export function SupplierInvoiceSettings() {
             const state = rowState[supplier.id];
             return (
               <tr key={supplier.id}>
-                <td className="border border-slate-200 px-2 py-1">{supplier.supplier_name}</td>
-                <td className="border border-slate-200 px-2 py-1">{supplier.order_email}</td>
-                <td className="border border-slate-200 px-2 py-1">
+                <td className="border border-[#2d333d] px-2 py-1">{supplier.supplier_name}</td>
+                <td className="border border-[#2d333d] px-2 py-1">{supplier.order_email}</td>
+                <td className="border border-[#2d333d] px-2 py-1">
                   <textarea
                     value={state?.senderEmailsText ?? ""}
                     onChange={(e) =>
@@ -168,22 +168,22 @@ export function SupplierInvoiceSettings() {
                       })
                     }
                     placeholder={"invoice@acompany.com\ntax@acompany.com"}
-                    className="min-h-20 w-full min-w-64 rounded border border-slate-300 px-2 py-1"
+                    className="min-h-20 w-full min-w-64 rounded border border-[#2d333d] px-2 py-1"
                   />
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-gray-400">
                     줄바꿈 또는 콤마로 여러 발신 메일을 등록할 수 있습니다.
                   </p>
                   {state?.error ? (
-                    <p className="mt-1 text-xs text-red-600">{state.error}</p>
+                    <p className="mt-1 text-xs text-red-400">{state.error}</p>
                   ) : null}
                   {state?.message ? (
                     <p className="mt-1 text-xs text-emerald-700">{state.message}</p>
                   ) : null}
                 </td>
-                <td className="border border-slate-200 px-2 py-1">
+                <td className="border border-[#2d333d] px-2 py-1">
                   <button
                     type="button"
-                    className="rounded border border-slate-300 px-2 py-1"
+                    className="rounded border border-[#2d333d] px-2 py-1"
                     disabled={state?.pending}
                     onClick={() => saveInvoiceSenderEmail(supplier)}
                   >

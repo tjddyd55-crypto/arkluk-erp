@@ -137,13 +137,13 @@ const spm = {
     "relative z-0 cursor-pointer border-b border-[#2d333d] bg-[#1a1d23] transition-colors hover:bg-[#23272f]",
   expand: "border-b border-[#2d333d] bg-[#111318]",
   btnPrimary:
-    "rounded px-3 py-2 text-sm font-medium bg-blue-600 text-white transition-colors hover:bg-blue-500 disabled:opacity-50",
+    "rounded px-3 py-2 text-sm font-medium bg-blue-600 text-white transition-colors hover:bg-sky-950/250 disabled:opacity-50",
   btnSecondary:
     "rounded border border-[#3d4450] bg-[#2a3038] px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-[#323842] disabled:opacity-50",
   btnDanger:
     "rounded border border-red-900/60 bg-red-950/25 px-2 py-1 text-xs text-red-400 transition-colors hover:bg-red-950/45",
   input:
-    "rounded border border-[#2d333d] bg-[#14171c] px-2 py-1.5 text-sm text-white placeholder:text-gray-500",
+    "rounded border border-[#2d333d] bg-[#14171c] px-2 py-1.5 text-sm text-white placeholder:text-gray-400",
   select:
     "rounded border border-[#2d333d] bg-[#14171c] px-2 py-1.5 text-sm text-white",
   galleryScroll: "flex flex-nowrap gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]",
@@ -159,14 +159,14 @@ const spm = {
   thumbPreviewImg: "pointer-events-none max-h-52 max-w-full object-contain",
   /** 상품 상태 pill — 배경 + 글자색 (rounded-full) */
   statusPillBase: "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium",
-  statusDraft: "bg-yellow-500/20 text-yellow-200 ring-1 ring-inset ring-yellow-500/30",
+  statusDraft: "bg-yellow-950/300/20 text-yellow-200 ring-1 ring-inset ring-yellow-500/30",
   statusApproved: "bg-emerald-500/20 text-emerald-200 ring-1 ring-inset ring-emerald-500/35",
-  statusRejected: "bg-red-500/20 text-red-200 ring-1 ring-inset ring-red-500/35",
+  statusRejected: "bg-red-950/300/20 text-red-200 ring-1 ring-inset ring-red-500/35",
   statusPending: "bg-sky-500/20 text-sky-200 ring-1 ring-inset ring-sky-500/30",
   /** 필드 요청 상태 pill */
   fieldReqApproved: "bg-emerald-500/20 text-emerald-200 ring-1 ring-inset ring-emerald-500/35",
-  fieldReqRejected: "bg-red-500/20 text-red-200 ring-1 ring-inset ring-red-500/35",
-  fieldReqPending: "bg-amber-500/20 text-amber-200 ring-1 ring-inset ring-amber-500/30",
+  fieldReqRejected: "bg-red-950/300/20 text-red-200 ring-1 ring-inset ring-red-500/35",
+  fieldReqPending: "bg-amber-950/300/20 text-amber-200 ring-1 ring-inset ring-amber-500/30",
 } as const;
 
 /** APPROVED=ACTIVE(녹색), DRAFT=노랑, REJECTED=빨강, PENDING=sky */
@@ -1038,7 +1038,7 @@ export function SupplierProductManagement() {
                                     <button
                                       type="button"
                                       title="대표 이미지로 설정"
-                                      className="group/ga rounded border border-[#2d333d] p-0.5 transition-colors hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                                      className="group/ga rounded border border-[#2d333d] p-0.5 transition-colors hover:border-[#3d4450] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                                       disabled={isPrimary || settingPrimaryProductId === product.id}
                                       onClick={(e) => {
                                         e.stopPropagation();

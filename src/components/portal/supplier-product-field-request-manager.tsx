@@ -74,43 +74,43 @@ export function SupplierProductFieldRequestManager() {
   }
 
   return (
-    <section className="space-y-3 rounded border border-slate-200 bg-white p-4">
-      <h2 className="text-lg font-semibold text-slate-900">공급사 필드 추가 요청</h2>
+    <section className="space-y-3 rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+      <h2 className="text-lg font-semibold text-white">공급사 필드 추가 요청</h2>
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
-      {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-2 text-sm text-red-400">{error}</p> : null}
 
-      {loading ? <p className="text-sm text-slate-500">요청 목록을 불러오는 중...</p> : null}
+      {loading ? <p className="text-sm text-gray-400">요청 목록을 불러오는 중...</p> : null}
 
       {!loading ? (
         <div className="overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">공급사</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">요청 제목</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">필드명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">타입</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">사유</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상태</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">요청일</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">처리</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">공급사</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">요청 제목</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">필드명</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">타입</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">사유</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상태</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">요청일</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">처리</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id}>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.supplier.company_name ?? row.supplier.supplier_name}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{row.request_title}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.requested_field_label}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.requested_field_type}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.request_reason}</td>
-                  <td className="border border-slate-200 px-2 py-1">{row.status}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{row.request_title}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.requested_field_label}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.requested_field_type}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.request_reason}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">{row.status}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {new Date(row.created_at).toLocaleString()}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.status === "PENDING" ? (
                       <div className="flex gap-2">
                         <button
@@ -123,7 +123,7 @@ export function SupplierProductFieldRequestManager() {
                         </button>
                         <button
                           type="button"
-                          className="rounded border border-red-300 px-2 py-1 text-xs text-red-700 disabled:opacity-60"
+                          className="rounded border border-red-300 px-2 py-1 text-xs text-red-400 disabled:opacity-60"
                           disabled={processingId === row.id}
                           onClick={() => reviewRequest(row.id, "REJECTED")}
                         >
@@ -131,7 +131,7 @@ export function SupplierProductFieldRequestManager() {
                         </button>
                       </div>
                     ) : (
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-gray-400">
                         {row.reviewer ? `${row.reviewer.name}` : "-"}
                       </span>
                     )}
@@ -140,7 +140,7 @@ export function SupplierProductFieldRequestManager() {
               ))}
               {rows.length === 0 ? (
                 <tr>
-                  <td className="border border-slate-200 px-2 py-2 text-center text-slate-500" colSpan={8}>
+                  <td className="border border-[#2d333d] px-2 py-2 text-center text-gray-400" colSpan={8}>
                     요청 데이터가 없습니다.
                   </td>
                 </tr>

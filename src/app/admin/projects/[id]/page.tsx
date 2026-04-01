@@ -11,7 +11,7 @@ export default function AdminProjectDetailPage() {
   const projectId = Number(params.id);
 
   if (Number.isNaN(projectId)) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{t("error")}</p>;
+    return <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{t("error")}</p>;
   }
 
   return <AdminProjectDetail projectId={projectId} />;

@@ -9,12 +9,12 @@ export default function AdminProductsPage() {
   const { t } = useTranslation();
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">{t("products")}</h1>
-      <p className="text-sm text-slate-600">{t("search")}</p>
+      <h1 className="text-2xl font-bold text-white">{t("products")}</h1>
+      <p className="text-sm text-gray-400">{t("search")}</p>
       <div className="flex gap-2 text-sm">
         <Link
           href="/api/admin/products/excel/download"
-          className="rounded border border-slate-300 px-3 py-1"
+          className="rounded border border-[#2d333d] px-3 py-1"
         >
           {t("products")} {t("download")}
         </Link>

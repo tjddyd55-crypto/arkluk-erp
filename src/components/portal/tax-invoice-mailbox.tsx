@@ -274,13 +274,13 @@ export function TaxInvoiceMailbox() {
     <div className="space-y-4">
       <form
         onSubmit={onFilterSubmit}
-        className="rounded border border-slate-200 bg-white p-4"
+        className="rounded border border-[#2d333d] bg-[#1a1d23] p-4"
       >
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">공급사</span>
+            <span className="mb-1 block text-gray-400">공급사</span>
             <select
-              className="rounded border border-slate-300 px-2 py-1"
+              className="rounded border border-[#2d333d] px-2 py-1"
               value={supplierId}
               onChange={(e) => setSupplierId(e.target.value)}
             >
@@ -292,7 +292,7 @@ export function TaxInvoiceMailbox() {
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-1 text-sm text-slate-700">
+          <label className="flex items-center gap-1 text-sm text-gray-300">
             <input
               type="checkbox"
               checked={unclassifiedOnly}
@@ -301,47 +301,47 @@ export function TaxInvoiceMailbox() {
             미분류만 보기
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">기간(시작)</span>
+            <span className="mb-1 block text-gray-400">기간(시작)</span>
             <input
               type="date"
-              className="rounded border border-slate-300 px-2 py-1"
+              className="rounded border border-[#2d333d] px-2 py-1"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">기간(종료)</span>
+            <span className="mb-1 block text-gray-400">기간(종료)</span>
             <input
               type="date"
-              className="rounded border border-slate-300 px-2 py-1"
+              className="rounded border border-[#2d333d] px-2 py-1"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">발신메일</span>
+            <span className="mb-1 block text-gray-400">발신메일</span>
             <input
-              className="rounded border border-slate-300 px-2 py-1"
+              className="rounded border border-[#2d333d] px-2 py-1"
               placeholder="invoice@acompany.com"
               value={fromEmail}
               onChange={(e) => setFromEmail(e.target.value)}
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">주문번호</span>
+            <span className="mb-1 block text-gray-400">주문번호</span>
             <input
-              className="rounded border border-slate-300 px-2 py-1"
+              className="rounded border border-[#2d333d] px-2 py-1"
               placeholder="ORD-20260312-001"
               value={orderNo}
               onChange={(e) => setOrderNo(e.target.value)}
             />
           </label>
-          <button className="rounded border border-slate-300 px-3 py-1 text-sm" type="submit">
+          <button className="rounded border border-[#2d333d] px-3 py-1 text-sm" type="submit">
             필터 적용
           </button>
           <button
             type="button"
-            className="rounded bg-slate-900 px-3 py-1 text-sm text-white"
+            className="rounded bg-blue-600 px-3 py-1 text-sm text-white"
             onClick={runSync}
             disabled={syncPending}
           >
@@ -353,31 +353,31 @@ export function TaxInvoiceMailbox() {
       {syncMessage ? (
         <p className="rounded bg-emerald-50 p-3 text-sm text-emerald-700">{syncMessage}</p>
       ) : null}
-      {error ? <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-3 text-sm text-red-400">{error}</p> : null}
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {mailbox.map((box) => (
-          <article key={`${box.supplierId ?? "unmatched"}`} className="rounded border border-slate-200 bg-white p-4">
-            <p className="text-xs text-slate-500">공급사 메일함</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">{box.supplierName}</p>
-            <p className="mt-2 text-2xl font-bold text-slate-900">{box.count}</p>
+          <article key={`${box.supplierId ?? "unmatched"}`} className="rounded border border-[#2d333d] bg-[#1a1d23] p-4">
+            <p className="text-xs text-gray-400">공급사 메일함</p>
+            <p className="mt-1 text-sm font-semibold text-white">{box.supplierName}</p>
+            <p className="mt-2 text-2xl font-bold text-white">{box.count}</p>
           </article>
         ))}
       </section>
 
-      <section className="overflow-auto rounded border border-slate-200 bg-white p-4">
+      <section className="overflow-auto rounded border border-[#2d333d] bg-[#1a1d23] p-4">
         <table className="min-w-full border-collapse text-sm">
           <thead>
-            <tr className="bg-slate-50">
-              <th className="border border-slate-200 px-2 py-1 text-left">공급사</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">발신메일</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">수신일시</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">첨부 개수</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">첨부 존재</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">주문 연결 상태</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">연결 방식</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">미분류 여부</th>
-              <th className="border border-slate-200 px-2 py-1 text-left">수동 연결</th>
+            <tr className="bg-[#111318]">
+              <th className="border border-[#2d333d] px-2 py-1 text-left">공급사</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">발신메일</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">수신일시</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">첨부 개수</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">첨부 존재</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">주문 연결 상태</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">연결 방식</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">미분류 여부</th>
+              <th className="border border-[#2d333d] px-2 py-1 text-left">수동 연결</th>
             </tr>
           </thead>
           <tbody>
@@ -385,45 +385,45 @@ export function TaxInvoiceMailbox() {
               const state = linkState[row.id];
               return (
                 <tr key={row.id}>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.supplier?.supplier_name ?? "미분류"}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">{row.email_inbox.from_email}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{row.email_inbox.from_email}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {new Date(row.email_inbox.received_at).toLocaleString()}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.email_inbox.attachment_count}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.files.length > 0 ? "Y" : "N(첨부 없음)"}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.order ? (
-                      <a className="text-blue-700 underline" href={`/admin/orders/${row.order.id}`}>
+                      <a className="text-blue-400 underline" href={`/admin/orders/${row.order.id}`}>
                         {row.order.order_no}
                       </a>
                     ) : (
-                      <span className="text-slate-400">미연결</span>
+                      <span className="text-gray-400">미연결</span>
                     )}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.order_link_type === "AUTO"
                       ? "자동 연결"
                       : row.order_link_type === "MANUAL"
                         ? "수동 연결"
                         : "미연결"}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.supplier_id ? "N" : "Y"}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     <div className="mb-1 flex flex-wrap gap-1">
                       {row.files.map((file) => (
                         <a
                           key={file.id}
                           href={`/api/admin/tax-invoices/files/${file.id}/download`}
-                          className="rounded border border-slate-300 px-2 py-0.5 text-xs"
+                          className="rounded border border-[#2d333d] px-2 py-0.5 text-xs"
                         >
                           {file.file_type} 다운로드
                         </a>
@@ -431,7 +431,7 @@ export function TaxInvoiceMailbox() {
                     </div>
                     <div className="mt-1 flex items-center gap-1">
                       <select
-                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                        className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                         value={state?.supplierId ?? ""}
                         onChange={(e) =>
                           updateLinkState(row.id, {
@@ -449,7 +449,7 @@ export function TaxInvoiceMailbox() {
                         ))}
                       </select>
                       <button
-                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                        className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                         onClick={() => linkSupplier(row)}
                         disabled={state?.pending}
                       >
@@ -458,7 +458,7 @@ export function TaxInvoiceMailbox() {
                     </div>
                     <div className="mt-1 flex items-center gap-1">
                       <input
-                        className="w-40 rounded border border-slate-300 px-2 py-1 text-xs"
+                        className="w-40 rounded border border-[#2d333d] px-2 py-1 text-xs"
                         value={state?.orderNo ?? ""}
                         onChange={(e) =>
                           updateLinkState(row.id, {
@@ -470,21 +470,21 @@ export function TaxInvoiceMailbox() {
                         placeholder="ORD-20260312-001"
                       />
                       <button
-                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                        className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                         onClick={() => linkOrder(row)}
                         disabled={state?.pending}
                       >
                         {state?.pending ? "처리 중..." : "연결"}
                       </button>
                       <button
-                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                        className="rounded border border-[#2d333d] px-2 py-1 text-xs"
                         onClick={() => unlinkOrder(row)}
                         disabled={state?.pending || !row.order_id}
                       >
                         연결 해제
                       </button>
                     </div>
-                    {state?.error ? <p className="text-xs text-red-600">{state.error}</p> : null}
+                    {state?.error ? <p className="text-xs text-red-400">{state.error}</p> : null}
                     {state?.message ? (
                       <p className="text-xs text-emerald-700">{state.message}</p>
                     ) : null}
@@ -495,7 +495,7 @@ export function TaxInvoiceMailbox() {
           </tbody>
         </table>
         {!loading && rows.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">세금계산서 데이터가 없습니다.</p>
+          <p className="mt-3 text-sm text-gray-400">세금계산서 데이터가 없습니다.</p>
         ) : null}
       </section>
     </div>

@@ -62,7 +62,6 @@ export function PortalShell({ children }: { children: ReactNode }) {
   const { t, language, setLanguage, isRTL } = useTranslation();
   const menu = getMenu(pathname, role);
   const isBuyerPortal = pathname.startsWith("/buyer");
-  const isSupplierPortal = pathname.startsWith("/supplier");
 
   useEffect(() => {
     async function loadMe() {
@@ -102,19 +101,13 @@ export function PortalShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div
-      className={`flex min-h-screen ${isSupplierPortal ? "bg-[#0f1115]" : "bg-slate-100"} ${isRTL ? "flex-row-reverse" : ""}`}
-    >
+    <div className={`flex min-h-screen bg-[#0f1115] ${isRTL ? "flex-row-reverse" : ""}`}>
       <aside
-        className={`w-60 p-4 ${isRTL ? "border-l" : "border-r"} border ${
-          isSupplierPortal
-            ? "border-[#2d333d] bg-[#14171c] text-gray-300"
-            : "border-slate-200 bg-white"
+        className={`w-60 border border-[#2d333d] bg-[#14171c] p-4 text-gray-300 ${
+          isRTL ? "border-l" : "border-r"
         }`}
       >
-        <h1 className={`text-lg font-bold ${isSupplierPortal ? "text-zinc-100" : ""}`}>
-          {t("app_name")}
-        </h1>
+        <h1 className="text-lg font-bold text-zinc-100">{t("app_name")}</h1>
         <nav className="mt-4 space-y-1">
           {isBuyerPortal ? (
             <BuyerSideNav />
@@ -125,12 +118,8 @@ export function PortalShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 className={`block rounded px-3 py-2 text-sm ${
                   pathname === item.href
-                    ? isSupplierPortal
-                      ? "bg-[#23272f] text-white"
-                      : "bg-slate-900 text-white"
-                    : isSupplierPortal
-                      ? "text-gray-400 hover:bg-[#23272f] hover:text-white"
-                      : "text-slate-700 hover:bg-slate-100"
+                    ? "bg-[#23272f] text-white"
+                    : "text-gray-400 hover:bg-[#23272f] hover:text-white"
                 }`}
               >
                 {t(item.labelKey)}
@@ -140,29 +129,19 @@ export function PortalShell({ children }: { children: ReactNode }) {
         </nav>
         <button
           onClick={onLogout}
-          className={`mt-6 w-full rounded px-3 py-2 text-sm ${
-            isSupplierPortal
-              ? "border border-[#3d4450] bg-[#2a3038] text-gray-300 transition-colors hover:bg-[#323842]"
-              : "border border-slate-300"
-          }`}
+          className="mt-6 w-full rounded border border-[#3d4450] bg-[#2a3038] px-3 py-2 text-sm text-gray-300 transition-colors hover:bg-[#323842]"
         >
           {t("logout")}
         </button>
       </aside>
-      <main
-        className={`flex-1 p-6 ${isSupplierPortal ? "portal-main bg-[#0f1115]" : ""}`}
-      >
+      <main className="portal-main flex-1 bg-[#0f1115] p-6">
         <div
-          className={`mb-4 flex items-center gap-3 ${isRTL ? "justify-start" : "justify-end"} ${isSupplierPortal ? "text-zinc-400" : ""}`}
+          className={`mb-4 flex items-center gap-3 text-zinc-400 ${isRTL ? "justify-start" : "justify-end"}`}
         >
           <label className="flex items-center gap-2 text-sm">
             <span>{t("language")}</span>
             <select
-              className={`rounded px-2 py-1 text-sm ${
-                isSupplierPortal
-                  ? "border border-[#2d333d] bg-[#14171c] text-white"
-                  : "border border-slate-300"
-              }`}
+              className="rounded border border-[#2d333d] bg-[#14171c] px-2 py-1 text-sm text-white"
               value={language}
               onChange={(event) => onChangeLanguage(event.target.value as SupportedLanguage)}
             >
@@ -172,7 +151,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
               <option value="ar">العربية</option>
             </select>
           </label>
-          <NotificationBell dark={isSupplierPortal} />
+          <NotificationBell />
         </div>
         {children}
       </main>

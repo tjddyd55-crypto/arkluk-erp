@@ -113,59 +113,59 @@ export function AdminProductTranslationEditor({ productId }: { productId: number
   }
 
   return (
-    <section className="space-y-4 rounded border border-slate-200 bg-white p-4">
+    <section className="space-y-4 rounded border border-[#2d333d] bg-[#1a1d23] p-4">
       <div className="space-y-1">
-        <h1 className="text-xl font-semibold text-slate-900">상품 번역 관리</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-xl font-semibold text-white">상품 번역 관리</h1>
+        <p className="text-sm text-gray-400">
           상품코드: <span className="font-medium">{productCode || "-"}</span> / 기본명:{" "}
           <span className="font-medium">{productName || "-"}</span>
         </p>
       </div>
 
       {message ? <p className="rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
-      {error ? <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="rounded bg-red-950/30 p-2 text-sm text-red-400">{error}</p> : null}
 
       {loading ? (
-        <p className="text-sm text-slate-500">번역 정보를 불러오는 중...</p>
+        <p className="text-sm text-gray-400">번역 정보를 불러오는 중...</p>
       ) : (
         <div className="overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-slate-200 px-2 py-1 text-left">언어</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">상품명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">설명</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">유형</th>
-                <th className="border border-slate-200 px-2 py-1 text-left">저장</th>
+              <tr className="bg-[#111318]">
+                <th className="border border-[#2d333d] px-2 py-1 text-left">언어</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">상품명</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">설명</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">유형</th>
+                <th className="border border-[#2d333d] px-2 py-1 text-left">저장</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.language}>
-                  <td className="border border-slate-200 px-2 py-1">{LANGUAGE_LABEL[row.language]}</td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">{LANGUAGE_LABEL[row.language]}</td>
+                  <td className="border border-[#2d333d] px-2 py-1">
                     <input
-                      className="w-full rounded border border-slate-300 px-2 py-1"
+                      className="w-full rounded border border-[#2d333d] px-2 py-1"
                       value={row.name}
                       onChange={(event) => updateRow(row.language, { name: event.target.value })}
                     />
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     <input
-                      className="w-full rounded border border-slate-300 px-2 py-1"
+                      className="w-full rounded border border-[#2d333d] px-2 py-1"
                       value={row.description ?? ""}
                       onChange={(event) =>
                         updateRow(row.language, { description: event.target.value || null })
                       }
                     />
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     {row.isSource ? "원문" : row.isAuto ? "자동 번역" : "관리자 수정"}
                   </td>
-                  <td className="border border-slate-200 px-2 py-1">
+                  <td className="border border-[#2d333d] px-2 py-1">
                     <button
                       type="button"
-                      className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
+                      className="rounded border border-[#2d333d] px-2 py-1 text-xs disabled:opacity-60"
                       disabled={savingLanguage === row.language}
                       onClick={() => saveRow(row.language)}
                     >

@@ -44,21 +44,21 @@ export default function SupplierCollaborationProjectsPage() {
 
   return (
     <div className="p-6">
-      <h1 className="text-xl font-semibold text-slate-900">협업 프로젝트</h1>
-      <p className="mt-1 text-sm text-slate-500">OPEN 상태의 프로젝트만 열람할 수 있습니다.</p>
-      {loading ? <p className="mt-4 text-sm text-slate-500">불러오는 중&hellip;</p> : null}
-      {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+      <h1 className="text-xl font-semibold text-white">협업 프로젝트</h1>
+      <p className="mt-1 text-sm text-gray-400">OPEN 상태의 프로젝트만 열람할 수 있습니다.</p>
+      {loading ? <p className="mt-4 text-sm text-gray-400">불러오는 중&hellip;</p> : null}
+      {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
       {!loading && !error && rows.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500">열람 가능한 프로젝트가 없습니다.</p>
+        <p className="mt-4 text-sm text-gray-400">열람 가능한 프로젝트가 없습니다.</p>
       ) : null}
       <ul className="mt-4 space-y-2">
         {rows.map((r) => (
-          <li key={r.id} className="rounded border border-slate-200 bg-white p-3">
-            <Link href={`/supplier/collaboration/projects/${r.id}`} className="font-medium text-slate-900 hover:underline">
+          <li key={r.id} className="rounded border border-[#2d333d] bg-[#1a1d23] p-3">
+            <Link href={`/supplier/collaboration/projects/${r.id}`} className="font-medium text-white hover:underline">
               {r.title}
             </Link>
-            <p className="mt-1 line-clamp-2 text-xs text-slate-600">{r.description}</p>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 line-clamp-2 text-xs text-gray-400">{r.description}</p>
+            <p className="mt-1 text-xs text-gray-400">
               {r.status} · {new Date(r.createdAt).toLocaleString()}
               {r.sampleFiles.length > 0 ? ` · 첨부 샘플 ${r.sampleFiles.length}건` : ""}
             </p>

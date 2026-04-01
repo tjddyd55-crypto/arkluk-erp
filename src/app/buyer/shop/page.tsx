@@ -9,9 +9,9 @@ export default function BuyerShopPage() {
   const { t } = useTranslation();
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900">{t("buyer_shop_order")}</h1>
-      <p className="text-sm text-slate-600">{t("buyer_shop_hint")}</p>
-      <Suspense fallback={<p className="text-sm text-slate-500">{t("loading")}</p>}>
+      <h1 className="text-2xl font-bold text-white">{t("buyer_shop_order")}</h1>
+      <p className="text-sm text-gray-400">{t("buyer_shop_hint")}</p>
+      <Suspense fallback={<p className="text-sm text-gray-400">{t("loading")}</p>}>
         <BuyerShopOrder />
       </Suspense>
     </div>

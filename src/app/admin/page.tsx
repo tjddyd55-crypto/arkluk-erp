@@ -26,5 +26,5 @@ export default function AdminDashboardPage() {
     routeByRole();
   }, [router]);
 
-  return <p className="text-sm text-slate-500">{t("loading")}</p>;
+  return <p className="text-sm text-gray-400">{t("loading")}</p>;
 }
